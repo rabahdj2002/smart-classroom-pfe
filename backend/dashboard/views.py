@@ -24,7 +24,7 @@ def live_sensors(request):
     
     response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
     response['Cache-Control'] = 'no-cache'
-    response['Connection'] = 'keep-alive'
+    response['Access-Control-Allow-Origin'] = '*'
     return response
 
 def dashboard(request):
