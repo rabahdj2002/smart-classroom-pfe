@@ -1,0 +1,307 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+  <div class="layout-page">
+    <div class="content-wrapper">
+      <div class="container-xxl flex-grow-1 container-p-y">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+          <h4 class="fw-bold mb-0">Classroom details - {{ classroom.name|upper }}</h4>
+          <a href="{% url 'classes' %}" class="btn btn-outline-primary btn-sm">
+            <i class="bx bx-left-arrow-alt"></i> Back
+          </a>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-3">
+            <div class="card h-100">
+              <div class="card-body text-primary">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bx bx-door-open fs-3"></i>
+                  <h6 class="card-title ms-2 mb-0">Capacity</h6>
+                </div>
+                <p class="h3 fw-bold">{{ classroom.capacity }}</p>
+                <p class="mb-0 text-muted">Seats</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="card h-100">
+              <div class="card-body text-success">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bx bx-user-circle fs-3"></i>
+                  <h6 id="occupiedLabel" class="card-title ms-2 mb-0">Today Occupied</h6>
+                </div>
+                <p id="occupiedValue" class="h3 fw-bold">{{ occupied_students }}</p>
+                <small id="occupiedPercent" class="text-muted">{{ occupied_percentage|floatformat:2 }}%</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="card h-100">
+              <div class="card-body text-info">
+                <div class="d-flex align-items-center mb-3">
+                  <i class="bx bx-slideshow fs-3"></i>
+                  <h6 class="card-title ms-2 mb-0">Room Devices</h6>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div>
+                    <span class="badge rounded-circle" style="width: 10px; height: 10px; display: inline-block; background-color: {% if classroom.lights_on %}#198754{% else %}#6c757d{% endif %};"></span>
+                    <span class="ms-2">Lights</span>
+                  </div>
+                  <div>{% if classroom.lights_on %}<span class="badge bg-success">ON</span>{% else %}<span class="badge bg-secondary">OFF</span>{% endif %}</div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div>
+                    <span class="badge rounded-circle" style="width: 10px; height: 10px; display: inline-block; background-color: {% if classroom.door %}#dc3545{% else %}#198754{% endif %};"></span>
+                    <span class="ms-2">Door</span>
+                  </div>
+                  <div>{% if classroom.door %}<span class="badge bg-danger">Open</span>{% else %}<span class="badge bg-success">Closed</span>{% endif %}</div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <span class="badge rounded-circle" style="width: 10px; height: 10px; display: inline-block; background-color: {% if classroom.projector_on %}#0dcaf0{% else %}#6c757d{% endif %};"></span>
+                    <span class="ms-2">Projector</span>
+                  </div>
+                  <div>{% if classroom.projector_on %}<span class="badge bg-info">ON</span>{% else %}<span class="badge bg-secondary">OFF</span>{% endif %}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-2">
+            <div class="card h-100 border-top border-4 border-danger">
+              <div class="card-body text-danger">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bx bx-bell fs-3"></i>
+                  <h6 class="card-title ms-2 mb-0">Danger</h6>
+                </div>
+                <div class="d-flex align-items-center">
+                  <span style="width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 10px; box-shadow: 0 0 10px 2px {% if classroom.danger_indicator %}rgba(220,53,69,.8){% else %}rgba(25,135,84,.5){% endif %}; background-color: {% if classroom.danger_indicator %}#dc3545{% else %}#198754{% endif %};"></span>
+                  <span class="fw-bold fs-5">{% if classroom.danger_indicator %}Active{% else %}Safe{% endif %}</span>
+                </div>
+                <small class="text-muted">{% if classroom.danger_indicator %}Immediate attention required{% else %}No alert</small>{% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-body text-primary">
+                <h6 id="studentLabel" class="card-title">Last 7 Days Student Sessions</h6>
+                <p id="studentValue" class="h2 fw-bold">{{ weekly_student_sessions|default:0 }}</p>
+                <p id="studentHelp" class="text-muted mb-0">Sessions counted by distinct student attendance entries.</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-body text-success">
+                <h6 id="teacherLabel" class="card-title">Last 7 Days Teacher Sessions</h6>
+                <p id="teacherValue" class="h2 fw-bold">{{ weekly_teacher_sessions|default:0 }}</p>
+                <p id="teacherHelp" class="text-muted mb-0">Sessions counted by teacher attendance records (2 teachers = 2 sessions).</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="card-title mb-0">Usage trend</h5>
+              <div>
+                <button id="class-btn-today" class="btn btn-outline-secondary btn-sm me-1">Today</button>
+                <button id="class-btn-yesterday" class="btn btn-outline-secondary btn-sm me-1">Yesterday</button>
+                <button id="class-btn-all-week" class="btn btn-primary btn-sm me-1">Last 7 days</button>
+                <button id="class-btn-full-month" class="btn btn-outline-secondary btn-sm me-1">Last 30 days</button>
+              </div>
+            </div>
+            <div id="classUsageChart" style="min-height: 320px;"></div>
+          </div>
+        </div>
+
+        <a href="{% url 'classes' %}" class="btn btn-outline-secondary">Back to classes</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (typeof ApexCharts !== 'undefined') {
+        var initialLabels = {{ usage_labels_json|safe }};
+        var initialDataStudents = {{ usage_values_json|safe }};
+        var initialDataTeachers = {{ usage_teacher_values_json|safe }};
+        var capacity = {{ classroom.capacity|default:0 }};
+
+        var initialLabels7 = initialLabels.slice(-7);
+        var initialStudents7 = initialDataStudents.slice(-7);
+        var initialTeachers7 = initialDataTeachers.slice(-7);
+
+        var options = {
+          chart: {
+            height: 350,
+            type: 'area',
+            toolbar: { show: true, tools: { download: true, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } }
+          },
+          colors: ['#0d6efd', '#20c997'],
+          dataLabels: { enabled: false },
+          stroke: { curve: 'smooth', width: 3 },
+          markers: { size: 4 },
+          series: [
+            { name: 'Students', data: initialStudents7 },
+            { name: 'Teachers', data: initialTeachers7 }
+          ],
+          xaxis: {
+            categories: initialLabels7,
+            labels: { rotate: -45 }
+          },
+          yaxis: {
+            title: { text: 'Count' },
+            min: 0,
+            forceNiceScale: true
+          },
+          tooltip: {
+            shared: true,
+            intersect: false,
+            y: {
+              formatter: function (val) {
+                return val + ' attendance';
+              }
+            }
+          },
+          fill: {
+            type: 'gradient',
+            gradient: {
+              shadeIntensity: 1,
+              opacityFrom: 0.6,
+              opacityTo: 0.15,
+              stops: [20, 95, 100]
+            }
+          }
+        };
+        var chart = new ApexCharts(document.querySelector('#classUsageChart'), options);
+        chart.render();
+
+        function updateChart(duration) {
+          var labels = initialLabels;
+          var students = initialDataStudents;
+          var teachers = initialDataTeachers;
+
+          if (duration === 'today') {
+            labels = initialLabels.slice(-1);
+            students = initialDataStudents.slice(-1);
+            teachers = initialDataTeachers.slice(-1);
+          } else if (duration === 'yesterday') {
+            labels = initialLabels.slice(-2, -1);
+            students = initialDataStudents.slice(-2, -1);
+            teachers = initialDataTeachers.slice(-2, -1);
+          } else if (duration === 7) {
+            labels = initialLabels.slice(-7);
+            students = initialDataStudents.slice(-7);
+            teachers = initialDataTeachers.slice(-7);
+          } else if (duration === 30) {
+            labels = initialLabels.slice(-30);
+            students = initialDataStudents.slice(-30);
+            teachers = initialDataTeachers.slice(-30);
+          }
+
+          chart.updateOptions({
+            xaxis: { categories: labels }
+          });
+          chart.updateSeries([
+            { name: 'Students', data: students },
+            { name: 'Teachers', data: teachers }
+          ]);
+
+          setMetrics(duration, students, teachers);
+        }
+
+        function setMetrics(duration, students, teachers) {
+          var studentSum = 0;
+          var teacherSum = 0;
+          var durationLabel = '';
+
+          if (duration === 'today') {
+            durationLabel = 'Today';
+            var occupiedCount = students[students.length - 1] || 0;
+            studentSum = occupiedCount;
+            teacherSum = teachers[teachers.length - 1] || 0;
+
+            document.getElementById('occupiedLabel').innerText = durationLabel + ' Occupied';
+            document.getElementById('occupiedValue').innerText = occupiedCount;
+            if (capacity > 0) {
+              document.getElementById('occupiedPercent').innerText = ((occupiedCount / capacity) * 100).toFixed(2) + '%';
+            } else {
+              document.getElementById('occupiedPercent').innerText = 'N/A';
+            }
+          } else if (duration === 'yesterday') {
+            durationLabel = 'Yesterday';
+            var occupiedCount = students[students.length - 1] || 0;
+            studentSum = occupiedCount;
+            teacherSum = teachers[teachers.length - 1] || 0;
+
+            document.getElementById('occupiedLabel').innerText = durationLabel + ' Occupied';
+            document.getElementById('occupiedValue').innerText = occupiedCount;
+            if (capacity > 0) {
+              document.getElementById('occupiedPercent').innerText = ((occupiedCount / capacity) * 100).toFixed(2) + '%';
+            } else {
+              document.getElementById('occupiedPercent').innerText = 'N/A';
+            }
+          } else if (duration === 7) {
+            durationLabel = 'Last 7 Days';
+            studentSum = students.reduce((a,b)=>a+b,0);
+            teacherSum = teachers.reduce((a,b)=>a+b,0);
+          } else if (duration === 30) {
+            durationLabel = 'Last 30 Days';
+            studentSum = students.reduce((a,b)=>a+b,0);
+            teacherSum = teachers.reduce((a,b)=>a+b,0);
+          }
+
+          document.getElementById('studentLabel').innerText = durationLabel + ' Student Sessions';
+          document.getElementById('studentValue').innerText = studentSum;
+          document.getElementById('teacherLabel').innerText = durationLabel + ' Teacher Sessions';
+          document.getElementById('teacherValue').innerText = teacherSum;
+        }
+
+        function setActiveButton(activeId) {
+          ['class-btn-today', 'class-btn-yesterday', 'class-btn-all-week', 'class-btn-full-month'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            if (id === activeId) {
+              el.classList.remove('btn-outline-secondary');
+              el.classList.add('btn-primary');
+            } else {
+              el.classList.remove('btn-primary');
+              el.classList.add('btn-outline-secondary');
+            }
+          });
+        }
+
+        document.getElementById('class-btn-today').addEventListener('click', function () {
+          updateChart('today');
+          setActiveButton('class-btn-today');
+        });
+
+        document.getElementById('class-btn-yesterday').addEventListener('click', function () {
+          updateChart('yesterday');
+          setActiveButton('class-btn-yesterday');
+        });
+
+        document.getElementById('class-btn-all-week').addEventListener('click', function () {
+          updateChart(7);
+          setActiveButton('class-btn-all-week');
+        });
+
+        document.getElementById('class-btn-full-month').addEventListener('click', function () {
+          updateChart(30);
+          setActiveButton('class-btn-full-month');
+        });
+
+        updateChart(7);
+      }
+    });
+  </script>
+{% endblock %}

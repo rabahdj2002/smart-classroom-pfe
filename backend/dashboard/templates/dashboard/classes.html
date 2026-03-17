@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+  <div class="layout-page">
+    <!-- Navbar -->
+    <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
+      <div class="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
+        <a class="nav-item nav-link px-0 me-xl-4" href="javascript:void(0)"><i class="bx bx-menu bx-sm"></i></a>
+      </div>
+      <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
+        <div class="navbar-nav align-items-center">
+          <div class="nav-item d-flex align-items-center">
+            <i class="bx bx-search fs-4 lh-0"></i>
+            <input type="text" class="form-control border-0 shadow-none" placeholder="Search..." aria-label="Search..." />
+          </div>
+        </div>
+      </div>
+    </nav>
+    <!-- / Navbar -->
+
+    <div class="content-wrapper">
+      <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Monitoring /</span> Classrooms</h4>
+
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Classrooms Overview</h5>
+            <a href="{% url 'add_class' %}" class="btn btn-primary btn-sm">
+              <i class="bx bx-plus"></i> Add Class
+            </a>
+          </div>
+          <div class="table-responsive text-nowrap">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Room</th>
+                  <th>Occupancy</th>
+                  <th>Status</th>
+                  <th>Lights</th>
+                  <th>Projector</th>
+                  <th>Door</th>
+                </tr>
+              </thead>
+              <tbody class="table-border-bottom-0">
+                {% for room in classrooms %}
+                  {% if room.id %}
+                    <tr data-href="{% url 'classroom_detail' room.id %}" class="clickable-row" style="cursor: pointer;">
+                  {% else %}
+                    <tr>
+                  {% endif %}
+                    <td>{{ room.name|upper }}</td>
+                    <td>{{ room.capacity }} Students</td>
+                    <td>
+                      {% if room.occupied %}
+                        <span class="badge bg-secondary">Occupied</span>
+                      {% else %}
+                        <span class="badge bg-success">Available</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if room.lights_on %}
+                        <span class="badge bg-danger">ON</span>
+                      {% else %}
+                        <span class="badge bg-success">OFF</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if room.projector_on %}
+                        <span class="badge bg-danger">ON</span>
+                      {% else %}
+                        <span class="badge bg-success">OFF</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if room.door %}
+                        <span class="badge bg-danger">Open</span>
+                      {% else %}
+                        <span class="badge bg-success">Closed</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="6" class="text-center">No classrooms found.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <footer class="content-footer footer bg-footer-theme">
+        <div class="container-xxl d-flex flex-wrap justify-content-between py-2 flex-md-row flex-column">
+          <div>© 2026 Smart Classroom</div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('tr.clickable-row[data-href]').forEach(function (row) {
+        row.addEventListener('click', function () {
+          window.location.href = row.getAttribute('data-href');
+        });
+      });
+    });
+  </script>
+{% endblock %}

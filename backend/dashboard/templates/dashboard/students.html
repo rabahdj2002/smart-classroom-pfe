@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+  <div class="layout-page">
+    <!-- Navbar -->
+    <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
+      <div class="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
+        <a class="nav-item nav-link px-0 me-xl-4" href="javascript:void(0)"><i class="bx bx-menu bx-sm"></i></a>
+      </div>
+      <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
+        <div class="navbar-nav align-items-center">
+          <div class="nav-item d-flex align-items-center">
+            <i class="bx bx-search fs-4 lh-0"></i>
+            <input type="text" class="form-control border-0 shadow-none" placeholder="Search..." aria-label="Search..." />
+          </div>
+        </div>
+      </div>
+    </nav>
+    <!-- / Navbar -->
+
+    <div class="content-wrapper">
+      <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Users /</span> Students</h4>
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Students Overview</h5>
+            <a href="{% url 'add_student' %}" class="btn btn-primary btn-sm"><i class="bx bx-plus"></i> Add Student</a>
+          </div>
+          <div class="table-responsive text-nowrap">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Specialization</th>
+                  <th>Year</th>
+                  <th>Student Card</th>
+                  <th>RFID</th>
+                </tr>
+              </thead>
+              <tbody class="table-border-bottom-0">
+                {% for student in students %}
+                  <tr data-href="{% url 'student_detail' student.id %}" class="clickable-row" style="cursor: pointer;">
+                    <td>{{ student.name }}</td>
+                    <td>{{ student.email }}</td>
+                    <td>{{ student.get_specialization_display }}</td>
+                    <td>{{ student.year }}</td>
+                    <td>{{ student.student_card_id }}</td>
+                    <td>{{ student.rfid_number }}</td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="6" class="text-center">No students found.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <footer class="content-footer footer bg-footer-theme">
+        <div class="container-xxl d-flex flex-wrap justify-content-between py-2 flex-md-row flex-column">
+          <div>© 2026 Smart Classroom</div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('tr.clickable-row[data-href]').forEach(function (row) {
+        row.addEventListener('click', function () {
+          window.location.href = row.getAttribute('data-href');
+        });
+      });
+    });
+  </script>
+{% endblock %}

@@ -11,6 +11,7 @@ class Student(models.Model):
         ('MI', 'Mathématiques et Informatique'),
     ]
     
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     specialization = models.CharField(max_length=20, choices=SPECIALIZATION_CHOICES)
@@ -29,6 +30,7 @@ class Staff(models.Model):
         ('ADMIN', 'Administrator'),
     ]
     
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
@@ -40,10 +42,12 @@ class Staff(models.Model):
 
 
 class Classroom(models.Model):
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
     capacity = models.IntegerField()
     lights_on = models.BooleanField(default=False)
     occupied = models.BooleanField(default=False)
+    door = models.BooleanField(default=False)
     projector_on = models.BooleanField(default=False)
     temperature = models.FloatField(null=True, blank=True)
     danger_indicator = models.BooleanField(default=False)
@@ -53,6 +57,7 @@ class Classroom(models.Model):
 
 
 class Attendance(models.Model):
+    id = models.AutoField(primary_key=True)
     students = models.ManyToManyField(Student, blank=True) # make sure it's a list of students
     #student = models.ForeignKey(Student, on_delete=models.CASCADE, null=True, blank=True)
     staff = models.ForeignKey(Staff, on_delete=models.CASCADE, null=True, blank=True)
@@ -68,4 +73,4 @@ class Attendance(models.Model):
             attendee = "Unknown"   
         return f"Attendance: {attendee} in {self.classroom} at {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
     
-    
+

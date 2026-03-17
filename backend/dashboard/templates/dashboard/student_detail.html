@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="layout-page">
+  <div class="content-wrapper">
+    <div class="container-xxl flex-grow-1 container-p-y">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0">Student details - {{ student.name|upper }}</h4>
+        <a href="{% url 'students' %}" class="btn btn-outline-secondary btn-sm"><i class="bx bx-left-arrow-alt"></i> Back</a>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="card-title">Details</h6>
+              <p><strong>Email:</strong> {{ student.email }}</p>
+              <p><strong>Specialization:</strong> {{ student.get_specialization_display }}</p>
+              <p><strong>Year:</strong> {{ student.year }}</p>
+              <p><strong>Card ID:</strong> {{ student.student_card_id }}</p>
+              <p><strong>RFID:</strong> {{ student.rfid_number }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="card-title">Last Week Attendance</h6>
+              <p class="h2 fw-bold">{{ weekly_student_sessions }}</p>
+              <p class="text-muted">Total sessions in last 7 days</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="card-title">Recent Sessions</h6>
+              {% if recent_attendance %}
+              <ul class="list-group list-group-flush">
+                {% for attendance in recent_attendance|slice:":4" %}
+                <li class="list-group-item">
+                  {{ attendance.timestamp|date:'Y-m-d H:i' }} - {{ attendance.classroom.name }}
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p class="text-muted">No attendance this week.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">Attendance trend</h5>
+            <div>
+              <button id="btn-all-week" class="btn btn-primary btn-sm me-1">Last 7 days</button>
+              <button id="btn-full-month" class="btn btn-outline-secondary btn-sm me-1">Last 30 days</button>
+            </div>
+          </div>
+          <div id="studentAttendanceChart" style="min-height: 320px;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof ApexCharts !== 'undefined') {
+      var initialLabels = {{ attendance_labels_json|safe }};
+      var initialData = {{ attendance_values_json|safe }};
+
+      var initialLabels7 = initialLabels.slice(-7);
+      var initialData7 = initialData.slice(-7);
+
+      var options = {
+        chart: {
+          height: 320,
+          type: 'area',
+          toolbar: { show: true, tools: { download: true, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } }
+        },
+        dataLabels: { enabled: false },
+        stroke: { curve: 'smooth' },
+        series: [{ name: 'Attendance', data: initialData7 }],
+        xaxis: { categories: initialLabels7 },
+        yaxis: { title: { text: 'Sessions' }, min: 0 },
+        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.15 }}
+      };
+      var chart = new ApexCharts(document.querySelector('#studentAttendanceChart'), options);
+      chart.render();
+
+      function updateChart(duration) {
+        var labels = initialLabels;
+        var data = initialData;
+
+        if (duration === 7) {
+          labels = initialLabels.slice(-7);
+          data = initialData.slice(-7);
+        } else if (duration === 30) {
+          labels = initialLabels.slice(-30);
+          data = initialData.slice(-30);
+        }
+
+        chart.updateOptions({
+          xaxis: { categories: labels }
+        });
+        chart.updateSeries([{
+          name: 'Attendance',
+          data: data
+        }]);
+      }
+
+      document.getElementById('btn-all-week').addEventListener('click', function () {
+        updateChart(7);
+        document.getElementById('btn-all-week').classList.replace('btn-outline-secondary', 'btn-primary');
+        document.getElementById('btn-full-month').classList.replace('btn-primary', 'btn-outline-secondary');
+      });
+
+      document.getElementById('btn-full-month').addEventListener('click', function () {
+        updateChart(30);
+        document.getElementById('btn-full-month').classList.replace('btn-outline-secondary', 'btn-primary');
+        document.getElementById('btn-all-week').classList.replace('btn-primary', 'btn-outline-secondary');
+      });
+
+      document.getElementById('btn-zoom-in').addEventListener('click', function () {
+        chart.zoomX(new Date(initialLabels7[0]).getTime(), new Date(initialLabels7[initialLabels7.length-1]).getTime());
+      });
+
+      document.getElementById('btn-zoom-out').addEventListener('click', function () {
+        if (typeof chart.zoomOut === 'function') {
+          chart.zoomOut();
+        } else {
+          chart.exec('studentAttendanceChart', 'zoom', [0]);
+        }
+      });
+
+      document.getElementById('btn-reset').addEventListener('click', function () {
+        updateChart(7);
+      });
+
+      document.getElementById('btn-save').addEventListener('click', function () {
+        chart.dataURI().then(function ({ imgURI }) {
+          var link = document.createElement('a');
+          link.href = imgURI;
+          link.download = 'student_attendance.png';
+          link.click();
+        });
+      });
+    }
+  });
+</script>
+{% endblock %}

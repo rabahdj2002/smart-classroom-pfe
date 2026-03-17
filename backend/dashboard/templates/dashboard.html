@@ -125,7 +125,7 @@
                             This dashboard shows you all the necessary data provided by the <span class="fw-bold">{{ total_classrooms }}</span> monitored classes.
                           </p>
 
-                          <a href="./classes" class="btn btn-sm btn-outline-primary">View All classes</a>
+                          <a href="{% url 'classes' %}" class="btn btn-sm btn-outline-primary">View All classes</a>
                         </div>
                       </div>
                       <div class="col-sm-5 text-center text-sm-left">
@@ -174,8 +174,7 @@
                           </div>
                           <span class="fw-semibold d-block mb-1">Classes</span>
                           <h3 class="card-title mb-2">{{ total_classrooms }}</h3>
-                          <small class="text-success fw-semibold"><i class="bx bx-up-arrow-alt"></i> classe{% if total_classrooms > 1 %}s{% endif %}
-                           </small>
+                          <small class="text-success fw-semibold"> Classe{% if total_classrooms > 1 %}s{% endif %}</small>
                         </div>
                       </div>
                     </div>
@@ -207,9 +206,9 @@
                               </div>
                             </div>
                           </div>
-                          <span>Sales</span>
-                          <h3 class="card-title text-nowrap mb-1">{{ total_classrooms }}</h3>
-                          <small class="text-success fw-semibold"><i class="bx bx-up-arrow-alt"></i> +28.42%</small>
+                          <span>Students</span>
+                          <h3 class="card-title text-nowrap mb-1">{{ total_students }}</h3>
+                          <small class="text-success fw-semibold"> Student{% if total_classrooms > 1 %}s{% endif %}</small>
                         </div>
                       </div>
                     </div>

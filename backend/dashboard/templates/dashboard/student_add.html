@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="layout-page">
+  <div class="content-wrapper">
+    <div class="container-xxl flex-grow-1 container-p-y">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0">Add Student</h4>
+        <a href="{% url 'students' %}" class="btn btn-outline-secondary btn-sm"><i class="bx bx-left-arrow-alt"></i> Back</a>
+      </div>
+
+      {% if errors %}
+      <div class="alert alert-danger">
+        <ul class="mb-0">
+          {% for err in errors %}
+          <li>{{ err }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <form method="POST" novalidate>
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="name" class="form-label">Name</label>
+                <input id="name" name="name" type="text" class="form-control" value="{{ form.name }}" required />
+              </div>
+              <div class="col-md-6">
+                <label for="email" class="form-label">Email</label>
+                <input id="email" name="email" type="email" class="form-control" value="{{ form.email }}" required />
+              </div>
+              <div class="col-md-4">
+                <label for="specialization" class="form-label">Specialization</label>
+                <select id="specialization" name="specialization" class="form-select" required>
+                  <option value="">Pick</option>
+                  <option value="INFO" {% if form.specialization == 'INFO' %}selected{% endif %}>Informatique</option>
+                  <option value="MATH" {% if form.specialization == 'MATH' %}selected{% endif %}>Mathématiques</option>
+                  <option value="ST" {% if form.specialization == 'ST' %}selected{% endif %}>Sciences et Techniques</option>
+                  <option value="SM" {% if form.specialization == 'SM' %}selected{% endif %}>Sciences de la Matière</option>
+                  <option value="MI" {% if form.specialization == 'MI' %}selected{% endif %}>Mathématiques et Informatique</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label for="year" class="form-label">Year</label>
+                <input id="year" name="year" type="number" min="1" class="form-control" value="{{ form.year }}" required />
+              </div>
+              <div class="col-md-4">
+                <label for="student_card_id" class="form-label">Student Card ID</label>
+                <input id="student_card_id" name="student_card_id" type="text" class="form-control" value="{{ form.student_card_id }}" required />
+              </div>
+              <div class="col-md-6">
+                <label for="rfid_number" class="form-label">RFID Number</label>
+                <input id="rfid_number" name="rfid_number" type="text" class="form-control" value="{{ form.rfid_number }}" required />
+              </div>
+
+              <div class="col-md-12 text-end">
+                <button type="submit" class="btn btn-primary">Create Student</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
