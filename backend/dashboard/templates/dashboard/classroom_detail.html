@@ -226,11 +226,11 @@
 
           if (duration === 'today') {
             durationLabel = 'Today';
-            var occupiedCount = students[students.length - 1] || 0;
+            var occupiedCount = students.length;
             studentSum = occupiedCount;
-            teacherSum = teachers[teachers.length - 1] || 0;
+            teacherSum = teachers.length;
 
-            document.getElementById('occupiedLabel').innerText = durationLabel + ' Occupied';
+            document.getElementById('occupiedLabel').innerText = durationLabel + ' Sessions';
             document.getElementById('occupiedValue').innerText = occupiedCount;
             if (capacity > 0) {
               document.getElementById('occupiedPercent').innerText = ((occupiedCount / capacity) * 100).toFixed(2) + '%';
