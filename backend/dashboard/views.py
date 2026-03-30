@@ -52,6 +52,9 @@ def classroom_detail(request, id):
         .distinct()
         .count()
     )
+    
+    # Count today's sessions/occupations (Attendance records)
+    today_sessions = Attendance.objects.filter(classroom=classroom, timestamp__date=today).count()
 
     start_date = today - timedelta(days=29)
     usage_labels = []
@@ -85,9 +88,28 @@ def classroom_detail(request, id):
     weekly_student_sessions = sum(usage_student_values[-7:])
     weekly_teacher_sessions = sum(usage_teacher_values[-7:])
 
+    # Calculate session counts for different periods
+    start_date_7 = today - timedelta(days=6)  # Last 7 days including today
+    start_date_30 = today - timedelta(days=29)  # Last 30 days including today
+    
+    weekly_sessions = Attendance.objects.filter(
+        classroom=classroom, 
+        timestamp__date__gte=start_date_7,
+        timestamp__date__lte=today
+    ).count()
+    
+    monthly_sessions = Attendance.objects.filter(
+        classroom=classroom, 
+        timestamp__date__gte=start_date_30,
+        timestamp__date__lte=today
+    ).count()
+
     context = {
         'classroom': classroom,
         'occupied_students': occupied_students,
+        'today_sessions': today_sessions,
+        'weekly_sessions': weekly_sessions,
+        'monthly_sessions': monthly_sessions,
         'occupied_percentage': occupied_percentage,
         'usage_labels_json': json.dumps(usage_labels),
         'usage_values_json': json.dumps(usage_student_values),

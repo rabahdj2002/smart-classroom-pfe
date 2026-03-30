@@ -30,9 +30,9 @@
               <div class="card-body text-success">
                 <div class="d-flex align-items-center mb-2">
                   <i class="bx bx-user-circle fs-3"></i>
-                  <h6 id="occupiedLabel" class="card-title ms-2 mb-0">Today Occupied</h6>
+                  <h6 id="occupiedLabel" class="card-title ms-2 mb-0">Today Sessions</h6>
                 </div>
-                <p id="occupiedValue" class="h3 fw-bold">{{ occupied_students }}</p>
+                <p id="occupiedValue" class="h3 fw-bold">{{ today_sessions }}</p>
                 <small id="occupiedPercent" class="text-muted">{{ occupied_percentage|floatformat:2 }}%</small>
               </div>
             </div>
@@ -87,6 +87,7 @@
           </div>
         </div>
 
+        <!-- Card Section
         <div class="row g-3 mb-4">
           <div class="col-md-6">
             <div class="card">
@@ -107,6 +108,7 @@
             </div>
           </div>
         </div>
+         -->
 
         <div class="card mb-4 shadow-sm">
           <div class="card-body">
@@ -115,7 +117,7 @@
               <div>
                 <button id="class-btn-today" class="btn btn-outline-secondary btn-sm me-1">Today</button>
                 <button id="class-btn-yesterday" class="btn btn-outline-secondary btn-sm me-1">Yesterday</button>
-                <button id="class-btn-all-week" class="btn btn-primary btn-sm me-1">Last 7 days</button>
+                <button id="class-btn-all-week" class="btn btn-outline-secondary btn-sm me-1">Last 7 days</button>
                 <button id="class-btn-full-month" class="btn btn-outline-secondary btn-sm me-1">Last 30 days</button>
               </div>
             </div>
@@ -223,10 +225,11 @@
           var studentSum = 0;
           var teacherSum = 0;
           var durationLabel = '';
+          var occupiedCount = 0;
 
           if (duration === 'today') {
             durationLabel = 'Today';
-            var occupiedCount = students.length;
+            occupiedCount = {{ today_sessions }};
             studentSum = occupiedCount;
             teacherSum = teachers.length;
 
@@ -239,11 +242,11 @@
             }
           } else if (duration === 'yesterday') {
             durationLabel = 'Yesterday';
-            var occupiedCount = students[students.length - 1] || 0;
+            occupiedCount = students[students.length - 1] || 0;
             studentSum = occupiedCount;
             teacherSum = teachers[teachers.length - 1] || 0;
 
-            document.getElementById('occupiedLabel').innerText = durationLabel + ' Occupied';
+            document.getElementById('occupiedLabel').innerText = durationLabel + ' Sessions';
             document.getElementById('occupiedValue').innerText = occupiedCount;
             if (capacity > 0) {
               document.getElementById('occupiedPercent').innerText = ((occupiedCount / capacity) * 100).toFixed(2) + '%';
@@ -252,12 +255,30 @@
             }
           } else if (duration === 7) {
             durationLabel = 'Last 7 Days';
+            occupiedCount = {{ weekly_sessions }};
             studentSum = students.reduce((a,b)=>a+b,0);
             teacherSum = teachers.reduce((a,b)=>a+b,0);
+
+            document.getElementById('occupiedLabel').innerText = durationLabel + ' Sessions';
+            document.getElementById('occupiedValue').innerText = occupiedCount;
+            if (capacity > 0) {
+              document.getElementById('occupiedPercent').innerText = ((occupiedCount / capacity) * 100).toFixed(2) + '%';
+            } else {
+              document.getElementById('occupiedPercent').innerText = 'N/A';
+            }
           } else if (duration === 30) {
             durationLabel = 'Last 30 Days';
+            occupiedCount = {{ monthly_sessions }};
             studentSum = students.reduce((a,b)=>a+b,0);
             teacherSum = teachers.reduce((a,b)=>a+b,0);
+
+            document.getElementById('occupiedLabel').innerText = durationLabel + ' Sessions';
+            document.getElementById('occupiedValue').innerText = occupiedCount;
+            if (capacity > 0) {
+              document.getElementById('occupiedPercent').innerText = ((occupiedCount / capacity) * 100).toFixed(2) + '%';
+            } else {
+              document.getElementById('occupiedPercent').innerText = 'N/A';
+            }
           }
 
           document.getElementById('studentLabel').innerText = durationLabel + ' Student Sessions';
@@ -301,6 +322,23 @@
         });
 
         updateChart(7);
+        
+        // Set initial active state for "Last 7 days" button
+        // Use multiple approaches to ensure it works
+        function initializeActiveButton() {
+          var weekButton = document.getElementById('class-btn-all-week');
+          if (weekButton) {
+            weekButton.classList.remove('btn-outline-secondary');
+            weekButton.classList.add('btn-primary');
+          }
+        }
+        
+        // Try immediate initialization
+        initializeActiveButton();
+        
+        // Also try after a short delay in case of timing issues
+        setTimeout(initializeActiveButton, 50);
+        setTimeout(initializeActiveButton, 200);
       }
     });
   </script>
