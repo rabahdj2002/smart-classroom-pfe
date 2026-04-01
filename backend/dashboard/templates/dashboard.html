@@ -1,648 +1,293 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block content %}
+      <style>
+        .dashboard-vivid .card {
+          border: 0;
+          box-shadow: 0 0.25rem 1rem rgba(161, 172, 184, 0.45);
+        }
+
+        .dashboard-vivid .card-header {
+          background: transparent !important;
+          border-bottom: 0 !important;
+        }
+
+        .dashboard-vivid .metric-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 0.5rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .dashboard-vivid .stat-trend {
+          font-size: 0.8125rem;
+          font-weight: 600;
+        }
+
+        .dashboard-vivid .table thead th {
+          background: transparent !important;
+          color: #8592a3;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          font-size: 0.72rem;
+          border-bottom: 1px solid #d9dee3;
+        }
+
+        .dashboard-vivid .status-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+          font-weight: 600;
+          padding: 0.35rem 0.6rem;
+          border-radius: 0.375rem;
+          font-size: 0.75rem;
+        }
+
+        .dashboard-vivid .status-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          display: inline-block;
+        }
+
+        .dashboard-vivid .table-hover tbody tr:hover {
+          background-color: rgba(105, 108, 255, 0.06) !important;
+        }
+      </style>
         <!-- Layout container -->
         <div class="layout-page">
-          <!-- Navbar -->
-
-          <nav
-            class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme"
-            id="layout-navbar"
-          >
-            <div class="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
-              <a class="nav-item nav-link px-0 me-xl-4" href="javascript:void(0)">
-                <i class="bx bx-menu bx-sm"></i>
-              </a>
-            </div>
-
-            <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
-              <!-- Search -->
-              <div class="navbar-nav align-items-center">
-                <div class="nav-item d-flex align-items-center">
-                  <i class="bx bx-search fs-4 lh-0"></i>
-                  <input
-                    type="text"
-                    class="form-control border-0 shadow-none"
-                    placeholder="Search..."
-                    aria-label="Search..."
-                  />
-                </div>
-              </div>
-              <!-- /Search -->
-
-              <ul class="navbar-nav flex-row align-items-center ms-auto">
-                <!-- Place this tag where you want the button to render. -->
-                <li class="nav-item lh-1 me-3">
-                  <a
-                    class="github-button"
-                    href="https://github.com/themeselection/sneat-html-admin-template-free"
-                    data-icon="octicon-star"
-                    data-size="large"
-                    data-show-count="true"
-                    aria-label="Star themeselection/sneat-html-admin-template-free on GitHub"
-                    >Star</a
-                  >
-                </li>
-
-                <!-- User -->
-                <li class="nav-item navbar-dropdown dropdown-user dropdown">
-                  <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown">
-                    <div class="avatar avatar-online">
-                      <img src="{% static 'dashboard/img/avatars/1.png' %}" alt class="w-px-40 h-auto rounded-circle" />
-                    </div>
-                  </a>
-                  <ul class="dropdown-menu dropdown-menu-end">
-                    <li>
-                      <a class="dropdown-item" href="#">
-                        <div class="d-flex">
-                          <div class="flex-shrink-0 me-3">
-                            <div class="avatar avatar-online">
-                              <img src="{% static 'dashboard/img/avatars/1.png' %}" alt class="w-px-40 h-auto rounded-circle" />
-                            </div>
-                          </div>
-                          <div class="flex-grow-1">
-                            <span class="fw-semibold d-block">John Doe</span>
-                            <small class="text-muted">Admin</small>
-                          </div>
-                        </div>
-                      </a>
-                    </li>
-                    <li>
-                      <div class="dropdown-divider"></div>
-                    </li>
-                    <li>
-                      <a class="dropdown-item" href="#">
-                        <i class="bx bx-user me-2"></i>
-                        <span class="align-middle">My Profile</span>
-                      </a>
-                    </li>
-                    <li>
-                      <a class="dropdown-item" href="#">
-                        <i class="bx bx-cog me-2"></i>
-                        <span class="align-middle">Settings</span>
-                      </a>
-                    </li>
-                    <li>
-                      <a class="dropdown-item" href="#">
-                        <span class="d-flex align-items-center align-middle">
-                          <i class="flex-shrink-0 bx bx-credit-card me-2"></i>
-                          <span class="flex-grow-1 align-middle">Billing</span>
-                          <span class="flex-shrink-0 badge badge-center rounded-pill bg-danger w-px-20 h-px-20">4</span>
-                        </span>
-                      </a>
-                    </li>
-                    <li>
-                      <div class="dropdown-divider"></div>
-                    </li>
-                    <li>
-                      <a class="dropdown-item" href="auth-login-basic.html">
-                        <i class="bx bx-power-off me-2"></i>
-                        <span class="align-middle">Log Out</span>
-                      </a>
-                    </li>
-                  </ul>
-                </li>
-                <!--/ User -->
-              </ul>
-            </div>
-          </nav>
-
-          <!-- / Navbar -->
-
           <!-- Content wrapper -->
           <div class="content-wrapper">
             <!-- Content -->
+            <div class="container-xxl flex-grow-1 container-p-y dashboard-vivid">
+              
+              <!-- Page header -->
+              <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Dashboard /</span> System Overview</h4>
 
-            <div class="container-xxl flex-grow-1 container-p-y">
-              <div class="row">
-                <div class="col-lg-8 mb-4 order-0">
-                  <div class="card">
-                    <div class="d-flex align-items-end row">
-                      <div class="col-sm-7">
-                        <div class="card-body">
-                          <h5 class="card-title text-primary">Welcome back👋</h5>
-                          <p class="mb-4">
-                            This dashboard shows you all the necessary data provided by the <span class="fw-bold">{{ total_classrooms }}</span> monitored classes.
-                          </p>
+              <!-- ALERTS & WARNINGS SECTION -->
+              {% if danger_classrooms or warning_classrooms %}
+                {% if danger_classrooms %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                  <div class="d-flex align-items-start">
+                    <i class="bx bx-error me-3 mt-1"></i>
+                    <div class="flex-grow-1">
+                      <h6 class="alert-heading mb-1">CRITICAL ALERT - IMMEDIATE ACTION REQUIRED</h6>
+                      <p class="mb-0">
+                        <strong>{{ danger_classrooms|length }} classroom{% if danger_classrooms|length > 1 %}s have{% else %} has{% endif %} been flagged with danger alerts:</strong>
+                        <br/>
+                        {% for classroom in danger_classrooms %}
+                          <span class="badge bg-danger me-2">{{ classroom.name }}</span>
+                        {% endfor %}
+                      </p>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endif %}
 
-                          <a href="{% url 'classes' %}" class="btn btn-sm btn-outline-primary">View All classes</a>
+                {% if warning_classrooms %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                  <div class="d-flex align-items-start">
+                    <i class="bx bx-exclamation-triangle me-3 mt-1"></i>
+                    <div class="flex-grow-1">
+                      <h6 class="alert-heading mb-1">TEMPERATURE WARNING</h6>
+                      <p class="mb-0">
+                        <strong>{{ warning_classrooms|length }} classroom{% if warning_classrooms|length > 1 %}s have{% else %} has{% endif %} temperature concerns:</strong>
+                        <br/>
+                        {% for classroom in warning_classrooms %}
+                          <span class="badge bg-warning me-2">{{ classroom.name }} ({{ classroom.temperature|default:"N/A" }}°C)</span>
+                        {% endfor %}
+                      </p>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endif %}
+              {% else %}
+              <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-start">
+                  <i class="bx bx-check-circle me-3 mt-1"></i>
+                  <div class="flex-grow-1">
+                    <h6 class="alert-heading mb-0">All Systems Operating Normally</h6>
+                  </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+              {% endif %}
+
+              <!-- KEY METRICS ROW -->
+              <div class="row g-3 mb-4">
+                <div class="col-12 col-sm-6 col-lg-3">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <span class="d-block mb-1 text-muted fw-normal small">Total Students</span>
+                          <h3 class="mb-0">{{ total_students }}</h3>
+                          <small class="stat-trend text-success"><i class="bx bx-up-arrow-alt"></i> Active enrollment</small>
                         </div>
-                      </div>
-                      <div class="col-sm-5 text-center text-sm-left">
-                        <div class="card-body pb-0 px-0 px-md-4">
-                          <img
-                            src="{% static 'dashboard/img/illustrations/man-with-laptop-light.png' %}"
-                            height="140"
-                            alt="View Badge User"
-                            data-app-dark-img="{% static 'dashboard/img/illustrations/man-with-laptop-dark.png' %}"
-                            data-app-light-img="illustrations/man-with-laptop-light.png"
-                          />
-                        </div>
+                        <span class="badge bg-label-primary p-2 metric-icon"><i class="bx bx-user text-primary fs-4"></i></span>
                       </div>
                     </div>
                   </div>
                 </div>
-                <div class="col-lg-4 col-md-4 order-1">
-                  <div class="row">
-                    <div class="col-lg-6 col-md-12 col-6 mb-4">
-                      <div class="card">
-                        <div class="card-body">
-                          <div class="card-title d-flex align-items-start justify-content-between">
-                            <div class="avatar flex-shrink-0">
-                              <img
-                                src="{% static 'dashboard/img/icons/unicons/chart-success.png' %}"
-                                alt="chart success"
-                                class="rounded"
-                              />
-                            </div>
-                            <div class="dropdown">
-                              <button
-                                class="btn p-0"
-                                type="button"
-                                id="cardOpt3"
-                                data-bs-toggle="dropdown"
-                                aria-haspopup="true"
-                                aria-expanded="false"
-                              >
-                                <i class="bx bx-dots-vertical-rounded"></i>
-                              </button>
-                              <div class="dropdown-menu dropdown-menu-end" aria-labelledby="cardOpt3">
-                                <a class="dropdown-item" href="javascript:void(0);">View More</a>
-                                <a class="dropdown-item" href="javascript:void(0);">Delete</a>
-                              </div>
-                            </div>
-                          </div>
-                          <span class="fw-semibold d-block mb-1">Classes</span>
-                          <h3 class="card-title mb-2">{{ total_classrooms }}</h3>
-                          <small class="text-success fw-semibold"> Classe{% if total_classrooms > 1 %}s{% endif %}</small>
+
+                <div class="col-12 col-sm-6 col-lg-3">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <span class="d-block mb-1 text-muted fw-normal small">Active Classrooms</span>
+                          <h3 class="mb-0">{{ total_classrooms }}</h3>
+                          <small class="stat-trend text-info"><i class="bx bx-radio-circle-marked"></i> Monitored now</small>
                         </div>
-                      </div>
-                    </div>
-                    <div class="col-lg-6 col-md-12 col-6 mb-4">
-                      <div class="card">
-                        <div class="card-body">
-                          <div class="card-title d-flex align-items-start justify-content-between">
-                            <div class="avatar flex-shrink-0">
-                              <img
-                                src="{% static 'dashboard/img/icons/unicons/wallet-info.png' %}"
-                                alt="Credit Card"
-                                class="rounded"
-                              />
-                            </div>
-                            <div class="dropdown">
-                              <button
-                                class="btn p-0"
-                                type="button"
-                                id="cardOpt6"
-                                data-bs-toggle="dropdown"
-                                aria-haspopup="true"
-                                aria-expanded="false"
-                              >
-                                <i class="bx bx-dots-vertical-rounded"></i>
-                              </button>
-                              <div class="dropdown-menu dropdown-menu-end" aria-labelledby="cardOpt6">
-                                <a class="dropdown-item" href="javascript:void(0);">View More</a>
-                                <a class="dropdown-item" href="javascript:void(0);">Delete</a>
-                              </div>
-                            </div>
-                          </div>
-                          <span>Students</span>
-                          <h3 class="card-title text-nowrap mb-1">{{ total_students }}</h3>
-                          <small class="text-success fw-semibold"> Student{% if total_classrooms > 1 %}s{% endif %}</small>
-                        </div>
+                        <span class="badge bg-label-success p-2 metric-icon"><i class="bx bx-home-circle text-success fs-4"></i></span>
                       </div>
                     </div>
                   </div>
                 </div>
-                <!-- Total Revenue -->
-                <div class="col-12 col-lg-8 order-2 order-md-3 order-lg-2 mb-4">
-                  <div class="card">
-                    <div class="row row-bordered g-0">
-                      <div class="col-md-8">
-                        <h5 class="card-header m-0 me-2 pb-3">Total Revenue</h5>
-                        <div id="totalRevenueChart" class="px-2"></div>
-                      </div>
-                      <div class="col-md-4">
-                        <div class="card-body">
-                          <div class="text-center">
-                            <div class="dropdown">
-                              <button
-                                class="btn btn-sm btn-outline-primary dropdown-toggle"
-                                type="button"
-                                id="growthReportId"
-                                data-bs-toggle="dropdown"
-                                aria-haspopup="true"
-                                aria-expanded="false"
-                              >
-                                2022
-                              </button>
-                              <div class="dropdown-menu dropdown-menu-end" aria-labelledby="growthReportId">
-                                <a class="dropdown-item" href="javascript:void(0);">2021</a>
-                                <a class="dropdown-item" href="javascript:void(0);">2020</a>
-                                <a class="dropdown-item" href="javascript:void(0);">2019</a>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div id="growthChart"></div>
-                        <div class="text-center fw-semibold pt-3 mb-2">62% Company Growth</div>
 
-                        <div class="d-flex px-xxl-4 px-lg-2 p-4 gap-xxl-3 gap-lg-1 gap-3 justify-content-between">
-                          <div class="d-flex">
-                            <div class="me-2">
-                              <span class="badge bg-label-primary p-2"><i class="bx bx-dollar text-primary"></i></span>
-                            </div>
-                            <div class="d-flex flex-column">
-                              <small>2022</small>
-                              <h6 class="mb-0">$32.5k</h6>
-                            </div>
-                          </div>
-                          <div class="d-flex">
-                            <div class="me-2">
-                              <span class="badge bg-label-info p-2"><i class="bx bx-wallet text-info"></i></span>
-                            </div>
-                            <div class="d-flex flex-column">
-                              <small>2021</small>
-                              <h6 class="mb-0">$41.2k</h6>
-                            </div>
-                          </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <span class="d-block mb-1 text-muted fw-normal small">Avg. Occupancy</span>
+                          <h3 class="mb-0">{{ avg_occupancy }}%</h3>
+                          <small class="stat-trend text-warning"><i class="bx bx-bar-chart-alt-2"></i> Capacity load</small>
                         </div>
+                        <span class="badge bg-label-info p-2 metric-icon"><i class="bx bx-trending-up text-info fs-4"></i></span>
                       </div>
                     </div>
                   </div>
                 </div>
-                <!--/ Total Revenue -->
-                <div class="col-12 col-md-8 col-lg-4 order-3 order-md-2">
-                  <div class="row">
-                    <div class="col-6 mb-4">
-                      <div class="card">
-                        <div class="card-body">
-                          <div class="card-title d-flex align-items-start justify-content-between">
-                            <div class="avatar flex-shrink-0">
-                              <img src="{% static 'dashboard/img/icons/unicons/paypal.png' %}" alt="Credit Card" class="rounded" />
-                            </div>
-                            <div class="dropdown">
-                              <button
-                                class="btn p-0"
-                                type="button"
-                                id="cardOpt4"
-                                data-bs-toggle="dropdown"
-                                aria-haspopup="true"
-                                aria-expanded="false"
-                              >
-                                <i class="bx bx-dots-vertical-rounded"></i>
-                              </button>
-                              <div class="dropdown-menu dropdown-menu-end" aria-labelledby="cardOpt4">
-                                <a class="dropdown-item" href="javascript:void(0);">View More</a>
-                                <a class="dropdown-item" href="javascript:void(0);">Delete</a>
-                              </div>
-                            </div>
-                          </div>
-                          <span class="d-block mb-1">Payments</span>
-                          <h3 class="card-title text-nowrap mb-2">$2,456</h3>
-                          <small class="text-danger fw-semibold"><i class="bx bx-down-arrow-alt"></i> -14.82%</small>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col-6 mb-4">
-                      <div class="card">
-                        <div class="card-body">
-                          <div class="card-title d-flex align-items-start justify-content-between">
-                            <div class="avatar flex-shrink-0">
-                              <img src="{% static 'dashboard/img/icons/unicons/cc-primary.png' %}" alt="Credit Card" class="rounded" />
-                            </div>
-                            <div class="dropdown">
-                              <button
-                                class="btn p-0"
-                                type="button"
-                                id="cardOpt1"
-                                data-bs-toggle="dropdown"
-                                aria-haspopup="true"
-                                aria-expanded="false"
-                              >
-                                <i class="bx bx-dots-vertical-rounded"></i>
-                              </button>
-                              <div class="dropdown-menu" aria-labelledby="cardOpt1">
-                                <a class="dropdown-item" href="javascript:void(0);">View More</a>
-                                <a class="dropdown-item" href="javascript:void(0);">Delete</a>
-                              </div>
-                            </div>
-                          </div>
-                          <span class="fw-semibold d-block mb-1">Transactions</span>
-                          <h3 class="card-title mb-2">$14,857</h3>
-                          <small class="text-success fw-semibold"><i class="bx bx-up-arrow-alt"></i> +28.14%</small>
-                        </div>
-                      </div>
-                    </div>
 
-                    <div class="col-12 mb-4">
-                      <div class="card">
-                        <div class="card-body">
-                          <div class="d-flex justify-content-between flex-sm-row flex-column gap-3">
-                            <div class="d-flex flex-sm-column flex-row align-items-start justify-content-between">
-                              <div class="card-title">
-                                <h5 class="text-nowrap mb-2">Profile Report</h5>
-                                <span class="badge bg-label-warning rounded-pill">Year 2021</span>
-                              </div>
-                              <div class="mt-sm-auto">
-                                <small class="text-success text-nowrap fw-semibold"
-                                  ><i class="bx bx-chevron-up"></i> 68.2%</small
-                                >
-                                <h3 class="mb-0">$84,686k</h3>
-                              </div>
-                            </div>
-                            <div id="profileReportChart"></div>
-                          </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <span class="d-block mb-1 text-muted fw-normal small">Today's Sessions</span>
+                          <h3 class="mb-0">{{ total_attendance_today }}</h3>
+                          <small class="stat-trend text-primary"><i class="bx bx-time-five"></i> Updated today</small>
                         </div>
+                        <span class="badge bg-label-warning p-2 metric-icon"><i class="bx bx-calendar text-warning fs-4"></i></span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-              <div class="row">
-                <!-- Order Statistics -->
-                <div class="col-md-6 col-lg-4 col-xl-4 order-0 mb-4">
-                  <div class="card h-100">
-                    <div class="card-header d-flex align-items-center justify-content-between pb-0">
-                      <div class="card-title mb-0">
-                        <h5 class="m-0 me-2">Order Statistics</h5>
-                        <small class="text-muted">42.82k Total Sales</small>
-                      </div>
-                      <div class="dropdown">
-                        <button
-                          class="btn p-0"
-                          type="button"
-                          id="orederStatistics"
-                          data-bs-toggle="dropdown"
-                          aria-haspopup="true"
-                          aria-expanded="false"
-                        >
-                          <i class="bx bx-dots-vertical-rounded"></i>
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="orederStatistics">
-                          <a class="dropdown-item" href="javascript:void(0);">Select All</a>
-                          <a class="dropdown-item" href="javascript:void(0);">Refresh</a>
-                          <a class="dropdown-item" href="javascript:void(0);">Share</a>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="card-body">
-                      <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div class="d-flex flex-column align-items-center gap-1">
-                          <h2 class="mb-2">8,258</h2>
-                          <span>Total Orders</span>
-                        </div>
-                        <div id="orderStatisticsChart"></div>
-                      </div>
-                      <ul class="p-0 m-0">
-                        <li class="d-flex mb-4 pb-1">
-                          <div class="avatar flex-shrink-0 me-3">
-                            <span class="avatar-initial rounded bg-label-primary"
-                              ><i class="bx bx-mobile-alt"></i
-                            ></span>
-                          </div>
-                          <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                            <div class="me-2">
-                              <h6 class="mb-0">Electronic</h6>
-                              <small class="text-muted">Mobile, Earbuds, TV</small>
-                            </div>
-                            <div class="user-progress">
-                              <small class="fw-semibold">82.5k</small>
-                            </div>
-                          </div>
-                        </li>
-                        <li class="d-flex mb-4 pb-1">
-                          <div class="avatar flex-shrink-0 me-3">
-                            <span class="avatar-initial rounded bg-label-success"><i class="bx bx-closet"></i></span>
-                          </div>
-                          <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                            <div class="me-2">
-                              <h6 class="mb-0">Fashion</h6>
-                              <small class="text-muted">T-shirt, Jeans, Shoes</small>
-                            </div>
-                            <div class="user-progress">
-                              <small class="fw-semibold">23.8k</small>
-                            </div>
-                          </div>
-                        </li>
-                        <li class="d-flex mb-4 pb-1">
-                          <div class="avatar flex-shrink-0 me-3">
-                            <span class="avatar-initial rounded bg-label-info"><i class="bx bx-home-alt"></i></span>
-                          </div>
-                          <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                            <div class="me-2">
-                              <h6 class="mb-0">Decor</h6>
-                              <small class="text-muted">Fine Art, Dining</small>
-                            </div>
-                            <div class="user-progress">
-                              <small class="fw-semibold">849k</small>
-                            </div>
-                          </div>
-                        </li>
-                        <li class="d-flex">
-                          <div class="avatar flex-shrink-0 me-3">
-                            <span class="avatar-initial rounded bg-label-secondary"
-                              ><i class="bx bx-football"></i
-                            ></span>
-                          </div>
-                          <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                            <div class="me-2">
-                              <h6 class="mb-0">Sports</h6>
-                              <small class="text-muted">Football, Cricket Kit</small>
-                            </div>
-                            <div class="user-progress">
-                              <small class="fw-semibold">99</small>
-                            </div>
-                          </div>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-                <!--/ Order Statistics -->
 
-                <!-- Expense Overview -->
-                <div class="col-md-6 col-lg-4 order-1 mb-4">
-                  <div class="card h-100">
-                    <div class="card-header">
-                      <ul class="nav nav-pills" role="tablist">
-                        <li class="nav-item">
-                          <button
-                            type="button"
-                            class="nav-link active"
-                            role="tab"
-                            data-bs-toggle="tab"
-                            data-bs-target="#navs-tabs-line-card-income"
-                            aria-controls="navs-tabs-line-card-income"
-                            aria-selected="true"
-                          >
-                            Income
-                          </button>
-                        </li>
-                        <li class="nav-item">
-                          <button type="button" class="nav-link" role="tab">Expenses</button>
-                        </li>
-                        <li class="nav-item">
-                          <button type="button" class="nav-link" role="tab">Profit</button>
-                        </li>
-                      </ul>
+              <!-- CHARTS ROW -->
+              <div class="row g-3 mb-4">
+                <!-- Today's Activity Chart -->
+                <div class="col-12 col-lg-8">
+                  <div class="card">
+                    <div class="card-header pb-3 d-flex justify-content-between align-items-center">
+                      <h5 class="card-title mb-0">Today's Class Schedule & Activity</h5>
+                      <small class="text-muted">Hourly breakdown</small>
                     </div>
-                    <div class="card-body px-0">
-                      <div class="tab-content p-0">
-                        <div class="tab-pane fade show active" id="navs-tabs-line-card-income" role="tabpanel">
-                          <div class="d-flex p-4 pt-3">
-                            <div class="avatar flex-shrink-0 me-3">
-                              <img src="{% static 'dashboard/img/icons/unicons/wallet.png' %}" alt="User" />
-                            </div>
-                            <div>
-                              <small class="text-muted d-block">Total Balance</small>
-                              <div class="d-flex align-items-center">
-                                <h6 class="mb-0 me-1">$459.10</h6>
-                                <small class="text-success fw-semibold">
-                                  <i class="bx bx-chevron-up"></i>
-                                  42.9%
-                                </small>
-                              </div>
-                            </div>
-                          </div>
-                          <div id="incomeChart"></div>
-                          <div class="d-flex justify-content-center pt-4 gap-2">
-                            <div class="flex-shrink-0">
-                              <div id="expensesOfWeek"></div>
-                            </div>
-                            <div>
-                              <p class="mb-n1 mt-1">Expenses This Week</p>
-                              <small class="text-muted">$39 less than last week</small>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                    <div class="card-body" style="min-height: 380px;">
+                      <div id="hourlyActivityChart"></div>
                     </div>
                   </div>
                 </div>
-                <!--/ Expense Overview -->
 
-                <!-- Transactions -->
-                <div class="col-md-6 col-lg-4 order-2 mb-4">
+                <!-- Weekly Overview -->
+                <div class="col-12 col-lg-4">
                   <div class="card h-100">
-                    <div class="card-header d-flex align-items-center justify-content-between">
-                      <h5 class="card-title m-0 me-2">Transactions</h5>
-                      <div class="dropdown">
-                        <button
-                          class="btn p-0"
-                          type="button"
-                          id="transactionID"
-                          data-bs-toggle="dropdown"
-                          aria-haspopup="true"
-                          aria-expanded="false"
-                        >
-                          <i class="bx bx-dots-vertical-rounded"></i>
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="transactionID">
-                          <a class="dropdown-item" href="javascript:void(0);">Last 28 Days</a>
-                          <a class="dropdown-item" href="javascript:void(0);">Last Month</a>
-                          <a class="dropdown-item" href="javascript:void(0);">Last Year</a>
-                        </div>
-                      </div>
+                    <div class="card-header pb-3">
+                      <h5 class="card-title mb-0">Weekly Overview</h5>
+                      <small class="text-muted">Past 7 days trend</small>
                     </div>
-                    <div class="card-body">
-                      <ul class="p-0 m-0">
-                        <li class="d-flex mb-4 pb-1">
-                          <div class="avatar flex-shrink-0 me-3">
-                            <img src="{% static 'dashboard/img/icons/unicons/paypal.png' %}" alt="User" class="rounded" />
-                          </div>
-                          <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                            <div class="me-2">
-                              <small class="text-muted d-block mb-1">Paypal</small>
-                              <h6 class="mb-0">Send money</h6>
-                            </div>
-                            <div class="user-progress d-flex align-items-center gap-1">
-                              <h6 class="mb-0">+82.6</h6>
-                              <span class="text-muted">USD</span>
-                            </div>
-                          </div>
-                        </li>
-                        <li class="d-flex mb-4 pb-1">
-                          <div class="avatar flex-shrink-0 me-3">
-                            <img src="{% static 'dashboard/img/icons/unicons/wallet.png' %}" alt="User" class="rounded" />
-                          </div>
-                          <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                            <div class="me-2">
-                              <small class="text-muted d-block mb-1">Wallet</small>
-                              <h6 class="mb-0">Mac'D</h6>
-                            </div>
-                            <div class="user-progress d-flex align-items-center gap-1">
-                              <h6 class="mb-0">+270.69</h6>
-                              <span class="text-muted">USD</span>
-                            </div>
-                          </div>
-                        </li>
-                        <li class="d-flex mb-4 pb-1">
-                          <div class="avatar flex-shrink-0 me-3">
-                            <img src="{% static 'dashboard/img/icons/unicons/chart.png' %}" alt="User" class="rounded" />
-                          </div>
-                          <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                            <div class="me-2">
-                              <small class="text-muted d-block mb-1">Transfer</small>
-                              <h6 class="mb-0">Refund</h6>
-                            </div>
-                            <div class="user-progress d-flex align-items-center gap-1">
-                              <h6 class="mb-0">+637.91</h6>
-                              <span class="text-muted">USD</span>
-                            </div>
-                          </div>
-                        </li>
-                        <li class="d-flex mb-4 pb-1">
-                          <div class="avatar flex-shrink-0 me-3">
-                            <img src="{% static 'dashboard/img/icons/unicons/cc-success.png' %}" alt="User" class="rounded" />
-                          </div>
-                          <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                            <div class="me-2">
-                              <small class="text-muted d-block mb-1">Credit Card</small>
-                              <h6 class="mb-0">Ordered Food</h6>
-                            </div>
-                            <div class="user-progress d-flex align-items-center gap-1">
-                              <h6 class="mb-0">-838.71</h6>
-                              <span class="text-muted">USD</span>
-                            </div>
-                          </div>
-                        </li>
-                        <li class="d-flex mb-4 pb-1">
-                          <div class="avatar flex-shrink-0 me-3">
-                            <img src="{% static 'dashboard/img/icons/unicons/wallet.png' %}" alt="User" class="rounded" />
-                          </div>
-                          <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                            <div class="me-2">
-                              <small class="text-muted d-block mb-1">Wallet</small>
-                              <h6 class="mb-0">Starbucks</h6>
-                            </div>
-                            <div class="user-progress d-flex align-items-center gap-1">
-                              <h6 class="mb-0">+203.33</h6>
-                              <span class="text-muted">USD</span>
-                            </div>
-                          </div>
-                        </li>
-                        <li class="d-flex">
-                          <div class="avatar flex-shrink-0 me-3">
-                            <img src="{% static 'dashboard/img/icons/unicons/cc-warning.png' %}" alt="User" class="rounded" />
-                          </div>
-                          <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
-                            <div class="me-2">
-                              <small class="text-muted d-block mb-1">Mastercard</small>
-                              <h6 class="mb-0">Ordered Food</h6>
-                            </div>
-                            <div class="user-progress d-flex align-items-center gap-1">
-                              <h6 class="mb-0">-92.45</h6>
-                              <span class="text-muted">USD</span>
-                            </div>
-                          </div>
-                        </li>
-                      </ul>
+                    <div class="card-body" style="min-height: 380px;">
+                      <div id="weeklyTrendChart"></div>
                     </div>
                   </div>
                 </div>
-                <!--/ Transactions -->
               </div>
+
+              <!-- REAL-TIME CLASSROOM STATUS -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header pb-3 d-flex justify-content-between align-items-center">
+                      <h5 class="card-title mb-0"><i class="bx bx-radar me-1 text-primary"></i>Real-Time Classroom Status</h5>
+                      <div class="d-flex align-items-center gap-2">
+                        <small class="text-muted">Last updated: <span id="last-update">just now</span></small>
+                        <button id="refresh-btn" class="btn btn-sm btn-primary">
+                          <i class="bx bx-refresh me-1"></i>Refresh
+                        </button>
+                      </div>
+                    </div>
+                    <div class="card-body">
+                      <div class="table-responsive text-nowrap">
+                        <table class="table table-hover">
+                          <thead>
+                            <tr>
+                              <th>Classroom</th>
+                              <th>Occupancy</th>
+                              <th>Status</th>
+                              <th>Lights</th>
+                              <th>Projector</th>
+                              <th>Door</th>
+                              <th>Temp</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody class="table-border-bottom-0" id="classroom-status-table">
+                            {% for classroom in classroom_status %}
+                            <tr>
+                              <td><strong>{{ classroom.name }}</strong></td>
+                              <td>{{ classroom.occupied }}/{{ classroom.capacity }}</td>
+                              <td>
+                                {% if classroom.status == 'danger' %}
+                                  <span class="status-pill bg-label-danger"><span class="status-dot" style="background:#ff3e1e"></span>DANGER</span>
+                                {% elif classroom.status == 'warning' %}
+                                  <span class="status-pill bg-label-warning"><span class="status-dot" style="background:#ffb800"></span>WARNING</span>
+                                {% else %}
+                                  <span class="status-pill bg-label-success"><span class="status-dot" style="background:#71dd5c"></span>NORMAL</span>
+                                {% endif %}
+                              </td>
+                              <td>
+                                {% if classroom.lights_on %}
+                                  <span class="badge bg-label-warning"><i class="bx bx-bulb me-1"></i>ON</span>
+                                {% else %}
+                                  <span class="badge bg-label-secondary"><i class="bx bx-bulb me-1"></i>OFF</span>
+                                {% endif %}
+                              </td>
+                              <td>
+                                {% if classroom.projector_on %}
+                                  <span class="badge bg-label-info"><i class="bx bx-slideshow me-1"></i>ON</span>
+                                {% else %}
+                                  <span class="badge bg-label-secondary"><i class="bx bx-slideshow me-1"></i>OFF</span>
+                                {% endif %}
+                              </td>
+                              <td>
+                                {% if classroom.door %}
+                                  <span class="badge bg-label-danger"><i class="bx bx-door-open me-1"></i>OPEN</span>
+                                {% else %}
+                                  <span class="badge bg-label-success"><i class="bx bx-lock-alt me-1"></i>CLOSED</span>
+                                {% endif %}
+                              </td>
+                              <td>{{ classroom.temperature|default:"N/A" }}°C</td>
+                              <td>
+                                <a href="{% url 'classroom_detail' id=classroom.id %}" class="btn btn-sm btn-icon btn-outline-primary" title="View classroom details">
+                                  <i class="bx bx-show"></i>
+                                </a>
+                              </td>
+                            </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
             <!-- / Content -->
 
@@ -650,30 +295,12 @@
             <footer class="content-footer footer bg-footer-theme">
               <div class="container-xxl d-flex flex-wrap justify-content-between py-2 flex-md-row flex-column">
                 <div class="mb-2 mb-md-0">
-                  ©
-                  <script>
-                    document.write(new Date().getFullYear());
-                  </script>
-                  , made with ❤️ by
-                  <a href="https://themeselection.com" target="_blank" class="footer-link fw-bolder">ThemeSelection</a>
+                  © <script>document.write(new Date().getFullYear());</script> Smart Classroom Management System
                 </div>
                 <div>
-                  <a href="https://themeselection.com/license/" class="footer-link me-4" target="_blank">License</a>
-                  <a href="https://themeselection.com/" target="_blank" class="footer-link me-4">More Themes</a>
-
-                  <a
-                    href="https://themeselection.com/demo/sneat-bootstrap-html-admin-template/documentation/"
-                    target="_blank"
-                    class="footer-link me-4"
-                    >Documentation</a
-                  >
-
-                  <a
-                    href="https://github.com/themeselection/sneat-html-admin-template-free/issues"
-                    target="_blank"
-                    class="footer-link me-4"
-                    >Support</a
-                  >
+                  <a href="{% url 'classes' %}" class="footer-link me-4">Classrooms</a>
+                  <a href="{% url 'students' %}" class="footer-link me-4">Students</a>
+                  <a href="#" class="footer-link">Settings</a>
                 </div>
               </div>
             </footer>
@@ -686,5 +313,189 @@
         <!-- / Layout page -->
       </div>
       <!-- / Layout wrapper -->
+
+      <!-- ApexCharts -->
+      <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+      <script>
+        // Wait for DOM to fully load
+        document.addEventListener('DOMContentLoaded', function() {
+
+          // Color configuration matching Sneat theme
+          const chartColors = {
+            primary: '#696cff',
+            success: '#71dd5c',
+            warning: '#ffb800',
+            danger: '#ff3e1e',
+            info: '#03c3ec',
+            light: '#f8f7ff',
+            dark: '#21222e'
+          };
+
+          const gridConfig = {
+            borderColor: '#e7e7e7',
+            xaxis: { lines: { show: false } },
+            yaxis: { lines: { show: true } }
+          };
+
+          // ===== TODAY'S HOURLY ACTIVITY CHART =====
+          const hourlyLabels = {{ hourly_labels_json|safe }};
+          const hourlyData = {{ hourly_attendance_json|safe }};
+
+          const hourlyOptions = {
+            series: [{
+              name: 'Class Sessions',
+              data: hourlyData
+            }],
+            chart: {
+              type: 'area',
+              height: 350,
+              toolbar: { show: false },
+              animations: { enabled: true, speed: 800, easing: 'easeinout' },
+              sparkline: { enabled: false }
+            },
+            colors: [chartColors.primary],
+            dataLabels: { enabled: false },
+            stroke: {
+              curve: 'smooth',
+              width: 2,
+              lineCap: 'round',
+              lineJoin: 'round'
+            },
+            fill: {
+              type: 'gradient',
+              gradient: {
+                shadeIntensity: 0.5,
+                opacityFrom: 0.7,
+                opacityTo: 0.1
+              }
+            },
+            xaxis: {
+              categories: hourlyLabels,
+              axisBorder: { show: false },
+              axisTicks: { show: false },
+              labels: { 
+                style: { colors: chartColors.dark, fontSize: '12px' }
+              }
+            },
+            yaxis: {
+              labels: { style: { colors: chartColors.dark } }
+            },
+            grid: gridConfig,
+            tooltip: {
+              theme: 'light',
+              y: { 
+                formatter: function(val) { return val + ' sessions'; }
+              }
+            },
+            markers: { 
+              size: 4,
+              colors: [chartColors.primary],
+              strokeColors: '#fff',
+              strokeWidth: 2,
+              hover: { size: 6 }
+            }
+          };
+
+          const hourlyChart = new ApexCharts(document.querySelector('#hourlyActivityChart'), hourlyOptions);
+          hourlyChart.render();
+
+          // ===== WEEKLY TREND CHART =====
+          const weeklyLabels = {{ weekly_labels_json|safe }};
+          const weeklyData = {{ weekly_attendance_json|safe }};
+
+          const weeklyOptions = {
+            series: [{
+              name: 'Sessions',
+              data: weeklyData
+            }],
+            chart: {
+              type: 'line',
+              height: 350,
+              toolbar: { show: false },
+              animations: { enabled: true, speed: 800, easing: 'easeinout' }
+            },
+            colors: [chartColors.info],
+            dataLabels: { enabled: false },
+            stroke: {
+              curve: 'smooth',
+              width: 3,
+              lineCap: 'round',
+              lineJoin: 'round'
+            },
+            xaxis: {
+              categories: weeklyLabels,
+              axisBorder: { show: false },
+              axisTicks: { show: false },
+              labels: { 
+                style: { colors: chartColors.dark, fontSize: '12px' }
+              }
+            },
+            yaxis: {
+              labels: { style: { colors: chartColors.dark } }
+            },
+            grid: gridConfig,
+            tooltip: {
+              theme: 'light',
+              y: { 
+                formatter: function(val) { return val + ' sessions'; }
+              }
+            },
+            markers: { 
+              size: 5,
+              colors: [chartColors.info],
+              strokeColors: '#fff',
+              strokeWidth: 2,
+              hover: { size: 7 }
+            }
+          };
+
+          const weeklyChart = new ApexCharts(document.querySelector('#weeklyTrendChart'), weeklyOptions);
+          weeklyChart.render();
+
+          // ===== REAL-TIME CLASSROOM STATUS REFRESH =====
+          
+          // Function to update last update time
+          function updateLastUpdateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('last-update').textContent = timeString;
+          }
+
+          // Function to refresh classroom data
+          function refreshClassroomStatus() {
+            fetch(window.location.href)
+              .then(response => response.text())
+              .then(html => {
+                const parser = new DOMParser();
+                const newDoc = parser.parseFromString(html, 'text/html');
+                const newTable = newDoc.querySelector('#classroom-status-table');
+                
+                if (newTable) {
+                  document.getElementById('classroom-status-table').innerHTML = newTable.innerHTML;
+                  updateLastUpdateTime();
+                  console.log('Classroom status updated');
+                }
+              })
+              .catch(error => console.error('Error refreshing classroom data:', error));
+          }
+
+          // Manual refresh button
+          document.getElementById('refresh-btn').addEventListener('click', function() {
+            this.innerHTML = '<i class="bx bx-refresh me-1 bx-spin"></i>Refreshing...';
+            refreshClassroomStatus();
+            setTimeout(() => {
+              this.innerHTML = '<i class="bx bx-refresh me-1"></i>Refresh';
+            }, 1000);
+          });
+
+          // Auto-refresh every 10 seconds
+          setInterval(refreshClassroomStatus, 10000);
+          
+          // Set initial last update time
+          updateLastUpdateTime();
+
+        });
+      </script>
 
 {% endblock %}

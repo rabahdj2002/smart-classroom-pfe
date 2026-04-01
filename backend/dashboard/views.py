@@ -1,20 +1,121 @@
 from django.shortcuts import render, redirect
-from django.db.models import Count
+from django.db.models import Count, Q
 from .models import Student, Staff, Classroom, Attendance
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 import json
     
 def dash(request):
     today = timezone.now().date()
+    now = timezone.now()
+    
+    # Basic counts
+    total_students = Student.objects.count()
+    total_staff = Staff.objects.count()
+    total_classrooms = Classroom.objects.count()
+    total_attendance_today = Attendance.objects.filter(timestamp__date=today).count()
+    
+    # Classroom status and warnings
+    all_classrooms = Classroom.objects.all()
+    danger_classrooms = list(all_classrooms.filter(danger_indicator=True))
+    warning_classrooms = list(all_classrooms.filter(
+        Q(temperature__gt=28) | Q(temperature__lt=15) if Classroom.objects.filter(temperature__isnull=False).exists() else Q()
+    ))
+    
+    # Remove duplicates if temperature-based warnings overlap with danger
+    warning_classrooms = [c for c in warning_classrooms if c not in danger_classrooms]
+    
+    # Current occupancy
+    classroom_status = []
+    for classroom in all_classrooms:
+        occupied_today = Attendance.objects.filter(
+            classroom=classroom, 
+            timestamp__date=today
+        ).values('students').distinct().count()
+        
+        occupancy_percent = 0
+        if classroom.capacity:
+            occupancy_percent = (occupied_today / classroom.capacity) * 100
+        
+        status = "danger" if classroom in danger_classrooms else ("warning" if classroom in warning_classrooms else "normal")
+        
+        classroom_status.append({
+            'id': classroom.id,
+            'name': classroom.name,
+            'capacity': classroom.capacity,
+            'occupied': occupied_today,
+            'occupancy_percent': occupancy_percent,
+            'lights_on': classroom.lights_on,
+            'projector_on': classroom.projector_on,
+            'door': classroom.door,
+            'temperature': classroom.temperature,
+            'status': status,
+        })
+    
+    # Today's hourly activity
+    hourly_attendance = [0] * 24
+    hourly_labels = []
+    for hour in range(24):
+        hour_start = datetime.combine(today, datetime.min.time()).replace(hour=hour)
+        hour_end = hour_start.replace(hour=(hour + 1) % 24)
+        
+        if hour == 23:
+            hour_end = datetime.combine(today + timedelta(days=1), datetime.min.time())
+        
+        hour_attendance = Attendance.objects.filter(
+            timestamp__gte=hour_start,
+            timestamp__lt=hour_end
+        ).count()
+        
+        hourly_attendance[hour] = hour_attendance
+        hourly_labels.append(f"{hour:02d}:00")
+    
+    # Weekly trends (last 7 days)
+    weekly_labels = []
+    weekly_attendance = []
+    weekly_classrooms_used = []
+    
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        day_attendance = Attendance.objects.filter(timestamp__date=day).count()
+        day_classrooms = Attendance.objects.filter(timestamp__date=day).values('classroom').distinct().count()
+        
+        weekly_labels.append(day.strftime('%a'))
+        weekly_attendance.append(day_attendance)
+        weekly_classrooms_used.append(day_classrooms)
+    
+    # Peak hours analysis
+    peak_hour = hourly_attendance.index(max(hourly_attendance)) if hourly_attendance else 0
+    peak_hour_label = f"{peak_hour:02d}:00 - {(peak_hour + 1) % 24:02d}:00"
+    peak_hour_sessions = hourly_attendance[peak_hour]
+    
+    # Off-peak hours analysis
+    min_hour = hourly_attendance.index(min(hourly_attendance)) if hourly_attendance else 0
+    
+    # Overall statistics
+    busy_classrooms = sum(1 for c in classroom_status if c['occupancy_percent'] > 70)
+    avg_occupancy = sum(c['occupancy_percent'] for c in classroom_status) / len(classroom_status) if classroom_status else 0
     
     context = {
-        'total_students': Student.objects.count(),
-        'total_staff': Staff.objects.count(),
-        'total_classrooms': Classroom.objects.count(),
-        'total_attendance_today': Attendance.objects.filter(timestamp__date=today).count(),
-        'total_attendance_all_time': Attendance.objects.count(),
-        'classrooms': Classroom.objects.all(),
+        'total_students': total_students,
+        'total_staff': total_staff,
+        'total_classrooms': total_classrooms,
+        'total_attendance_today': total_attendance_today,
+        'classrooms': all_classrooms,
+        'classroom_status': classroom_status,
+        'danger_classrooms': danger_classrooms,
+        'warning_classrooms': warning_classrooms,
+        'has_warnings': len(danger_classrooms) > 0 or len(warning_classrooms) > 0,
+        'busy_classrooms': busy_classrooms,
+        'avg_occupancy': round(avg_occupancy, 1),
+        'peak_hour_label': peak_hour_label,
+        'peak_hour_sessions': peak_hour_sessions,
+        'hourly_labels_json': json.dumps(hourly_labels),
+        'hourly_attendance_json': json.dumps(hourly_attendance),
+        'weekly_labels_json': json.dumps(weekly_labels),
+        'weekly_attendance_json': json.dumps(weekly_attendance),
+        'weekly_classrooms_json': json.dumps(weekly_classrooms_used),
+        'today': today.strftime('%A, %B %d, %Y'),
     }
     
     return render(request, 'dashboard.html', context)

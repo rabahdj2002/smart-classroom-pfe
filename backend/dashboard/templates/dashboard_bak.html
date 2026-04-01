@@ -1,0 +1,507 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+        <!-- Layout container -->
+        <div class="layout-page">
+          <!-- Content wrapper -->
+          <div class="content-wrapper">
+            <!-- Content -->
+
+            <div class="container-xxl flex-grow-1 container-p-y">
+              <!-- ALERTS & WARNINGS SECTION -->
+              {% if danger_classrooms or warning_classrooms %}
+              <div class="row mb-4">
+                <div class="col-12">
+                  {% if danger_classrooms %}
+                  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <div class="d-flex align-items-center">
+                      <i class="bx bx-error-circle me-2 fs-5"></i>
+                      <div>
+                        <h6 class="mb-0">⚠️ DANGER ALERT - IMMEDIATE ACTION REQUIRED</h6>
+                        <p class="mb-0 mt-1">
+                          <strong>Critical Issue:</strong> The following {{ danger_classrooms|length }} classroom{% if danger_classrooms|length > 1 %}s are{% else %} is{% endif %} flagged with danger alerts:
+                          <br/>
+                          {% for classroom in danger_classrooms %}
+                            <span class="badge bg-danger me-2 mt-2"><i class="bx bx-alert me-1"></i>{{ classroom.name }}</span>
+                          {% endfor %}
+                        </p>
+                        <p class="mb-0 mt-2 small">
+                          Please review the status and take corrective measures immediately.
+                        </p>
+                      </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+                  {% endif %}
+
+                  {% if warning_classrooms %}
+                  <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <div class="d-flex align-items-center">
+                      <i class="bx bx-exclamation-triangle me-2 fs-5"></i>
+                      <div>
+                        <h6 class="mb-0">⚠️ WARNING - TEMPERATURE OUT OF RANGE</h6>
+                        <p class="mb-0 mt-1">
+                          <strong>Notice:</strong> The following {{ warning_classrooms|length }} classroom{% if warning_classrooms|length > 1 %}s have{% else %} has{% endif %} temperature concerns:
+                          <br/>
+                          {% for classroom in warning_classrooms %}
+                            <span class="badge bg-warning me-2 mt-2"><i class="bx bx-thermometer me-1"></i>{{ classroom.name }} ({{ classroom.temperature|default:"N/A" }}°C)</span>
+                          {% endfor %}
+                        </p>
+                        <p class="mb-0 mt-2 small">
+                          Adjust HVAC settings to maintain comfortable working conditions (18-26°C recommended).
+                        </p>
+                      </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+              {% else %}
+              <div class="row mb-4">
+                <div class="col-12">
+                  <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <div class="d-flex align-items-center">
+                      <i class="bx bx-check-circle me-2 fs-5"></i>
+                      <div>
+                        <h6 class="mb-0">✓ All Systems Operating Normally</h6>
+                        <p class="mb-0 mt-1">All classrooms are functioning properly. No warnings or alerts at this time.</p>
+                      </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+
+              <!-- WELCOME & KEY METRICS -->
+              <div class="row">
+                <div class="col-lg-8 mb-4">
+                  <div class="card">
+                    <div class="d-flex align-items-end row">
+                      <div class="col-sm-7">
+                        <div class="card-body">
+                          <h5 class="card-title text-primary">Welcome back, Supervisor 👋</h5>
+                          <p class="mb-2">
+                            You are monitoring <span class="fw-bold text-primary">{{ total_classrooms }}</span> classrooms with <span class="fw-bold text-primary">{{ total_students }}</span> students.
+                          </p>
+                          <p class="mb-4 text-muted small">
+                            <strong>Today ({{ today }}):</strong> <span class="fw-bold">{{ total_attendance_today }}</span> attendance records logged
+                          </p>
+                          <a href="{% url 'classes' %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bx bx-list-check me-1"></i>View All Classrooms
+                          </a>
+                        </div>
+                      </div>
+                      <div class="col-sm-5 text-center text-sm-left">
+                        <div class="card-body pb-0 px-0 px-md-4">
+                          <img
+                            src="{% static 'dashboard/img/illustrations/man-with-laptop-light.png' %}"
+                            height="140"
+                            alt="Dashboard"
+                            data-app-dark-img="{% static 'dashboard/img/illustrations/man-with-laptop-dark.png' %}"
+                            data-app-light-img="illustrations/man-with-laptop-light.png"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- KEY METRICS -->
+                <div class="col-lg-4 col-md-4 mb-4">
+                  <div class="row">
+                    <div class="col-12 mb-4">
+                      <div class="card">
+                        <div class="card-body">
+                          <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                              <span class="fw-semibold d-block mb-1">Avg. Occupancy</span>
+                              <h3 class="card-title mb-0">{{ avg_occupancy }}%</h3>
+                            </div>
+                            <div class="avatar">
+                              <span class="avatar-initial rounded-circle bg-label-info">
+                                <i class="bx bx-group fs-4"></i>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-12 mb-4">
+                      <div class="card">
+                        <div class="card-body">
+                          <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                              <span class="fw-semibold d-block mb-1">Busy Classrooms</span>
+                              <h3 class="card-title mb-0">{{ busy_classrooms }}/{{ total_classrooms }}</h3>
+                            </div>
+                            <div class="avatar">
+                              <span class="avatar-initial rounded-circle bg-label-warning">
+                                <i class="bx bx-trending-up fs-4"></i>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-12 mb-4">
+                      <div class="card">
+                        <div class="card-body">
+                          <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                              <span class="fw-semibold d-block mb-1">Peak Hours</span>
+                              <h3 class="card-title mb-0">{{ peak_hour_label }}</h3>
+                              <small class="text-muted">{{ peak_hour_sessions }} sessions</small>
+                            </div>
+                            <div class="avatar">
+                              <span class="avatar-initial rounded-circle bg-label-success">
+                                <i class="bx bx-time fs-4"></i>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- REAL-TIME CLASSROOM STATUS -->
+              <div class="row mb-4">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header d-flex align-items-center justify-content-between pb-3">
+                      <h5 class="card-title mb-0">
+                        <i class="bx bx-video me-2"></i>Real-Time Classroom Status
+                      </h5>
+                      <small class="text-muted">Last updated: just now</small>
+                    </div>
+                    <div class="card-body">
+                      <div class="row">
+                        {% for classroom in classroom_status %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                          <div class="card border {% if classroom.status == 'danger' %}border-danger{% elif classroom.status == 'warning' %}border-warning{% else %}border-success{% endif %}">
+                            <div class="card-body">
+                              <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-0">{{ classroom.name }}</h6>
+                                <span class="badge bg-{% if classroom.status == 'danger' %}danger{% elif classroom.status == 'warning' %}warning{% else %}success{% endif %}">
+                                  {% if classroom.status == 'danger' %}🔴 Danger{% elif classroom.status == 'warning' %}🟡 Warning{% else %}🟢 Normal{% endif %}
+                                </span>
+                              </div>
+                              
+                              <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                  <small class="text-muted">Occupancy</small>
+                                  <small class="fw-semibold">{{ classroom.occupied }}/{{ classroom.capacity }}</small>
+                                </div>
+                                <div class="progress progress-sm">
+                                  <div 
+                                    class="progress-bar {% if classroom.occupancy_percent > 90 %}bg-danger{% elif classroom.occupancy_percent > 70 %}bg-warning{% else %}bg-success{% endif %}" 
+                                    role="progressbar" 
+                                    style="width: {{ classroom.occupancy_percent }}%"
+                                  ></div>
+                                </div>
+                              </div>
+
+                              <div class="row g-2 small">
+                                <div class="col-6">
+                                  <div class="d-flex align-items-center">
+                                    <i class="bx bx-bulb {% if classroom.lights_on %}text-warning{% else %}text-muted{% endif %} me-1"></i>
+                                    <span>Lights: {% if classroom.lights_on %}<span class="text-warning fw-semibold">ON</span>{% else %}<span class="text-muted">OFF</span>{% endif %}</span>
+                                  </div>
+                                </div>
+                                <div class="col-6">
+                                  <div class="d-flex align-items-center">
+                                    <i class="bx bx-projector {% if classroom.projector_on %}text-info{% else %}text-muted{% endif %} me-1"></i>
+                                    <span>Projector: {% if classroom.projector_on %}<span class="text-info fw-semibold">ON</span>{% else %}<span class="text-muted">OFF</span>{% endif %}</span>
+                                  </div>
+                                </div>
+                                <div class="col-6">
+                                  <div class="d-flex align-items-center">
+                                    <i class="bx bx-door-open {% if classroom.door %}text-success{% else %}text-danger{% endif %} me-1"></i>
+                                    <span>Door: {% if classroom.door %}<span class="text-success fw-semibold">OPEN</span>{% else %}<span class="text-danger">CLOSED</span>{% endif %}</span>
+                                  </div>
+                                </div>
+                                <div class="col-6">
+                                  <div class="d-flex align-items-center">
+                                    <i class="bx bx-thermometer text-primary me-1"></i>
+                                    <span>Temp: {{ classroom.temperature|default:"N/A" }}°C</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div class="mt-3">
+                                <a href="{% url 'classroom_detail' id=classroom.id %}" class="btn btn-sm btn-outline-primary w-100">
+                                  View Details
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ANALYTICS CHARTS -->
+              <div class="row">
+                <!-- Today's Activity (Hourly) -->
+                <div class="col-12 col-lg-8 mb-4">
+                  <div class="card">
+                    <div class="card-header">
+                      <h5 class="card-title mb-0">
+                        <i class="bx bx-bar-chart me-2"></i>Today's Activity by Hour
+                      </h5>
+                      <small class="text-muted">Attendance sessions throughout the day</small>
+                    </div>
+                    <div class="card-body">
+                      <div id="hourlyActivityChart" style="min-height: 350px;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- This Week's Trends -->
+                <div class="col-12 col-lg-4 mb-4">
+                  <div class="card">
+                    <div class="card-header">
+                      <h5 class="card-title mb-0">
+                        <i class="bx bx-line-chart me-2"></i>Weekly Trend
+                      </h5>
+                    </div>
+                    <div class="card-body">
+                      <div id="weeklyTrendChart" style="min-height: 350px;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Classroom Usage Comparison -->
+                <div class="col-12 col-lg-8 mb-4">
+                  <div class="card">
+                    <div class="card-header">
+                      <h5 class="card-title mb-0">
+                        <i class="bx bx-columns me-2"></i>Weekly Classroom Usage
+                      </h5>
+                      <small class="text-muted">Number of classrooms in use each day</small>
+                    </div>
+                    <div class="card-body">
+                      <div id="weeklyUsageChart" style="min-height: 350px;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Summary Statistics -->
+                <div class="col-12 col-lg-4 mb-4">
+                  <div class="card">
+                    <div class="card-header">
+                      <h5 class="card-title mb-0">
+                        <i class="bx bx-info-circle me-2"></i>System Summary
+                      </h5>
+                    </div>
+                    <div class="card-body">
+                      <ul class="list-unstyled">
+                        <li class="d-flex mb-3 pb-1 border-bottom">
+                          <span class="badge bg-label-primary rounded-pill me-2 d-flex align-items-center">
+                            <i class="bx bx-user"></i>
+                          </span>
+                          <div class="d-flex justify-content-between w-100">
+                            <span>Total Students</span>
+                            <span class="fw-semibold">{{ total_students }}</span>
+                          </div>
+                        </li>
+                        <li class="d-flex mb-3 pb-1 border-bottom">
+                          <span class="badge bg-label-info rounded-pill me-2 d-flex align-items-center">
+                            <i class="bx bx-briefcase"></i>
+                          </span>
+                          <div class="d-flex justify-content-between w-100">
+                            <span>Total Staff</span>
+                            <span class="fw-semibold">{{ total_staff }}</span>
+                          </div>
+                        </li>
+                        <li class="d-flex mb-3 pb-1 border-bottom">
+                          <span class="badge bg-label-success rounded-pill me-2 d-flex align-items-center">
+                            <i class="bx bx-build"></i>
+                          </span>
+                          <div class="d-flex justify-content-between w-100">
+                            <span>Total Classrooms</span>
+                            <span class="fw-semibold">{{ total_classrooms }}</span>
+                          </div>
+                        </li>
+                        <li class="d-flex mb-3 pb-1">
+                          <span class="badge bg-label-warning rounded-pill me-2 d-flex align-items-center">
+                            <i class="bx bx-calendar"></i>
+                          </span>
+                          <div class="d-flex justify-content-between w-100">
+                            <span>Today's Sessions</span>
+                            <span class="fw-semibold">{{ total_attendance_today }}</span>
+                          </div>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- / Content -->
+
+            <!-- Footer -->
+            <footer class="content-footer footer bg-footer-theme">
+              <div class="container-xxl d-flex flex-wrap justify-content-between py-2 flex-md-row flex-column">
+                <div class="mb-2 mb-md-0">
+                  © <script>document.write(new Date().getFullYear());</script> Smart Classroom Management System
+                </div>
+                <div>
+                  <a href="{% url 'classes' %}" class="footer-link me-4">Classrooms</a>
+                  <a href="{% url 'students' %}" class="footer-link me-4">Students</a>
+                  <a href="#" class="footer-link me-4">Settings</a>
+                </div>
+              </div>
+            </footer>
+            <!-- / Footer -->
+
+            <div class="content-backdrop fade"></div>
+          </div>
+          <!-- Content wrapper -->
+        </div>
+        <!-- / Layout page -->
+      </div>
+      <!-- / Layout wrapper -->
+
+      <!-- ApexCharts -->
+      <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+      <script>
+        // Color scheme
+        const colors = {
+          primary: '#696cff',
+          success: '#71dd5c',
+          warning: '#ffb800',
+          danger: '#ff3e1e',
+          info: '#03c3ec',
+          light: '#f8f7ff',
+          dark: '#21222e'
+        };
+
+        // Today's Hourly Activity Chart
+        const hourlyLabels = {{ hourly_labels_json|safe }};
+        const hourlyData = {{ hourly_attendance_json|safe }};
+
+        const hourlyOptions = {
+          chart: {
+            type: 'area',
+            height: 350,
+            parentHeightOffset: 0,
+            toolbar: { show: false },
+            animations: { enabled: true }
+          },
+          colors: [colors.primary],
+          dataLabels: { enabled: false },
+          stroke: { curve: 'smooth', width: 2 },
+          fill: {
+            type: 'gradient',
+            gradient: {
+              shadeIntensity: 0.6,
+              opacityFrom: 0.4,
+              opacityTo: 0.1
+            }
+          },
+          xaxis: {
+            categories: hourlyLabels,
+            axisBorder: { show: false },
+            axisTicks: { show: false },
+            labels: { style: { colors: colors.dark, fontSize: '12px' } }
+          },
+          yaxis: {
+            labels: { style: { colors: colors.dark } }
+          },
+          grid: { borderColor: '#f1f1f1', padding: { top: 0 } },
+          tooltip: {
+            theme: 'light',
+            y: { formatter: (val) => val + ' sessions' }
+          },
+          series: [{
+            name: 'Sessions',
+            data: hourlyData
+          }]
+        };
+
+        const hourlyChart = new ApexCharts(document.querySelector('#hourlyActivityChart'), hourlyOptions);
+        hourlyChart.render();
+
+        // Weekly Trend Chart
+        const weeklyLabels = {{ weekly_labels_json|safe }};
+        const weeklyData = {{ weekly_attendance_json|safe }};
+
+        const weeklyOptions = {
+          chart: {
+            type: 'line',
+            height: 350,
+            parentHeightOffset: 0,
+            toolbar: { show: false }
+          },
+          colors: [colors.info],
+          dataLabels: { enabled: false },
+          stroke: { curve: 'smooth', width: 3 },
+          xaxis: {
+            categories: weeklyLabels,
+            axisBorder: { show: false },
+            axisTicks: { show: false },
+            labels: { style: { colors: colors.dark, fontSize: '12px' } }
+          },
+          yaxis: {
+            labels: { style: { colors: colors.dark } }
+          },
+          grid: { borderColor: '#f1f1f1' },
+          tooltip: {
+            theme: 'light',
+            y: { formatter: (val) => val + ' sessions' }
+          },
+          markers: { size: 6, colors: [colors.info], strokeColors: '#fff', strokeWidth: 2 },
+          series: [{
+            name: 'Total Sessions',
+            data: weeklyData
+          }]
+        };
+
+        const weeklyChart = new ApexCharts(document.querySelector('#weeklyTrendChart'), weeklyOptions);
+        weeklyChart.render();
+
+        // Weekly Classroom Usage Chart
+        const classroomUsageData = {{ weekly_classrooms_json|safe }};
+
+        const usageOptions = {
+          chart: {
+            type: 'column',
+            height: 350,
+            parentHeightOffset: 0,
+            toolbar: { show: false }
+          },
+          colors: [colors.success],
+          dataLabels: { enabled: false },
+          xaxis: {
+            categories: weeklyLabels,
+            axisBorder: { show: false },
+            axisTicks: { show: false },
+            labels: { style: { colors: colors.dark, fontSize: '12px' } }
+          },
+          yaxis: {
+            labels: { style: { colors: colors.dark } }
+          },
+          grid: { borderColor: '#f1f1f1', padding: { top: 0 } },
+          tooltip: {
+            theme: 'light',
+            y: { formatter: (val) => val + ' classrooms' }
+          },
+          series: [{
+            name: 'Classrooms in Use',
+            data: classroomUsageData
+          }]
+        };
+
+        const usageChart = new ApexCharts(document.querySelector('#weeklyUsageChart'), usageOptions);
+        usageChart.render();
+      </script>
+
+{% endblock %}
