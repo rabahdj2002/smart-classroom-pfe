@@ -1,49 +1,92 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block content %}
+  <style>
+    .classroom-vivid .card {
+      border: 0;
+      box-shadow: 0 0.25rem 1rem rgba(161, 172, 184, 0.45);
+    }
+
+    .classroom-vivid .metric-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
   <div class="layout-page">
     <div class="content-wrapper">
-      <div class="container-xxl flex-grow-1 container-p-y">
+      <div class="container-xxl flex-grow-1 container-p-y classroom-vivid">
         <div class="d-flex align-items-center justify-content-between mb-4">
           <h4 class="fw-bold mb-0">Classroom details - {{ classroom.name|upper }}</h4>
-          <a href="{% url 'classes' %}" class="btn btn-outline-primary btn-sm">
-            <i class="bx bx-left-arrow-alt"></i> Back
-          </a>
+          <div class="d-flex gap-2">
+            <a href="{% url 'temperature_settings' %}" class="btn btn-outline-warning btn-sm">
+              <i class="bx bx-cog"></i> Temperature Settings
+            </a>
+            <a href="{% url 'classes' %}" class="btn btn-outline-primary btn-sm">
+              <i class="bx bx-left-arrow-alt"></i> Back
+            </a>
+          </div>
         </div>
 
+        {% if has_temp_warning %}
+        <div class="alert alert-warning d-flex align-items-start" role="alert">
+          <i class="bx bx-thermometer me-2 mt-1"></i>
+          <div>
+            <strong>Temperature warning:</strong>
+            this classroom is at {{ classroom.temperature|default:"N/A" }}C,
+            {% if temp_warning_type == 'high' %}
+              above the configured maximum of {{ temperature_max }}C.
+            {% else %}
+              below the configured minimum of {{ temperature_min }}C.
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
         <div class="row g-3 mb-4">
-          <div class="col-md-3">
+          <div class="col-12 col-md-6 col-lg-3">
             <div class="card h-100">
-              <div class="card-body text-primary">
-                <div class="d-flex align-items-center mb-2">
-                  <i class="bx bx-door-open fs-3"></i>
-                  <h6 class="card-title ms-2 mb-0">Capacity</h6>
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="d-block mb-1 text-muted fw-normal small">Usage State</span>
+                    <h5 class="mb-0">{% if classroom.occupied %}Used{% else %}Unused{% endif %}</h5>
+                    <small class="text-muted">Based on classroom setting</small>
+                  </div>
+                  <span class="badge bg-label-primary p-2 metric-icon"><i class="bx bx-user-circle text-primary fs-4"></i></span>
                 </div>
-                <p class="h3 fw-bold">{{ classroom.capacity }}</p>
-                <p class="mb-0 text-muted">Seats</p>
               </div>
             </div>
           </div>
 
-          <div class="col-md-3">
+          <div class="col-12 col-md-6 col-lg-3">
             <div class="card h-100">
-              <div class="card-body text-success">
-                <div class="d-flex align-items-center mb-2">
-                  <i class="bx bx-user-circle fs-3"></i>
-                  <h6 id="occupiedLabel" class="card-title ms-2 mb-0">Today Sessions</h6>
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="d-block mb-1 text-muted fw-normal small">Today Sessions</span>
+                    <h5 id="usageValue" class="mb-0">{{ today_sessions }}</h5>
+                    <small id="usageDetail" class="text-muted">Attendance records</small>
+                  </div>
+                  <span class="badge bg-label-success p-2 metric-icon"><i class="bx bx-time-five text-success fs-4"></i></span>
                 </div>
-                <p id="occupiedValue" class="h3 fw-bold">{{ today_sessions }}</p>
-                <small id="occupiedPercent" class="text-muted">{{ occupied_percentage|floatformat:2 }}%</small>
               </div>
             </div>
           </div>
 
-          <div class="col-md-4">
+          <div class="col-12 col-md-6 col-lg-3">
             <div class="card h-100">
-              <div class="card-body text-info">
-                <div class="d-flex align-items-center mb-3">
-                  <i class="bx bx-slideshow fs-3"></i>
-                  <h6 class="card-title ms-2 mb-0">Room Devices</h6>
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <span class="d-block mb-1 text-muted fw-normal small">Last 7 Days</span>
+                    <h5 class="mb-0">{{ weekly_sessions }}</h5>
+                    <small class="text-muted">Attendance records</small>
+                  </div>
+                  <span class="badge bg-label-info p-2 metric-icon"><i class="bx bx-line-chart text-info fs-4"></i></span>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <div>
@@ -70,18 +113,32 @@
             </div>
           </div>
 
-          <div class="col-md-2">
-            <div class="card h-100 border-top border-4 border-danger">
-              <div class="card-body text-danger">
-                <div class="d-flex align-items-center mb-2">
-                  <i class="bx bx-bell fs-3"></i>
-                  <h6 class="card-title ms-2 mb-0">Danger</h6>
+          <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <span class="d-block mb-1 text-muted fw-normal small">Temperature Indicator</span>
+                    <h5 class="mb-0 {% if has_temp_warning %}text-warning{% else %}text-success{% endif %}">
+                      {{ classroom.temperature|default:"N/A" }}{% if classroom.temperature != None %}C{% endif %}
+                    </h5>
+                    <small class="text-muted">
+                      Range {{ temperature_min }}C - {{ temperature_max }}C
+                    </small>
+                  </div>
+                  <span class="badge {% if has_temp_warning %}bg-label-warning{% else %}bg-label-success{% endif %} p-2 metric-icon"><i class="bx bxs-thermometer {% if has_temp_warning %}text-warning{% else %}text-success{% endif %} fs-4"></i></span>
                 </div>
-                <div class="d-flex align-items-center">
-                  <span style="width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 10px; box-shadow: 0 0 10px 2px {% if classroom.danger_indicator %}rgba(220,53,69,.8){% else %}rgba(25,135,84,.5){% endif %}; background-color: {% if classroom.danger_indicator %}#dc3545{% else %}#198754{% endif %};"></span>
-                  <span class="fw-bold fs-5">{% if classroom.danger_indicator %}Active{% else %}Safe{% endif %}</span>
+
+                <hr class="my-3" />
+
+                <div class="d-flex justify-content-between align-items-start mb-0">
+                  <div>
+                    <span class="d-block mb-1 text-muted fw-normal small">Danger Indicator</span>
+                    <h5 class="mb-0 {% if classroom.danger_indicator %}text-danger{% else %}text-success{% endif %}">{% if classroom.danger_indicator %}Active{% else %}Safe{% endif %}</h5>
+                    <small class="text-muted">{% if classroom.danger_indicator %}Immediate attention required{% else %}No alert{% endif %}</small>
+                  </div>
+                  <span class="badge {% if classroom.danger_indicator %}bg-label-danger{% else %}bg-label-success{% endif %} p-2 metric-icon"><i class="bx bx-bell {% if classroom.danger_indicator %}text-danger{% else %}text-success{% endif %} fs-4"></i></span>
                 </div>
-                <small class="text-muted">{% if classroom.danger_indicator %}Immediate attention required{% else %}No alert</small>{% endif %}
               </div>
             </div>
           </div>
@@ -121,6 +178,20 @@
                 <button id="class-btn-full-month" class="btn btn-outline-secondary btn-sm me-1">Last 30 days</button>
               </div>
             </div>
+            <div class="row g-2 mb-3">
+              <div class="col-12 col-md-6">
+                <div class="border rounded p-2 bg-label-primary">
+                  <small class="text-muted d-block">Students Attended</small>
+                  <h6 id="studentsMetric" class="mb-0 text-primary">0</h6>
+                </div>
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="border rounded p-2 bg-label-success">
+                  <small class="text-muted d-block">Teachers Taught</small>
+                  <h6 id="teachersMetric" class="mb-0 text-success">0</h6>
+                </div>
+              </div>
+            </div>
             <div id="classUsageChart" style="min-height: 320px;"></div>
           </div>
         </div>
@@ -136,7 +207,6 @@
         var initialLabels = {{ usage_labels_json|safe }};
         var initialDataStudents = {{ usage_values_json|safe }};
         var initialDataTeachers = {{ usage_teacher_values_json|safe }};
-        var capacity = {{ classroom.capacity|default:0 }};
 
         var initialLabels7 = initialLabels.slice(-7);
         var initialStudents7 = initialDataStudents.slice(-7);
@@ -145,16 +215,25 @@
         var options = {
           chart: {
             height: 350,
-            type: 'area',
+            type: 'bar',
             toolbar: { show: true, tools: { download: true, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } }
           },
           colors: ['#0d6efd', '#20c997'],
-          dataLabels: { enabled: false },
-          stroke: { curve: 'smooth', width: 3 },
-          markers: { size: 4 },
+          plotOptions: {
+            bar: {
+              horizontal: false,
+              columnWidth: '45%',
+              borderRadius: 5
+            }
+          },
+          dataLabels: {
+            enabled: true,
+            style: { fontSize: '11px' }
+          },
+          stroke: { show: false },
           series: [
-            { name: 'Students', data: initialStudents7 },
-            { name: 'Teachers', data: initialTeachers7 }
+            { name: 'Students Attended', data: initialStudents7 },
+            { name: 'Teachers Taught', data: initialTeachers7 }
           ],
           xaxis: {
             categories: initialLabels7,
@@ -169,19 +248,16 @@
             shared: true,
             intersect: false,
             y: {
-              formatter: function (val) {
-                return val + ' attendance';
+              formatter: function (val, opts) {
+                if (opts.seriesIndex === 0) {
+                  return val + ' students attended';
+                }
+                return val + ' teachers taught';
               }
             }
           },
-          fill: {
-            type: 'gradient',
-            gradient: {
-              shadeIntensity: 1,
-              opacityFrom: 0.6,
-              opacityTo: 0.15,
-              stops: [20, 95, 100]
-            }
+          legend: {
+            position: 'top'
           }
         };
         var chart = new ApexCharts(document.querySelector('#classUsageChart'), options);
@@ -214,77 +290,37 @@
             xaxis: { categories: labels }
           });
           chart.updateSeries([
-            { name: 'Students', data: students },
-            { name: 'Teachers', data: teachers }
+            { name: 'Students Attended', data: students },
+            { name: 'Teachers Taught', data: teachers }
           ]);
 
           setMetrics(duration, students, teachers);
         }
 
         function setMetrics(duration, students, teachers) {
-          var studentSum = 0;
-          var teacherSum = 0;
           var durationLabel = '';
-          var occupiedCount = 0;
+          var usageCount = 0;
+          var studentsTotal = students.reduce((a, b) => a + b, 0);
+          var teachersTotal = teachers.reduce((a, b) => a + b, 0);
 
           if (duration === 'today') {
             durationLabel = 'Today';
-            occupiedCount = {{ today_sessions }};
-            studentSum = occupiedCount;
-            teacherSum = teachers.length;
-
-            document.getElementById('occupiedLabel').innerText = durationLabel + ' Sessions';
-            document.getElementById('occupiedValue').innerText = occupiedCount;
-            if (capacity > 0) {
-              document.getElementById('occupiedPercent').innerText = ((occupiedCount / capacity) * 100).toFixed(2) + '%';
-            } else {
-              document.getElementById('occupiedPercent').innerText = 'N/A';
-            }
+            usageCount = {{ today_sessions }};
           } else if (duration === 'yesterday') {
             durationLabel = 'Yesterday';
-            occupiedCount = students[students.length - 1] || 0;
-            studentSum = occupiedCount;
-            teacherSum = teachers[teachers.length - 1] || 0;
-
-            document.getElementById('occupiedLabel').innerText = durationLabel + ' Sessions';
-            document.getElementById('occupiedValue').innerText = occupiedCount;
-            if (capacity > 0) {
-              document.getElementById('occupiedPercent').innerText = ((occupiedCount / capacity) * 100).toFixed(2) + '%';
-            } else {
-              document.getElementById('occupiedPercent').innerText = 'N/A';
-            }
+            usageCount = (students[0] || 0) + (teachers[0] || 0);
           } else if (duration === 7) {
             durationLabel = 'Last 7 Days';
-            occupiedCount = {{ weekly_sessions }};
-            studentSum = students.reduce((a,b)=>a+b,0);
-            teacherSum = teachers.reduce((a,b)=>a+b,0);
-
-            document.getElementById('occupiedLabel').innerText = durationLabel + ' Sessions';
-            document.getElementById('occupiedValue').innerText = occupiedCount;
-            if (capacity > 0) {
-              document.getElementById('occupiedPercent').innerText = ((occupiedCount / capacity) * 100).toFixed(2) + '%';
-            } else {
-              document.getElementById('occupiedPercent').innerText = 'N/A';
-            }
+            usageCount = {{ weekly_sessions }};
           } else if (duration === 30) {
             durationLabel = 'Last 30 Days';
-            occupiedCount = {{ monthly_sessions }};
-            studentSum = students.reduce((a,b)=>a+b,0);
-            teacherSum = teachers.reduce((a,b)=>a+b,0);
-
-            document.getElementById('occupiedLabel').innerText = durationLabel + ' Sessions';
-            document.getElementById('occupiedValue').innerText = occupiedCount;
-            if (capacity > 0) {
-              document.getElementById('occupiedPercent').innerText = ((occupiedCount / capacity) * 100).toFixed(2) + '%';
-            } else {
-              document.getElementById('occupiedPercent').innerText = 'N/A';
-            }
+            usageCount = {{ monthly_sessions }};
           }
 
-          document.getElementById('studentLabel').innerText = durationLabel + ' Student Sessions';
-          document.getElementById('studentValue').innerText = studentSum;
-          document.getElementById('teacherLabel').innerText = durationLabel + ' Teacher Sessions';
-          document.getElementById('teacherValue').innerText = teacherSum;
+          document.getElementById('usageValue').innerText = usageCount;
+          document.getElementById('usageDetail').innerText = durationLabel + ' attendance records';
+          document.getElementById('studentsMetric').innerText = studentsTotal;
+          document.getElementById('teachersMetric').innerText = teachersTotal;
         }
 
         function setActiveButton(activeId) {

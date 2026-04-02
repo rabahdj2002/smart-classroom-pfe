@@ -152,6 +152,13 @@
               </a>
             </li>
 
+            <li class="menu-item {% if request.path == '/settings/' %}active{% endif %}">
+              <a href="{% url 'temperature_settings' %}" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-cog"></i>
+                <div data-i18n="Layouts">Settings</div>
+              </a>
+            </li>
+
             <li class="menu-header small text-uppercase">
               <span class="menu-header-text">Pages</span>
             </li>

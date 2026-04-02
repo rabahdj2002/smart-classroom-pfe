@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Staff, Classroom, Attendance
+from .models import Student, Staff, Classroom, Attendance, TemperatureSettings
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
@@ -15,7 +15,7 @@ class StaffAdmin(admin.ModelAdmin):
 
 @admin.register(Classroom)
 class ClassroomAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'capacity', 'occupied', 'door', 'lights_on', 'projector_on', 'temperature', 'danger_indicator')
+    list_display = ('id', 'name', 'occupied', 'door', 'lights_on', 'projector_on', 'temperature', 'danger_indicator')
     list_filter = ('occupied', 'danger_indicator')
 
 @admin.register(Attendance)
@@ -23,4 +23,9 @@ class AttendanceAdmin(admin.ModelAdmin):
     list_display = ('id', 'classroom', 'staff', 'timestamp')
     list_filter = ('classroom', 'timestamp')
     date_hierarchy = 'timestamp'
+
+
+@admin.register(TemperatureSettings)
+class TemperatureSettingsAdmin(admin.ModelAdmin):
+    list_display = ('id', 'min_temperature', 'max_temperature')
     

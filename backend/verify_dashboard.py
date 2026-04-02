@@ -53,7 +53,8 @@ def check_dashboard():
                 'danger_classrooms',
                 'warning_classrooms',
                 'has_warnings',
-                'busy_classrooms',
+                'used_classrooms',
+                'unused_classrooms',
                 'avg_occupancy',
                 'peak_hour_label',
                 'peak_hour_sessions',
@@ -87,7 +88,8 @@ def check_dashboard():
             print(f"  - Classrooms: {context['total_classrooms']}")
             print(f"  - Today's Sessions: {context['total_attendance_today']}")
             print(f"  - Average Occupancy: {context['avg_occupancy']}%")
-            print(f"  - Busy Classrooms: {context['busy_classrooms']}/{context['total_classrooms']}")
+            print(f"  - Used Classrooms: {context['used_classrooms']}")
+            print(f"  - Unused Classrooms: {context['unused_classrooms']}")
             print(f"  - Peak Hours: {context['peak_hour_label']} ({context['peak_hour_sessions']} sessions)")
             print(f"  - Date: {context['today']}")
             
@@ -135,7 +137,6 @@ def check_template():
             'classroom_status',
             'hourlyActivityChart',
             'weeklyTrendChart',
-            'weeklyUsageChart',
             'ApexCharts',
         ]
         

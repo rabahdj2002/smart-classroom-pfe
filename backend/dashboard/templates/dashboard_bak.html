@@ -118,6 +118,7 @@
                             <div>
                               <span class="fw-semibold d-block mb-1">Avg. Occupancy</span>
                               <h3 class="card-title mb-0">{{ avg_occupancy }}%</h3>
+                              <small class="text-muted">{{ used_classrooms }} used / {{ unused_classrooms }} unused</small>
                             </div>
                             <div class="avatar">
                               <span class="avatar-initial rounded-circle bg-label-info">
@@ -133,8 +134,8 @@
                         <div class="card-body">
                           <div class="d-flex align-items-center justify-content-between">
                             <div>
-                              <span class="fw-semibold d-block mb-1">Busy Classrooms</span>
-                              <h3 class="card-title mb-0">{{ busy_classrooms }}/{{ total_classrooms }}</h3>
+                              <span class="fw-semibold d-block mb-1">Used Classrooms</span>
+                              <h3 class="card-title mb-0">{{ used_classrooms }}/{{ total_classrooms }}</h3>
                             </div>
                             <div class="avatar">
                               <span class="avatar-initial rounded-circle bg-label-warning">
@@ -192,16 +193,14 @@
                               
                               <div class="mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
-                                  <small class="text-muted">Occupancy</small>
-                                  <small class="fw-semibold">{{ classroom.occupied }}/{{ classroom.capacity }}</small>
+                                  <small class="text-muted">Usage Today</small>
+                                  <small class="fw-semibold">{{ classroom.today_sessions }} session{{ classroom.today_sessions|pluralize }}</small>
                                 </div>
-                                <div class="progress progress-sm">
-                                  <div 
-                                    class="progress-bar {% if classroom.occupancy_percent > 90 %}bg-danger{% elif classroom.occupancy_percent > 70 %}bg-warning{% else %}bg-success{% endif %}" 
-                                    role="progressbar" 
-                                    style="width: {{ classroom.occupancy_percent }}%"
-                                  ></div>
-                                </div>
+                                {% if classroom.used_today %}
+                                  <span class="badge bg-success">Used</span>
+                                {% else %}
+                                  <span class="badge bg-secondary">Unused</span>
+                                {% endif %}
                               </div>
 
                               <div class="row g-2 small">

@@ -156,7 +156,7 @@
                         <div>
                           <span class="d-block mb-1 text-muted fw-normal small">Avg. Occupancy</span>
                           <h3 class="mb-0">{{ avg_occupancy }}%</h3>
-                          <small class="stat-trend text-warning"><i class="bx bx-bar-chart-alt-2"></i> Capacity load</small>
+                          <small class="stat-trend text-warning"><i class="bx bx-bar-chart-alt-2"></i> {{ used_classrooms }} used / {{ unused_classrooms }} unused</small>
                         </div>
                         <span class="badge bg-label-info p-2 metric-icon"><i class="bx bx-trending-up text-info fs-4"></i></span>
                       </div>
@@ -228,7 +228,7 @@
                           <thead>
                             <tr>
                               <th>Classroom</th>
-                              <th>Occupancy</th>
+                              <th>Usage State</th>
                               <th>Status</th>
                               <th>Lights</th>
                               <th>Projector</th>
@@ -241,7 +241,13 @@
                             {% for classroom in classroom_status %}
                             <tr>
                               <td><strong>{{ classroom.name }}</strong></td>
-                              <td>{{ classroom.occupied }}/{{ classroom.capacity }}</td>
+                              <td>
+                                {% if classroom.used_today %}
+                                  <span class="badge bg-label-success">Used</span>
+                                {% else %}
+                                  <span class="badge bg-label-secondary">Unused</span>
+                                {% endif %}
+                              </td>
                               <td>
                                 {% if classroom.status == 'danger' %}
                                   <span class="status-pill bg-label-danger"><span class="status-dot" style="background:#ff3e1e"></span>DANGER</span>
@@ -300,7 +306,7 @@
                 <div>
                   <a href="{% url 'classes' %}" class="footer-link me-4">Classrooms</a>
                   <a href="{% url 'students' %}" class="footer-link me-4">Students</a>
-                  <a href="#" class="footer-link">Settings</a>
+                  <a href="{% url 'temperature_settings' %}" class="footer-link">Settings</a>
                 </div>
               </div>
             </footer>

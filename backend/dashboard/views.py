@@ -1,13 +1,22 @@
 from django.shortcuts import render, redirect
-from django.db.models import Count, Q
-from .models import Student, Staff, Classroom, Attendance
+from django.db.models import Q
+from .models import Student, Staff, Classroom, Attendance, TemperatureSettings
 from django.utils import timezone
 from datetime import timedelta, datetime
 import json
+
+
+def get_temperature_settings():
+    settings_obj, _ = TemperatureSettings.objects.get_or_create(
+        pk=1,
+        defaults={'min_temperature': 15.0, 'max_temperature': 28.0},
+    )
+    return settings_obj
     
 def dash(request):
     today = timezone.now().date()
     now = timezone.now()
+    temperature_settings = get_temperature_settings()
     
     # Basic counts
     total_students = Student.objects.count()
@@ -18,33 +27,34 @@ def dash(request):
     # Classroom status and warnings
     all_classrooms = Classroom.objects.all()
     danger_classrooms = list(all_classrooms.filter(danger_indicator=True))
-    warning_classrooms = list(all_classrooms.filter(
-        Q(temperature__gt=28) | Q(temperature__lt=15) if Classroom.objects.filter(temperature__isnull=False).exists() else Q()
-    ))
+    warning_classrooms = list(
+        all_classrooms.filter(temperature__isnull=False).filter(
+            Q(temperature__gt=temperature_settings.max_temperature)
+            | Q(temperature__lt=temperature_settings.min_temperature)
+        )
+    )
     
     # Remove duplicates if temperature-based warnings overlap with danger
     warning_classrooms = [c for c in warning_classrooms if c not in danger_classrooms]
     
-    # Current occupancy
+    # Current usage
     classroom_status = []
     for classroom in all_classrooms:
-        occupied_today = Attendance.objects.filter(
+        today_sessions = Attendance.objects.filter(
             classroom=classroom, 
             timestamp__date=today
-        ).values('students').distinct().count()
-        
-        occupancy_percent = 0
-        if classroom.capacity:
-            occupancy_percent = (occupied_today / classroom.capacity) * 100
+        ).count()
+
+        used_today = classroom.occupied
         
         status = "danger" if classroom in danger_classrooms else ("warning" if classroom in warning_classrooms else "normal")
         
         classroom_status.append({
             'id': classroom.id,
             'name': classroom.name,
-            'capacity': classroom.capacity,
-            'occupied': occupied_today,
-            'occupancy_percent': occupancy_percent,
+            'today_sessions': today_sessions,
+            'used_today': used_today,
+            'occupied': classroom.occupied,
             'lights_on': classroom.lights_on,
             'projector_on': classroom.projector_on,
             'door': classroom.door,
@@ -93,8 +103,9 @@ def dash(request):
     min_hour = hourly_attendance.index(min(hourly_attendance)) if hourly_attendance else 0
     
     # Overall statistics
-    busy_classrooms = sum(1 for c in classroom_status if c['occupancy_percent'] > 70)
-    avg_occupancy = sum(c['occupancy_percent'] for c in classroom_status) / len(classroom_status) if classroom_status else 0
+    used_classrooms = sum(1 for c in classroom_status if c['used_today'])
+    unused_classrooms = total_classrooms - used_classrooms
+    avg_occupancy = (used_classrooms / total_classrooms) * 100 if total_classrooms else 0
     
     context = {
         'total_students': total_students,
@@ -106,7 +117,8 @@ def dash(request):
         'danger_classrooms': danger_classrooms,
         'warning_classrooms': warning_classrooms,
         'has_warnings': len(danger_classrooms) > 0 or len(warning_classrooms) > 0,
-        'busy_classrooms': busy_classrooms,
+        'used_classrooms': used_classrooms,
+        'unused_classrooms': unused_classrooms,
         'avg_occupancy': round(avg_occupancy, 1),
         'peak_hour_label': peak_hour_label,
         'peak_hour_sessions': peak_hour_sessions,
@@ -115,6 +127,8 @@ def dash(request):
         'weekly_labels_json': json.dumps(weekly_labels),
         'weekly_attendance_json': json.dumps(weekly_attendance),
         'weekly_classrooms_json': json.dumps(weekly_classrooms_used),
+        'temperature_min': temperature_settings.min_temperature,
+        'temperature_max': temperature_settings.max_temperature,
         'today': today.strftime('%A, %B %d, %Y'),
     }
     
@@ -122,18 +136,22 @@ def dash(request):
 
 
 def classes(request):
-    today = timezone.now().date()
     classrooms = Classroom.objects.all()
 
     classroom_list = []
     for room in classrooms:
+        today_sessions = Attendance.objects.filter(
+            classroom=room,
+            timestamp__date=timezone.now().date(),
+        ).count()
         classroom_list.append({
             'id': room.id,
             'name': room.name,
-            'capacity': room.capacity,
             'lights_on': room.lights_on,
             'projector_on': room.projector_on,
             'door': room.door,
+            'today_sessions': today_sessions,
+            'used_today': room.occupied,
             'occupied': room.occupied,
         })
 
@@ -145,16 +163,9 @@ def classroom_detail(request, id):
     classroom = Classroom.objects.filter(id=id).first()
     if not classroom:
         return render(request, '404.html', status=404)
+    temperature_settings = get_temperature_settings()
 
     today = timezone.now().date()
-    occupied_students = (
-        Attendance.objects.filter(classroom=classroom, timestamp__date=today)
-        .values('students')
-        .distinct()
-        .count()
-    )
-    
-    # Count today's sessions/occupations (Attendance records)
     today_sessions = Attendance.objects.filter(classroom=classroom, timestamp__date=today).count()
 
     start_date = today - timedelta(days=29)
@@ -182,10 +193,6 @@ def classroom_detail(request, id):
         usage_student_values.append(student_count)
         usage_teacher_values.append(teacher_count)
 
-    occupied_percentage = 0
-    if classroom.capacity:
-        occupied_percentage = (occupied_students / classroom.capacity) * 100
-
     weekly_student_sessions = sum(usage_student_values[-7:])
     weekly_teacher_sessions = sum(usage_teacher_values[-7:])
 
@@ -205,28 +212,73 @@ def classroom_detail(request, id):
         timestamp__date__lte=today
     ).count()
 
+    has_temp_warning = False
+    temp_warning_type = None
+    if classroom.temperature is not None:
+        if classroom.temperature > temperature_settings.max_temperature:
+            has_temp_warning = True
+            temp_warning_type = 'high'
+        elif classroom.temperature < temperature_settings.min_temperature:
+            has_temp_warning = True
+            temp_warning_type = 'low'
+
     context = {
         'classroom': classroom,
-        'occupied_students': occupied_students,
         'today_sessions': today_sessions,
         'weekly_sessions': weekly_sessions,
         'monthly_sessions': monthly_sessions,
-        'occupied_percentage': occupied_percentage,
         'usage_labels_json': json.dumps(usage_labels),
         'usage_values_json': json.dumps(usage_student_values),
         'usage_teacher_values_json': json.dumps(usage_teacher_values),
-        'capacity': classroom.capacity,
         'weekly_student_sessions': weekly_student_sessions,
         'weekly_teacher_sessions': weekly_teacher_sessions,
+        'temperature_min': temperature_settings.min_temperature,
+        'temperature_max': temperature_settings.max_temperature,
+        'has_temp_warning': has_temp_warning,
+        'temp_warning_type': temp_warning_type,
     }
     return render(request, 'dashboard/classroom_detail.html', context)
+
+
+def temperature_settings(request):
+    settings_obj = get_temperature_settings()
+    errors = []
+    success_message = ''
+
+    if request.method == 'POST':
+        min_temperature_raw = request.POST.get('min_temperature', '').strip()
+        max_temperature_raw = request.POST.get('max_temperature', '').strip()
+
+        try:
+            min_temperature = float(min_temperature_raw)
+            max_temperature = float(max_temperature_raw)
+            if min_temperature >= max_temperature:
+                errors.append('Minimum temperature must be lower than maximum temperature.')
+        except ValueError:
+            errors.append('Temperature values must be valid numbers.')
+            min_temperature = settings_obj.min_temperature
+            max_temperature = settings_obj.max_temperature
+
+        if not errors:
+            settings_obj.min_temperature = min_temperature
+            settings_obj.max_temperature = max_temperature
+            settings_obj.save()
+            success_message = 'Temperature warning settings updated successfully.'
+
+    context = {
+        'settings_obj': settings_obj,
+        'errors': errors,
+        'success_message': success_message,
+        'classrooms': Classroom.objects.order_by('name'),
+    }
+    return render(request, 'dashboard/settings.html', context)
 
 
 def add_class(request):
     errors = []
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
-        capacity_raw = request.POST.get('capacity', '').strip()
+        occupied = bool(request.POST.get('occupied'))
         lights_on = bool(request.POST.get('lights_on'))
         projector_on = bool(request.POST.get('projector_on'))
         door = bool(request.POST.get('door'))
@@ -235,23 +287,14 @@ def add_class(request):
         if not name:
             errors.append('Name is required.')
 
-        try:
-            capacity = int(capacity_raw)
-            if capacity <= 0:
-                errors.append('Capacity must be a positive integer.')
-        except ValueError:
-            errors.append('Capacity must be a number.')
-            capacity = 0
-
         if not errors:
             Classroom.objects.create(
                 name=name,
-                capacity=capacity,
+                occupied=occupied,
                 lights_on=lights_on,
                 projector_on=projector_on,
                 door=door,
                 danger_indicator=danger_indicator,
-                occupied=False,
             )
             return redirect('classes')
 
@@ -259,7 +302,7 @@ def add_class(request):
             'errors': errors,
             'form': {
                 'name': name,
-                'capacity': capacity_raw,
+                'occupied': occupied,
                 'lights_on': lights_on,
                 'projector_on': projector_on,
                 'door': door,

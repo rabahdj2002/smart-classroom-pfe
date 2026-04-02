@@ -44,16 +44,23 @@ class Staff(models.Model):
 class Classroom(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
-    capacity = models.IntegerField()
-    lights_on = models.BooleanField(default=False)
     occupied = models.BooleanField(default=False)
+    lights_on = models.BooleanField(default=False)
     door = models.BooleanField(default=False)
     projector_on = models.BooleanField(default=False)
     temperature = models.FloatField(null=True, blank=True)
     danger_indicator = models.BooleanField(default=False)
     
     def __str__(self):
-        return f"{self.name} (Capacity: {self.capacity})" 
+        return self.name
+
+
+class TemperatureSettings(models.Model):
+    min_temperature = models.FloatField(default=15.0)
+    max_temperature = models.FloatField(default=28.0)
+
+    def __str__(self):
+        return f"Temperature Settings ({self.min_temperature}C - {self.max_temperature}C)"
 
 
 class Attendance(models.Model):

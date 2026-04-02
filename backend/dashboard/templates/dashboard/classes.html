@@ -34,7 +34,7 @@
               <thead>
                 <tr>
                   <th>Room</th>
-                  <th>Occupancy</th>
+                  <th>Usage State</th>
                   <th>Status</th>
                   <th>Lights</th>
                   <th>Projector</th>
@@ -49,12 +49,18 @@
                     <tr>
                   {% endif %}
                     <td>{{ room.name|upper }}</td>
-                    <td>{{ room.capacity }} Students</td>
                     <td>
-                      {% if room.occupied %}
-                        <span class="badge bg-secondary">Occupied</span>
+                      {% if room.used_today %}
+                        <span class="badge bg-success ms-2">Used</span>
                       {% else %}
-                        <span class="badge bg-success">Available</span>
+                        <span class="badge bg-secondary ms-2">Unused</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if room.used_today %}
+                        <span class="badge bg-secondary">Active</span>
+                      {% else %}
+                        <span class="badge bg-success">Idle</span>
                       {% endif %}
                     </td>
                     <td>
