@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="layout-page">
+  <div class="content-wrapper">
+    <div class="container-xxl flex-grow-1 container-p-y">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0">{{ page_title }}</h4>
+        <a href="{% url 'staff' %}" class="btn btn-outline-secondary btn-sm"><i class="bx bx-left-arrow-alt"></i> Back</a>
+      </div>
+
+      {% if errors %}
+      <div class="alert alert-danger">
+        <ul class="mb-0">
+          {% for err in errors %}
+          <li>{{ err }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Staff Information</h5>
+          {% if is_edit %}
+          <span class="badge bg-label-primary">Modify Mode</span>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <form method="POST" novalidate>
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="name" class="form-label">Full Name</label>
+                <input id="name" name="name" type="text" class="form-control" value="{{ form.name }}" required />
+              </div>
+
+              <div class="col-md-6">
+                <label for="email" class="form-label">Email</label>
+                <input id="email" name="email" type="email" class="form-control" value="{{ form.email }}" required />
+              </div>
+
+              <div class="col-md-4">
+                <label for="role" class="form-label">Job / Role</label>
+                <select id="role" name="role" class="form-select" required>
+                  <option value="">Pick</option>
+                  {% for value, label in role_choices %}
+                  <option value="{{ value }}" {% if form.role == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-4">
+                <label for="id_number" class="form-label">Staff ID Number</label>
+                <input id="id_number" name="id_number" type="text" class="form-control" value="{{ form.id_number }}" required />
+              </div>
+
+              <div class="col-md-4">
+                <label for="rfid_number" class="form-label">RFID Card Serial Code</label>
+                <input id="rfid_number" name="rfid_number" type="text" class="form-control" value="{{ form.rfid_number }}" required />
+              </div>
+            </div>
+
+            <hr class="my-4" />
+
+            <h6 class="mb-3">Privileges</h6>
+            <div class="row g-3">
+              <div class="col-md-6 col-lg-4">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="can_open_door" name="can_open_door" {% if form.can_open_door %}checked{% endif %} />
+                  <label class="form-check-label" for="can_open_door">Can Open Door</label>
+                </div>
+              </div>
+
+              <div class="col-md-6 col-lg-4">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="can_control_lights" name="can_control_lights" {% if form.can_control_lights %}checked{% endif %} />
+                  <label class="form-check-label" for="can_control_lights">Can Control Lights</label>
+                </div>
+              </div>
+
+              <div class="col-md-6 col-lg-4">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="can_control_projector" name="can_control_projector" {% if form.can_control_projector %}checked{% endif %} />
+                  <label class="form-check-label" for="can_control_projector">Can Control Projector</label>
+                </div>
+              </div>
+
+              <div class="col-md-6 col-lg-4">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="can_manage_classrooms" name="can_manage_classrooms" {% if form.can_manage_classrooms %}checked{% endif %} />
+                  <label class="form-check-label" for="can_manage_classrooms">Can Manage Classrooms</label>
+                </div>
+              </div>
+
+              <div class="col-md-6 col-lg-4">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="can_manage_staff" name="can_manage_staff" {% if form.can_manage_staff %}checked{% endif %} />
+                  <label class="form-check-label" for="can_manage_staff">Can Manage Staff</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-12 text-end mt-4">
+              <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

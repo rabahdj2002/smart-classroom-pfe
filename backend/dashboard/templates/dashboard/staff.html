@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+  <div class="layout-page">
+    <div class="content-wrapper">
+      <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Users /</span> Staff</h4>
+
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="mb-0">Filters</h5>
+          </div>
+          <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+              <div class="col-md-4">
+                <label for="q" class="form-label">Search</label>
+                <input id="q" name="q" type="text" class="form-control" placeholder="Name, email, ID, RFID" value="{{ filters.q }}" />
+              </div>
+              <div class="col-md-3">
+                <label for="role" class="form-label">Job Role</label>
+                <select id="role" name="role" class="form-select">
+                  <option value="">All roles</option>
+                  {% for value, label in role_choices %}
+                  <option value="{{ value }}" {% if filters.role == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label for="privilege" class="form-label">Privilege</label>
+                <select id="privilege" name="privilege" class="form-select">
+                  <option value="">All privileges</option>
+                  <option value="door" {% if filters.privilege == 'door' %}selected{% endif %}>Can Open Door</option>
+                  <option value="lights" {% if filters.privilege == 'lights' %}selected{% endif %}>Can Control Lights</option>
+                  <option value="projector" {% if filters.privilege == 'projector' %}selected{% endif %}>Can Control Projector</option>
+                  <option value="classrooms" {% if filters.privilege == 'classrooms' %}selected{% endif %}>Can Manage Classrooms</option>
+                  <option value="staff" {% if filters.privilege == 'staff' %}selected{% endif %}>Can Manage Staff</option>
+                </select>
+              </div>
+              <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100">Apply</button>
+                <a href="{% url 'staff' %}" class="btn btn-outline-secondary w-100">Reset</a>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Staff Directory</h5>
+            <a href="{% url 'add_staff' %}" class="btn btn-primary btn-sm"><i class="bx bx-plus"></i> Add Staff Member</a>
+          </div>
+          <div class="table-responsive text-nowrap">
+            <table class="table table-hover" id="staffTable">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Job</th>
+                  <th>ID Number</th>
+                  <th>RFID Card Serial</th>
+                  <th>Privileges</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="table-border-bottom-0">
+                {% for member in staff_members %}
+                  <tr>
+                    <td>{{ member.name }}</td>
+                    <td>{{ member.email }}</td>
+                    <td>{{ member.get_role_display }}</td>
+                    <td>{{ member.id_number }}</td>
+                    <td>{{ member.rfid_number }}</td>
+                    <td>
+                      {% if member.can_open_door %}<span class="badge bg-label-success me-1 mb-1">Door</span>{% endif %}
+                      {% if member.can_control_lights %}<span class="badge bg-label-info me-1 mb-1">Lights</span>{% endif %}
+                      {% if member.can_control_projector %}<span class="badge bg-label-warning me-1 mb-1">Projector</span>{% endif %}
+                      {% if member.can_manage_classrooms %}<span class="badge bg-label-primary me-1 mb-1">Classrooms</span>{% endif %}
+                      {% if member.can_manage_staff %}<span class="badge bg-label-dark me-1 mb-1">Staff</span>{% endif %}
+                      {% if not member.can_open_door and not member.can_control_lights and not member.can_control_projector and not member.can_manage_classrooms and not member.can_manage_staff %}
+                        <span class="badge bg-label-secondary">No special privileges</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      <a href="{% url 'edit_staff' member.id %}" class="btn btn-sm btn-outline-primary me-1">
+                        <i class="bx bx-edit-alt"></i> Modify
+                      </a>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteStaffModal"
+                        data-staff-id="{{ member.id }}"
+                        data-staff-name="{{ member.name }}"
+                      >
+                        <i class="bx bx-trash"></i> Delete
+                      </button>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="7" class="text-center">No staff members found.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <footer class="content-footer footer bg-footer-theme">
+        <div class="container-xxl d-flex flex-wrap justify-content-between py-2 flex-md-row flex-column">
+          <div>© 2026 Smart Classroom</div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <div class="modal fade" id="deleteStaffModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="deleteStaffForm" method="POST">
+          {% csrf_token %}
+          <div class="modal-header">
+            <h5 class="modal-title">Delete Staff Member</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">Are you sure you want to delete <strong id="deleteStaffName"></strong>?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-danger">Delete</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var deleteModal = document.getElementById('deleteStaffModal');
+      var deleteForm = document.getElementById('deleteStaffForm');
+      var deleteName = document.getElementById('deleteStaffName');
+
+      deleteModal.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        var staffId = button.getAttribute('data-staff-id');
+        var staffName = button.getAttribute('data-staff-name');
+
+        deleteName.textContent = staffName;
+        deleteForm.action = '/staff/' + staffId + '/delete/';
+      });
+    });
+  </script>
+{% endblock %}

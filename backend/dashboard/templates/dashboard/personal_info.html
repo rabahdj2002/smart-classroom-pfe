@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="layout-page">
+  <div class="content-wrapper">
+    <div class="container-xxl flex-grow-1 container-p-y">
+      <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Account /</span> Personal Info</h4>
+
+      {% if success_message %}
+      <div class="alert alert-success" role="alert">
+        {{ success_message }}
+      </div>
+      {% endif %}
+
+      {% if errors %}
+      <div class="alert alert-danger" role="alert">
+        <ul class="mb-0">
+          {% for err in errors %}
+          <li>{{ err }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="row g-4">
+        <div class="col-12 col-lg-6">
+          <div class="card h-100">
+            <div class="card-header">
+              <h5 class="mb-0">Profile Information</h5>
+            </div>
+            <div class="card-body">
+              <form method="POST" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="profile" />
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="first_name" class="form-label">First Name</label>
+                    <input id="first_name" name="first_name" type="text" class="form-control" value="{{ request.user.first_name }}" />
+                  </div>
+                  <div class="col-md-6">
+                    <label for="last_name" class="form-label">Last Name</label>
+                    <input id="last_name" name="last_name" type="text" class="form-control" value="{{ request.user.last_name }}" />
+                  </div>
+                  <div class="col-12">
+                    <label for="email" class="form-label">Email</label>
+                    <input id="email" name="email" type="email" class="form-control" value="{{ request.user.email }}" required />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-control" value="{{ request.user.username }}" disabled />
+                  </div>
+                  <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary">Save Profile</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <div class="card h-100">
+            <div class="card-header">
+              <h5 class="mb-0">Change Password</h5>
+            </div>
+            <div class="card-body">
+              <form method="POST" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="password" />
+                <div class="mb-3">
+                  <label for="old_password" class="form-label">Current Password</label>
+                  <input id="old_password" name="old_password" type="password" class="form-control" required />
+                </div>
+                <div class="mb-3">
+                  <label for="new_password1" class="form-label">New Password</label>
+                  <input id="new_password1" name="new_password1" type="password" class="form-control" required />
+                </div>
+                <div class="mb-3">
+                  <label for="new_password2" class="form-label">Confirm New Password</label>
+                  <input id="new_password2" name="new_password2" type="password" class="form-control" required />
+                </div>
+                <div class="text-muted small mb-3">
+                  Password must meet Django security rules.
+                </div>
+                <div class="text-end">
+                  <button type="submit" class="btn btn-primary">Update Password</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

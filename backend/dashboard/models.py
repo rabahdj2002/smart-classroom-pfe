@@ -25,9 +25,12 @@ class Student(models.Model):
 
 class Staff(models.Model):
     ROLE_CHOICES = [
-        ('PROF', 'Professor'),
+        ('PROF', 'Teacher / Professor'),
         ('ASSISTANT', 'Assistant'),
         ('ADMIN', 'Administrator'),
+        ('IT', 'IT Support'),
+        ('SECURITY', 'Security'),
+        ('OTHER', 'Other'),
     ]
     
     id = models.AutoField(primary_key=True)
@@ -36,6 +39,11 @@ class Staff(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     id_number = models.CharField(max_length=50, unique=True)
     rfid_number = models.CharField(max_length=50, unique=True)
+    can_open_door = models.BooleanField(default=False)
+    can_control_lights = models.BooleanField(default=False)
+    can_control_projector = models.BooleanField(default=False)
+    can_manage_classrooms = models.BooleanField(default=False)
+    can_manage_staff = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.name} ({self.role})"
