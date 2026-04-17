@@ -13,10 +13,10 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+      content="width=device-width, initial-scale=1.0"
     />
 
-    <title>Dashboard - Analytics | Sneat - Bootstrap 5 HTML Admin Template - Pro</title>
+    <title>Smart Classroom Dashboard</title>
 
     <meta name="description" content="" />
 
@@ -55,6 +55,16 @@
   </head>
 
   <body>
+    <div class="mobile-topbar d-xl-none">
+      <a href="javascript:void(0);" class="layout-menu-toggle mobile-topbar-toggle" aria-label="Open menu">
+        <i class="bx bx-menu bx-sm"></i>
+      </a>
+      <a href="{% url 'dashboard' %}" class="mobile-topbar-brand">
+        <span class="mobile-topbar-mark">SC</span>
+        <span>Smart Hub</span>
+      </a>
+    </div>
+
     <!-- Layout wrapper -->
     <div class="layout-wrapper layout-content-navbar">
       <div class="layout-container">
@@ -62,7 +72,7 @@
 
         <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
           <div class="app-brand demo">
-            <a href="index.html" class="app-brand-link">
+            <a href="{% url 'dashboard' %}" class="app-brand-link">
               <span class="app-brand-logo demo">
                 <svg
                   width="25"
@@ -118,7 +128,13 @@
                   </g>
                 </svg>
               </span>
-              <span class="app-brand-text demo menu-text fw-bolder ms-2">Sneat</span>
+              <span class="app-brand-text demo menu-text fw-bolder ms-2 d-flex align-items-center gap-2">
+                <span class="badge bg-label-primary rounded-pill px-2 py-1">SC</span>
+                <span class="d-flex flex-column lh-1">
+                  <span class="fw-semibold">Smart</span>
+                  <small class="text-muted" style="font-size: 0.62rem; letter-spacing: 0.06em;">Hub</small>
+                </span>
+              </span>
             </a>
 
             <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto d-block d-xl-none">
@@ -168,11 +184,28 @@
               </a>
             </li>
 
+            <li class="menu-item {% if request.path == '/sessions/' or request.path|slice:':10' == '/sessions/' %}active{% endif %}">
+              <a href="{% url 'sessions' %}" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-time-five"></i>
+                <div class="d-flex align-items-center justify-content-between w-100">
+                  <span>Sessions</span>
+                  <span class="badge bg-label-dark ms-2">{{ dashboard_counts.sessions|default:0 }}</span>
+                </div>
+              </a>
+            </li>
+
             <li class="menu-header small text-uppercase"><span class="menu-header-text">System</span></li>
             <li class="menu-item {% if request.path == '/settings/' %}active{% endif %}">
               <a href="{% url 'temperature_settings' %}" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-cog"></i>
                 <div>Settings</div>
+              </a>
+            </li>
+
+            <li class="menu-item {% if request.path == '/mqtt-docs/' %}active{% endif %}">
+              <a href="{% url 'mqtt_docs' %}" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-radio-circle-marked"></i>
+                <div>MQTT Docs</div>
               </a>
             </li>
 
@@ -216,6 +249,215 @@
 
     <!-- Main JS -->
     <script src="{% static 'dashboard/js/main.js' %}"></script>
+
+    <style>
+      html,
+      body {
+        overflow-x: hidden;
+      }
+
+      img,
+      svg,
+      video,
+      canvas {
+        max-width: 100%;
+        height: auto;
+      }
+
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .page-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      .page-actions form {
+        margin: 0;
+      }
+
+      .page-actions .btn {
+        white-space: nowrap;
+      }
+
+      .filter-actions {
+        display: flex;
+        gap: 0.5rem;
+        width: 100%;
+      }
+
+      .filter-actions .btn {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+
+      .responsive-card-header {
+        gap: 0.75rem;
+      }
+
+      .responsive-card-header .btn {
+        white-space: nowrap;
+      }
+
+      .table-responsive.text-nowrap {
+        -webkit-overflow-scrolling: touch;
+      }
+
+      @media (max-width: 1199.98px) {
+        .container-xxl {
+          padding-left: 0.75rem;
+          padding-right: 0.75rem;
+        }
+      }
+
+      @media (max-width: 991.98px) {
+        #layout-navbar .navbar-nav-right {
+          width: 100%;
+        }
+
+        #layout-navbar .navbar-nav.align-items-center {
+          width: 100%;
+        }
+
+        #layout-navbar .nav-item.d-flex.align-items-center {
+          width: 100%;
+          gap: 0.5rem;
+        }
+
+        #layout-navbar .nav-item.d-flex.align-items-center .form-control {
+          width: 100%;
+          min-width: 0;
+        }
+      }
+
+      @media (max-width: 767.98px) {
+        body {
+          padding-top: 4.5rem;
+        }
+
+        .mobile-topbar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 1090;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+          padding: 0.85rem 1rem;
+          background: rgba(245, 245, 249, 0.94);
+          backdrop-filter: blur(14px);
+          border-bottom: 1px solid rgba(105, 108, 255, 0.12);
+        }
+
+        .mobile-topbar-toggle {
+          width: 2.5rem;
+          height: 2.5rem;
+          border-radius: 0.75rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #697a8d;
+          background: #fff;
+          border: 1px solid rgba(105, 108, 255, 0.16);
+          box-shadow: 0 0.35rem 0.85rem rgba(161, 172, 184, 0.14);
+          flex-shrink: 0;
+        }
+
+        .mobile-topbar-brand {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.6rem;
+          color: #566a7f;
+          font-weight: 700;
+          min-width: 0;
+        }
+
+        .mobile-topbar-mark {
+          width: 2rem;
+          height: 2rem;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          background: linear-gradient(145deg, #696cff, #03c3ec);
+          flex-shrink: 0;
+        }
+
+        .app-brand-text.demo.menu-text {
+          display: none !important;
+        }
+
+        .page-header {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .page-actions {
+          width: 100%;
+        }
+
+        .page-actions > * {
+          width: 100%;
+        }
+
+        .page-actions .btn {
+          width: 100%;
+          justify-content: center;
+        }
+
+        .filter-actions {
+          flex-direction: column;
+        }
+
+        .filter-actions .btn {
+          width: 100%;
+        }
+
+        .responsive-card-header {
+          flex-direction: column;
+          align-items: stretch !important;
+        }
+
+        .responsive-card-header > * {
+          width: 100%;
+        }
+
+        .responsive-card-header .btn {
+          width: 100%;
+        }
+
+        .table-responsive.text-nowrap th,
+        .table-responsive.text-nowrap td {
+          white-space: normal;
+        }
+
+        .table-responsive.text-nowrap .btn {
+          width: 100%;
+        }
+
+        .content-wrapper .card-body {
+          padding: 1rem;
+        }
+
+        .content-wrapper .card-header {
+          padding: 1rem;
+        }
+      }
+    </style>
 
     <!-- Page JS -->
     <script src="{% static 'dashboard/js/dashboards-analytics.js' %}"></script>

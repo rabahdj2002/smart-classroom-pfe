@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -111,7 +112,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Algiers'
 
 USE_I18N = True
 
@@ -130,3 +131,24 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 ALLOWED_HOSTS = ['*', '192.168.70.25']
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
+
+# Runtime mode: set SMARTCLASS_MODE=test|production
+SMARTCLASS_MODE = os.getenv('SMARTCLASS_MODE', 'test').strip().lower()
+IS_TEST_MODE = SMARTCLASS_MODE == 'test'
+
+# Internal auto-finish scheduler runs inside Django process (no external cron required).
+DASHBOARD_INTERNAL_SCHEDULER_ENABLED = True
+DASHBOARD_INTERNAL_SCHEDULER_POLL_SECONDS = 20
+
+# MQTT listener runs inside Django in background for real-time ESP events.
+DASHBOARD_MQTT_ENABLED = True
+DASHBOARD_MQTT_BROKER_HOST = os.getenv(
+    'DASHBOARD_MQTT_BROKER_HOST',
+    '127.0.0.1' if IS_TEST_MODE else '192.168.70.25',
+)
+DASHBOARD_MQTT_BROKER_PORT = int(os.getenv('DASHBOARD_MQTT_BROKER_PORT', '1883'))
+DASHBOARD_MQTT_TOPIC = os.getenv('DASHBOARD_MQTT_TOPIC', 'smartclass/#')
+DASHBOARD_MQTT_USERNAME = os.getenv('DASHBOARD_MQTT_USERNAME', '')
+DASHBOARD_MQTT_PASSWORD = os.getenv('DASHBOARD_MQTT_PASSWORD', '')
+DASHBOARD_MQTT_KEEPALIVE_SECONDS = int(os.getenv('DASHBOARD_MQTT_KEEPALIVE_SECONDS', '60'))
+DASHBOARD_MQTT_RECONNECT_DELAY_SECONDS = int(os.getenv('DASHBOARD_MQTT_RECONNECT_DELAY_SECONDS', '3'))

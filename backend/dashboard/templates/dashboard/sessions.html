@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="layout-page">
+  <div class="content-wrapper">
+    <div class="container-xxl flex-grow-1 container-p-y">
+      <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Reports /</span> Sessions</h4>
+
+      <div class="card mb-4">
+        <div class="card-header responsive-card-header d-flex align-items-center justify-content-between py-3">
+          <h5 class="mb-0">Filters</h5>
+        </div>
+        <div class="card-body pt-4">
+          <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+              <label for="classroom" class="form-label">Classroom</label>
+              <select id="classroom" name="classroom" class="form-select">
+                <option value="">All classrooms</option>
+                {% for classroom in classrooms %}
+                <option value="{{ classroom.id }}" {% if filters.classroom == classroom.id|stringformat:"s" %}selected{% endif %}>{{ classroom.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="teacher" class="form-label">Teacher</label>
+              <input id="teacher" name="teacher" type="text" class="form-control" value="{{ filters.teacher }}" placeholder="Name or email" />
+            </div>
+            <div class="col-md-2">
+              <label for="start_date" class="form-label">Start date</label>
+              <input id="start_date" name="start_date" type="date" class="form-control" value="{{ filters.start_date }}" />
+            </div>
+            <div class="col-md-2">
+              <label for="end_date" class="form-label">End date</label>
+              <input id="end_date" name="end_date" type="date" class="form-control" value="{{ filters.end_date }}" />
+            </div>
+            <div class="col-md-2 page-actions">
+              <div class="filter-actions">
+                <button type="submit" class="btn btn-primary">Apply</button>
+                <a href="{% url 'sessions' %}" class="btn btn-outline-secondary">Reset</a>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header responsive-card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">All Sessions</h5>
+          <div class="page-actions">
+            <span class="badge bg-label-primary">{{ sessions|length }} result{{ sessions|length|pluralize }}</span>
+            <a href="{% url 'add_session' %}" class="btn btn-primary btn-sm"><i class="bx bx-plus me-1"></i>Add Session</a>
+          </div>
+        </div>
+        <div class="table-responsive text-nowrap">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Session ID</th>
+                <th>Classroom</th>
+                <th>Teacher</th>
+                <th>Session Start</th>
+                <th>Duration</th>
+                <th>Students</th>
+                <th>Email</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for session in sessions %}
+              <tr>
+                <td>#{{ session.id }}</td>
+                <td>{{ session.classroom.name }}</td>
+                <td>{{ session.teacher.name|default:'Not assigned' }}</td>
+                <td>{{ session.start_time|date:'Y-m-d H:i' }}</td>
+                <td>
+                  {% if session.report %}
+                    {{ session.report.duration_minutes }} min
+                  {% else %}
+                    <span class="badge bg-label-info">In progress</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if session.report %}
+                    {{ session.report.total_students }}
+                  {% else %}
+                    {{ session.students.count }}
+                  {% endif %}
+                </td>
+                <td>
+                  {% if session.report and session.report.emailed %}
+                    <span class="badge bg-label-success">Sent</span>
+                  {% elif session.report and session.report.email_error %}
+                    <span class="badge bg-label-danger" title="{{ session.report.email_error }}">Failed</span>
+                  {% elif session.report %}
+                    <span class="badge bg-label-secondary">Not sent</span>
+                  {% else %}
+                    <span class="badge bg-label-info">Pending</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'session_detail' session.id %}" class="btn btn-sm btn-outline-primary">
+                      <i class="bx bx-show me-1"></i>View
+                    </a>
+                    {% if not session.is_closed %}
+                    <a href="{% url 'edit_session' session.id %}" class="btn btn-sm btn-outline-warning">
+                      <i class="bx bx-edit me-1"></i>Edit
+                    </a>
+                    <form method="post" action="{% url 'end_session' session.id %}" class="d-inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-success" onclick="return confirm('End this session now and generate report?');">
+                        <i class="bx bx-stop-circle me-1"></i>End
+                      </button>
+                    </form>
+                    {% endif %}
+                    <form method="post" action="{% url 'delete_session' session.id %}" class="d-inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this session and its report if present?');">
+                        <i class="bx bx-trash me-1"></i>Delete
+                      </button>
+                    </form>
+                    {% if session.report %}
+                    <a href="{% url 'download_report_pdf' session.report.id %}" class="btn btn-sm btn-outline-secondary">
+                      <i class="bx bx-download me-1"></i>PDF
+                    </a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="8" class="text-center">No sessions found.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

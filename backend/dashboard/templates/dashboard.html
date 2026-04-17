@@ -67,7 +67,7 @@
               <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Dashboard /</span> System Overview</h4>
 
               <!-- ALERTS & WARNINGS SECTION -->
-              {% if danger_classrooms or warning_classrooms %}
+              {% if danger_classrooms or smoke_alert_classrooms %}
                 {% if danger_classrooms %}
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                   <div class="d-flex align-items-start">
@@ -87,17 +87,17 @@
                 </div>
                 {% endif %}
 
-                {% if warning_classrooms %}
+                {% if smoke_alert_classrooms %}
                 <div class="alert alert-warning alert-dismissible fade show" role="alert">
                   <div class="d-flex align-items-start">
-                    <i class="bx bx-exclamation-triangle me-3 mt-1"></i>
+                    <i class="bx bx-smoke me-3 mt-1"></i>
                     <div class="flex-grow-1">
-                      <h6 class="alert-heading mb-1">TEMPERATURE WARNING</h6>
+                      <h6 class="alert-heading mb-1">SMOKE DETECTION WARNING</h6>
                       <p class="mb-0">
-                        <strong>{{ warning_classrooms|length }} classroom{% if warning_classrooms|length > 1 %}s have{% else %} has{% endif %} temperature concerns:</strong>
+                        <strong>{{ smoke_alert_classrooms|length }} classroom{% if smoke_alert_classrooms|length > 1 %}s have{% else %} has{% endif %} smoke alerts:</strong>
                         <br/>
-                        {% for classroom in warning_classrooms %}
-                          <span class="badge bg-warning me-2">{{ classroom.name }} ({{ classroom.temperature|default:"N/A" }}°C)</span>
+                        {% for classroom in smoke_alert_classrooms %}
+                          <span class="badge bg-warning me-2">{{ classroom.name }}</span>
                         {% endfor %}
                       </p>
                     </div>
@@ -107,8 +107,8 @@
                 {% endif %}
               {% else %}
               <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <div class="d-flex align-items-start">
-                  <i class="bx bx-check-circle me-3 mt-1"></i>
+                <div class="d-flex align-items-center">
+                  <i class="bx bx-check-circle me-3"></i>
                   <div class="flex-grow-1">
                     <h6 class="alert-heading mb-0">All Systems Operating Normally</h6>
                   </div>
@@ -184,7 +184,7 @@
               <div class="row g-3 mb-4">
                 <!-- Today's Activity Chart -->
                 <div class="col-12 col-lg-8">
-                  <div class="card">
+                  <div class="card h-100">
                     <div class="card-header pb-3 d-flex justify-content-between align-items-center">
                       <h5 class="card-title mb-0">Today's Class Schedule & Activity</h5>
                       <small class="text-muted">Hourly breakdown</small>
@@ -233,7 +233,7 @@
                               <th>Lights</th>
                               <th>Projector</th>
                               <th>Door</th>
-                              <th>Temp</th>
+                              <th>Smoke</th>
                               <th>Action</th>
                             </tr>
                           </thead>
@@ -251,8 +251,8 @@
                               <td>
                                 {% if classroom.status == 'danger' %}
                                   <span class="status-pill bg-label-danger"><span class="status-dot" style="background:#ff3e1e"></span>DANGER</span>
-                                {% elif classroom.status == 'warning' %}
-                                  <span class="status-pill bg-label-warning"><span class="status-dot" style="background:#ffb800"></span>WARNING</span>
+                                {% elif classroom.status == 'smoke' %}
+                                  <span class="status-pill bg-label-warning"><span class="status-dot" style="background:#ffb800"></span>SMOKE</span>
                                 {% else %}
                                   <span class="status-pill bg-label-success"><span class="status-dot" style="background:#71dd5c"></span>NORMAL</span>
                                 {% endif %}
@@ -278,7 +278,13 @@
                                   <span class="badge bg-label-success"><i class="bx bx-lock-alt me-1"></i>CLOSED</span>
                                 {% endif %}
                               </td>
-                              <td>{{ classroom.temperature|default:"N/A" }}°C</td>
+                              <td>
+                                {% if classroom.smoke_detected %}
+                                  <span class="badge bg-label-warning"><i class="bx bx-smoke me-1"></i>Detected</span>
+                                {% else %}
+                                  <span class="badge bg-label-success"><i class="bx bx-check me-1"></i>Clear</span>
+                                {% endif %}
+                              </td>
                               <td>
                                 <a href="{% url 'classroom_detail' id=classroom.id %}" class="btn btn-sm btn-icon btn-outline-primary" title="View classroom details">
                                   <i class="bx bx-show"></i>

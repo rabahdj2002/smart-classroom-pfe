@@ -37,11 +37,11 @@
           <div class="card h-100">
             <div class="card-body">
               <h6 class="card-title">Recent Sessions</h6>
-              {% if recent_attendance %}
+              {% if recent_sessions %}
               <ul class="list-group list-group-flush">
-                {% for attendance in recent_attendance|slice:":4" %}
+                {% for session in recent_sessions|slice:":4" %}
                 <li class="list-group-item">
-                  {{ attendance.timestamp|date:'Y-m-d H:i' }} - {{ attendance.classroom.name }}
+                  {{ session.start_time|date:'Y-m-d H:i' }} - {{ session.classroom.name }}
                 </li>
                 {% endfor %}
               </ul>

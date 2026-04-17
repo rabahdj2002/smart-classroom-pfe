@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="layout-page">
+  <div class="content-wrapper">
+    <div class="container-xxl flex-grow-1 container-p-y">
+      <div class="page-header mb-4">
+        <h4 class="fw-bold mb-0">Session Details - #{{ session.id }}</h4>
+        <div class="page-actions">
+          {% if not session.is_closed %}
+          <a href="{% url 'edit_session' session.id %}" class="btn btn-outline-warning btn-sm"><i class="bx bx-edit me-1"></i>Edit</a>
+          <form method="post" action="{% url 'end_session' session.id %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-success btn-sm" onclick="return confirm('End this session now and generate report?');">
+              <i class="bx bx-stop-circle me-1"></i>End
+            </button>
+          </form>
+          {% endif %}
+          <form method="post" action="{% url 'delete_session' session.id %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this session and its report if present?');">
+              <i class="bx bx-trash me-1"></i>Delete
+            </button>
+          </form>
+          <a href="{% url 'sessions' %}" class="btn btn-outline-secondary btn-sm"><i class="bx bx-left-arrow-alt"></i> Back</a>
+        </div>
+      </div>
+
+      {% if messages %}
+      <div class="mb-4">
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %} mb-2" role="alert">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <span class="text-muted d-block mb-1 small">Classroom</span>
+              <h5 class="mb-0">{{ session.classroom.name }}</h5>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <span class="text-muted d-block mb-1 small">Teacher</span>
+              <h5 class="mb-0">{{ session.teacher.name|default:'Not assigned' }}</h5>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <span class="text-muted d-block mb-1 small">Session Start</span>
+              <h5 class="mb-0">{{ session.start_time|date:'Y-m-d H:i' }}</h5>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card h-100">
+            <div class="card-body">
+              <span class="text-muted d-block mb-1 small">Status</span>
+              <h5 class="mb-0">{% if session.is_closed %}Closed{% else %}Active{% endif %}</h5>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <span class="text-muted d-block mb-1 small">Students Count</span>
+              <h4 class="mb-0">{{ total_students }}</h4>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <span class="text-muted d-block mb-1 small">Staff Count</span>
+              <h4 class="mb-0">{{ total_staff }}</h4>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <span class="text-muted d-block mb-1 small">Email Delivery</span>
+              {% if report and report.emailed %}
+                <span class="badge bg-label-success">Sent {{ report.email_sent_at|date:'Y-m-d H:i' }}</span>
+              {% elif report and report.email_error %}
+                <span class="badge bg-label-danger">Failed</span>
+                <p class="mb-0 mt-2 text-muted small">{{ report.email_error }}</p>
+              {% elif report %}
+                <span class="badge bg-label-secondary">Not sent</span>
+              {% else %}
+                <span class="badge bg-label-info">Report pending</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">Students in Session</h5>
+        </div>
+        <div class="card-body pt-4">
+          <div class="mb-2"></div>
+          {% if student_names %}
+            {% for student_name in student_names %}
+              <span class="badge bg-label-info me-1 mb-1">{{ student_name }}</span>
+            {% endfor %}
+          {% else %}
+            <p class="mb-0 text-muted">No students linked to this session yet.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header responsive-card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Detailed Report</h5>
+          {% if report %}
+          <div class="page-actions">
+            <form method="post" action="{% url 'email_report' report.id %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-success" onclick="return confirm('Send this report by email now?');">
+                <i class="bx bx-envelope me-1"></i>Email Report
+              </button>
+            </form>
+            <a href="{% url 'download_report_pdf' report.id %}" class="btn btn-sm btn-primary">
+              <i class="bx bx-download me-1"></i>Download PDF
+            </a>
+          </div>
+          {% endif %}
+        </div>
+        <div class="card-body pt-4">
+          <div class="mb-2"></div>
+          {% if report %}
+          <pre class="mb-0" style="white-space: pre-wrap;">{{ report.details }}</pre>
+          {% else %}
+          <p class="mb-0 text-muted">This session is still active. The report will appear automatically when the configured duration is reached.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

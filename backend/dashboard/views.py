@@ -1,15 +1,28 @@
 from django.shortcuts import render, redirect
+from django.conf import settings
 from django.db.models import Q
 from django.db import IntegrityError
+from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from .models import Student, Staff, Classroom, Attendance, TemperatureSettings
+from .models import Student, Staff, Classroom, AttendanceReport, Session, SystemSettings
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
-from datetime import timedelta, datetime
+from django.utils.dateparse import parse_datetime
+from django.utils.text import slugify
+from datetime import timedelta
 from functools import wraps
 import json
+
+from .reporting import (
+    auto_finish_active_classrooms,
+    build_report_pdf_attachment,
+    generate_attendance_report_for_session,
+    get_system_settings,
+    maybe_email_report,
+)
+from .mqtt_commands import publish_classroom_command
 
 
 def _is_portal_admin(user):
@@ -121,49 +134,61 @@ def personal_info(request):
     return render(request, 'dashboard/personal_info.html', context)
 
 
-def get_temperature_settings():
-    settings_obj, _ = TemperatureSettings.objects.get_or_create(
-        pk=1,
-        defaults={'min_temperature': 15.0, 'max_temperature': 28.0},
-    )
-    return settings_obj
+@portal_admin_required
+def mqtt_docs(request):
+    mode = getattr(settings, 'SMARTCLASS_MODE', 'test')
+    default_events_topic = 'smartclass/classrooms/<classroom_name>/events'
+
+    context = {
+        'mqtt': {
+            'mode': mode,
+            'broker_host': getattr(settings, 'DASHBOARD_MQTT_BROKER_HOST', '127.0.0.1'),
+            'broker_port': getattr(settings, 'DASHBOARD_MQTT_BROKER_PORT', 1883),
+            'topic_wildcard': getattr(settings, 'DASHBOARD_MQTT_TOPIC', 'smartclass/#'),
+            'default_events_topic': default_events_topic,
+            'username_set': bool(getattr(settings, 'DASHBOARD_MQTT_USERNAME', '')),
+            'keepalive': getattr(settings, 'DASHBOARD_MQTT_KEEPALIVE_SECONDS', 60),
+            'reconnect_delay': getattr(settings, 'DASHBOARD_MQTT_RECONNECT_DELAY_SECONDS', 3),
+        }
+    }
+    return render(request, 'dashboard/mqtt_docs.html', context)
+
+
+def _parse_bool(post_data, key):
+    return post_data.get(key) in ['on', 'true', '1', 'yes']
     
 @portal_admin_required
 def dash(request):
     today = timezone.now().date()
-    now = timezone.now()
-    temperature_settings = get_temperature_settings()
+    system_settings = get_system_settings()
+
+    # Auto-finish expired classroom sessions before loading dashboard stats.
+    auto_finish_active_classrooms()
     
     # Basic counts
     total_students = Student.objects.count()
     total_staff = Staff.objects.count()
     total_classrooms = Classroom.objects.count()
-    total_attendance_today = Attendance.objects.filter(timestamp__date=today).count()
+    total_attendance_today = Session.objects.filter(start_time__date=today).count()
     
     # Classroom status and warnings
     all_classrooms = Classroom.objects.all()
     danger_classrooms = list(all_classrooms.filter(danger_indicator=True))
-    warning_classrooms = list(
-        all_classrooms.filter(temperature__isnull=False).filter(
-            Q(temperature__gt=temperature_settings.max_temperature)
-            | Q(temperature__lt=temperature_settings.min_temperature)
-        )
-    )
-    
-    # Remove duplicates if temperature-based warnings overlap with danger
-    warning_classrooms = [c for c in warning_classrooms if c not in danger_classrooms]
+    smoke_alert_classrooms = list(all_classrooms.filter(smoke_detected=True)) if system_settings.smoke_alert_enabled else []
+
+    smoke_alert_classrooms = [c for c in smoke_alert_classrooms if c not in danger_classrooms]
     
     # Current usage
     classroom_status = []
     for classroom in all_classrooms:
-        today_sessions = Attendance.objects.filter(
+        today_sessions = Session.objects.filter(
             classroom=classroom, 
-            timestamp__date=today
+            start_time__date=today
         ).count()
 
         used_today = classroom.occupied
         
-        status = "danger" if classroom in danger_classrooms else ("warning" if classroom in warning_classrooms else "normal")
+        status = "danger" if classroom in danger_classrooms else ("smoke" if classroom in smoke_alert_classrooms else "normal")
         
         classroom_status.append({
             'id': classroom.id,
@@ -174,7 +199,7 @@ def dash(request):
             'lights_on': classroom.lights_on,
             'projector_on': classroom.projector_on,
             'door': classroom.door,
-            'temperature': classroom.temperature,
+            'smoke_detected': classroom.smoke_detected,
             'status': status,
         })
     
@@ -182,15 +207,9 @@ def dash(request):
     hourly_attendance = [0] * 24
     hourly_labels = []
     for hour in range(24):
-        hour_start = datetime.combine(today, datetime.min.time()).replace(hour=hour)
-        hour_end = hour_start.replace(hour=(hour + 1) % 24)
-        
-        if hour == 23:
-            hour_end = datetime.combine(today + timedelta(days=1), datetime.min.time())
-        
-        hour_attendance = Attendance.objects.filter(
-            timestamp__gte=hour_start,
-            timestamp__lt=hour_end
+        hour_attendance = Session.objects.filter(
+            start_time__date=today,
+            start_time__hour=hour,
         ).count()
         
         hourly_attendance[hour] = hour_attendance
@@ -203,8 +222,8 @@ def dash(request):
     
     for i in range(6, -1, -1):
         day = today - timedelta(days=i)
-        day_attendance = Attendance.objects.filter(timestamp__date=day).count()
-        day_classrooms = Attendance.objects.filter(timestamp__date=day).values('classroom').distinct().count()
+        day_attendance = Session.objects.filter(start_time__date=day).count()
+        day_classrooms = Session.objects.filter(start_time__date=day).values('classroom').distinct().count()
         
         weekly_labels.append(day.strftime('%a'))
         weekly_attendance.append(day_attendance)
@@ -231,8 +250,8 @@ def dash(request):
         'classrooms': all_classrooms,
         'classroom_status': classroom_status,
         'danger_classrooms': danger_classrooms,
-        'warning_classrooms': warning_classrooms,
-        'has_warnings': len(danger_classrooms) > 0 or len(warning_classrooms) > 0,
+        'smoke_alert_classrooms': smoke_alert_classrooms,
+        'has_warnings': len(danger_classrooms) > 0 or len(smoke_alert_classrooms) > 0,
         'used_classrooms': used_classrooms,
         'unused_classrooms': unused_classrooms,
         'avg_occupancy': round(avg_occupancy, 1),
@@ -243,8 +262,7 @@ def dash(request):
         'weekly_labels_json': json.dumps(weekly_labels),
         'weekly_attendance_json': json.dumps(weekly_attendance),
         'weekly_classrooms_json': json.dumps(weekly_classrooms_used),
-        'temperature_min': temperature_settings.min_temperature,
-        'temperature_max': temperature_settings.max_temperature,
+        'smoke_alert_enabled': system_settings.smoke_alert_enabled,
         'today': today.strftime('%A, %B %d, %Y'),
     }
     
@@ -253,13 +271,42 @@ def dash(request):
 
 @portal_admin_required
 def classes(request):
+    query = request.GET.get('q', '').strip()
+    usage = request.GET.get('usage', '').strip()
+    lights = request.GET.get('lights', '').strip()
+    projector = request.GET.get('projector', '').strip()
+    door = request.GET.get('door', '').strip()
+
     classrooms = Classroom.objects.all()
+    if query:
+        classrooms = classrooms.filter(name__icontains=query)
+    if usage == 'used':
+        classrooms = classrooms.filter(occupied=True)
+    elif usage == 'unused':
+        classrooms = classrooms.filter(occupied=False)
+
+    if lights == 'on':
+        classrooms = classrooms.filter(lights_on=True)
+    elif lights == 'off':
+        classrooms = classrooms.filter(lights_on=False)
+
+    if projector == 'on':
+        classrooms = classrooms.filter(projector_on=True)
+    elif projector == 'off':
+        classrooms = classrooms.filter(projector_on=False)
+
+    if door == 'open':
+        classrooms = classrooms.filter(door=True)
+    elif door == 'closed':
+        classrooms = classrooms.filter(door=False)
+
+    classrooms = classrooms.order_by('name')
 
     classroom_list = []
     for room in classrooms:
-        today_sessions = Attendance.objects.filter(
+        today_sessions = Session.objects.filter(
             classroom=room,
-            timestamp__date=timezone.now().date(),
+            start_time__date=timezone.now().date(),
         ).count()
         classroom_list.append({
             'id': room.id,
@@ -272,7 +319,16 @@ def classes(request):
             'occupied': room.occupied,
         })
 
-    context = {'classrooms': classroom_list}
+    context = {
+        'classrooms': classroom_list,
+        'filters': {
+            'q': query,
+            'usage': usage,
+            'lights': lights,
+            'projector': projector,
+            'door': door,
+        },
+    }
     return render(request, 'dashboard/classes.html', context)
 
 
@@ -281,10 +337,10 @@ def classroom_detail(request, id):
     classroom = Classroom.objects.filter(id=id).first()
     if not classroom:
         return render(request, '404.html', status=404)
-    temperature_settings = get_temperature_settings()
+    system_settings = get_system_settings()
 
     today = timezone.now().date()
-    today_sessions = Attendance.objects.filter(classroom=classroom, timestamp__date=today).count()
+    today_sessions = Session.objects.filter(classroom=classroom, start_time__date=today).count()
 
     start_date = today - timedelta(days=29)
     usage_labels = []
@@ -295,15 +351,17 @@ def classroom_detail(request, id):
         day = start_date + timedelta(days=n)
 
         student_count = (
-            Attendance.objects.filter(classroom=classroom, timestamp__date=day)
+            Session.objects.filter(classroom=classroom, start_time__date=day)
             .values('students')
             .distinct()
             .count()
         )
 
         teacher_count = (
-            Attendance.objects.filter(classroom=classroom, timestamp__date=day)
-            .exclude(staff=None)
+            Session.objects.filter(classroom=classroom, start_time__date=day)
+            .exclude(teacher=None)
+            .values('teacher')
+            .distinct()
             .count()
         )
 
@@ -318,27 +376,19 @@ def classroom_detail(request, id):
     start_date_7 = today - timedelta(days=6)  # Last 7 days including today
     start_date_30 = today - timedelta(days=29)  # Last 30 days including today
     
-    weekly_sessions = Attendance.objects.filter(
+    weekly_sessions = Session.objects.filter(
         classroom=classroom, 
-        timestamp__date__gte=start_date_7,
-        timestamp__date__lte=today
+        start_time__date__gte=start_date_7,
+        start_time__date__lte=today
     ).count()
     
-    monthly_sessions = Attendance.objects.filter(
+    monthly_sessions = Session.objects.filter(
         classroom=classroom, 
-        timestamp__date__gte=start_date_30,
-        timestamp__date__lte=today
+        start_time__date__gte=start_date_30,
+        start_time__date__lte=today
     ).count()
 
-    has_temp_warning = False
-    temp_warning_type = None
-    if classroom.temperature is not None:
-        if classroom.temperature > temperature_settings.max_temperature:
-            has_temp_warning = True
-            temp_warning_type = 'high'
-        elif classroom.temperature < temperature_settings.min_temperature:
-            has_temp_warning = True
-            temp_warning_type = 'low'
+    has_smoke_alert = system_settings.smoke_alert_enabled and classroom.smoke_detected
 
     context = {
         'classroom': classroom,
@@ -350,45 +400,125 @@ def classroom_detail(request, id):
         'usage_teacher_values_json': json.dumps(usage_teacher_values),
         'weekly_student_sessions': weekly_student_sessions,
         'weekly_teacher_sessions': weekly_teacher_sessions,
-        'temperature_min': temperature_settings.min_temperature,
-        'temperature_max': temperature_settings.max_temperature,
-        'has_temp_warning': has_temp_warning,
-        'temp_warning_type': temp_warning_type,
+        'has_smoke_alert': has_smoke_alert,
     }
     return render(request, 'dashboard/classroom_detail.html', context)
 
 
 @portal_admin_required
+def classroom_command(request, id):
+    if request.method != 'POST':
+        return redirect('classroom_detail', id=id)
+
+    classroom = Classroom.objects.filter(id=id).first()
+    if not classroom:
+        return render(request, '404.html', status=404)
+
+    action = request.POST.get('action', '').strip()
+
+    command_map = {
+        'lights_on': ('lights', True),
+        'lights_off': ('lights', False),
+        'projector_on': ('projector', True),
+        'projector_off': ('projector', False),
+        'clear_smoke': ('smoke_reset', True),
+    }
+
+    if action not in command_map:
+        messages.error(request, 'Unknown classroom command.')
+        return redirect('classroom_detail', id=id)
+
+    command, value = command_map[action]
+
+    try:
+        publish_classroom_command(classroom, command, value)
+
+        if action in {'lights_on', 'lights_off'}:
+            classroom.lights_on = bool(value)
+            classroom.save(update_fields=['lights_on'])
+        elif action in {'projector_on', 'projector_off'}:
+            classroom.projector_on = bool(value)
+            classroom.save(update_fields=['projector_on'])
+        elif action == 'clear_smoke':
+            classroom.smoke_detected = False
+            classroom.danger_indicator = False
+            classroom.save(update_fields=['smoke_detected', 'danger_indicator'])
+
+        messages.success(request, f'Command sent successfully: {action.replace("_", " ")}')
+    except Exception as exc:
+        messages.error(request, f'Failed to send command: {exc}')
+
+    return redirect('classroom_detail', id=id)
+
+
+@portal_admin_required
 def temperature_settings(request):
-    settings_obj = get_temperature_settings()
+    settings_obj = get_system_settings()
     errors = []
     success_message = ''
 
     if request.method == 'POST':
-        min_temperature_raw = request.POST.get('min_temperature', '').strip()
-        max_temperature_raw = request.POST.get('max_temperature', '').strip()
+        auto_finish_enabled = _parse_bool(request.POST, 'auto_finish_enabled')
+        email_reports_enabled = _parse_bool(request.POST, 'email_reports_enabled')
+        smtp_use_tls = _parse_bool(request.POST, 'smtp_use_tls')
+
+        cron_interval_minutes_raw = request.POST.get('cron_interval_minutes', '').strip()
+        auto_finish_minutes_raw = request.POST.get('auto_finish_minutes', '').strip()
+        smtp_host = request.POST.get('smtp_host', '').strip()
+        smtp_port_raw = request.POST.get('smtp_port', '').strip()
+        smtp_username = request.POST.get('smtp_username', '').strip()
+        smtp_password = request.POST.get('smtp_password', '').strip()
+        smtp_from_email = request.POST.get('smtp_from_email', '').strip()
 
         try:
-            min_temperature = float(min_temperature_raw)
-            max_temperature = float(max_temperature_raw)
-            if min_temperature >= max_temperature:
-                errors.append('Minimum temperature must be lower than maximum temperature.')
+            cron_interval_minutes = int(cron_interval_minutes_raw)
+            if cron_interval_minutes <= 0:
+                errors.append('Cron interval must be greater than 0 minutes.')
         except ValueError:
-            errors.append('Temperature values must be valid numbers.')
-            min_temperature = settings_obj.min_temperature
-            max_temperature = settings_obj.max_temperature
+            errors.append('Cron interval must be a valid integer.')
+            cron_interval_minutes = settings_obj.cron_interval_minutes
+
+        try:
+            auto_finish_minutes = int(auto_finish_minutes_raw)
+            if auto_finish_minutes <= 0:
+                errors.append('Auto-finish duration must be greater than 0 minutes.')
+        except ValueError:
+            errors.append('Auto-finish duration must be a valid integer.')
+            auto_finish_minutes = settings_obj.auto_finish_minutes
+
+        try:
+            smtp_port = int(smtp_port_raw)
+            if smtp_port <= 0:
+                errors.append('SMTP port must be a positive number.')
+        except ValueError:
+            errors.append('SMTP port must be a valid integer.')
+            smtp_port = settings_obj.smtp_port
+
+        if email_reports_enabled and not smtp_from_email:
+            errors.append('From email is required when automatic report emails are enabled.')
 
         if not errors:
-            settings_obj.min_temperature = min_temperature
-            settings_obj.max_temperature = max_temperature
+            settings_obj.auto_finish_enabled = auto_finish_enabled
+            settings_obj.cron_interval_minutes = cron_interval_minutes
+            settings_obj.auto_finish_minutes = auto_finish_minutes
+            settings_obj.email_reports_enabled = email_reports_enabled
+            settings_obj.smtp_host = smtp_host
+            settings_obj.smtp_port = smtp_port
+            settings_obj.smtp_username = smtp_username
+            if smtp_password:
+                settings_obj.smtp_password = smtp_password
+            settings_obj.smtp_use_tls = smtp_use_tls
+            settings_obj.smtp_from_email = smtp_from_email
             settings_obj.save()
-            success_message = 'Temperature warning settings updated successfully.'
+
+            # Apply new timing immediately (e.g., change from 90 to 10 minutes).
+            auto_finish_active_classrooms()
+            success_message = 'System settings updated successfully.'
 
     context = {
         'settings_obj': settings_obj,
         'errors': errors,
         'success_message': success_message,
-        'classrooms': Classroom.objects.order_by('name'),
     }
     return render(request, 'dashboard/settings.html', context)
 
@@ -402,6 +532,7 @@ def add_class(request):
         lights_on = bool(request.POST.get('lights_on'))
         projector_on = bool(request.POST.get('projector_on'))
         door = bool(request.POST.get('door'))
+        smoke_detected = bool(request.POST.get('smoke_detected'))
         danger_indicator = bool(request.POST.get('danger_indicator'))
 
         if not name:
@@ -414,6 +545,7 @@ def add_class(request):
                 lights_on=lights_on,
                 projector_on=projector_on,
                 door=door,
+                smoke_detected=smoke_detected,
                 danger_indicator=danger_indicator,
             )
             return redirect('classes')
@@ -426,6 +558,7 @@ def add_class(request):
                 'lights_on': lights_on,
                 'projector_on': projector_on,
                 'door': door,
+                'smoke_detected': smoke_detected,
                 'danger_indicator': danger_indicator,
             },
         }
@@ -515,30 +648,361 @@ def student_detail(request, id):
 
     for n in range(30):
         day = start_date + timedelta(days=n)
-        count = Attendance.objects.filter(students=student, timestamp__date=day).count()
+        count = Session.objects.filter(students=student, start_time__date=day).count()
         attendance_labels.append(day.strftime('%b %d'))
         attendance_values.append(count)
 
     weekly_student_sessions = sum(attendance_values[-7:])
-    recent_attendance = Attendance.objects.filter(students=student).order_by('-timestamp')[:7]
+    recent_sessions = Session.objects.filter(students=student).select_related('classroom').order_by('-start_time')[:7]
 
     context = {
         'student': student,
         'attendance_labels_json': json.dumps(attendance_labels),
         'attendance_values_json': json.dumps(attendance_values),
         'weekly_student_sessions': weekly_student_sessions,
-        'recent_attendance': recent_attendance,
+        'recent_sessions': recent_sessions,
     }
     return render(request, 'dashboard/student_detail.html', context)
 
 
 @portal_admin_required
 def students(request):
+    query = request.GET.get('q', '').strip()
+    specialization = request.GET.get('specialization', '').strip()
+    year = request.GET.get('year', '').strip()
+
     student_list = Student.objects.all()
+    if query:
+        student_list = student_list.filter(
+            Q(name__icontains=query)
+            | Q(email__icontains=query)
+            | Q(rfid_number__icontains=query)
+            | Q(student_card_id__icontains=query)
+        )
+    if specialization:
+        student_list = student_list.filter(specialization=specialization)
+    if year:
+        student_list = student_list.filter(year=year)
+
+    student_list = student_list.order_by('name')
+
     context = {
         'students': student_list,
+        'filters': {
+            'q': query,
+            'specialization': specialization,
+            'year': year,
+        },
     }
     return render(request, 'dashboard/students.html', context)
+
+
+@portal_admin_required
+def download_report_pdf(request, id):
+    report = AttendanceReport.objects.select_related('classroom').filter(id=id).first()
+    if not report:
+        return render(request, '404.html', status=404)
+
+    pdf_content = build_report_pdf_attachment(report)
+    classroom_slug = slugify(report.classroom.name) or 'classroom'
+    filename = f"attendance_report_{report.id}_{classroom_slug}.pdf"
+
+    response = HttpResponse(pdf_content, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@portal_admin_required
+def email_report(request, id):
+    if request.method != 'POST':
+        return redirect('sessions')
+
+    report = AttendanceReport.objects.select_related('session', 'classroom', 'teacher').filter(id=id).first()
+    if not report:
+        return render(request, '404.html', status=404)
+
+    if not report.teacher or not report.teacher.email:
+        messages.error(request, 'This report has no teacher email address to send to.')
+        return redirect('session_detail', id=report.session_id)
+
+    settings_obj = get_system_settings()
+    if not settings_obj.smtp_host or not settings_obj.smtp_from_email:
+        messages.error(request, 'SMTP host and From Email must be configured before sending reports.')
+        return redirect('session_detail', id=report.session_id)
+
+    maybe_email_report(report, settings_obj=settings_obj, force=True)
+
+    if report.email_error:
+        messages.error(request, f'Failed to send report: {report.email_error}')
+    else:
+        messages.success(request, 'Report emailed successfully.')
+
+    return redirect('session_detail', id=report.session_id)
+
+
+@portal_admin_required
+def sessions(request):
+    classroom_id = request.GET.get('classroom', '').strip()
+    teacher_query = request.GET.get('teacher', '').strip()
+    start_date = request.GET.get('start_date', '').strip()
+    end_date = request.GET.get('end_date', '').strip()
+
+    session_list = Session.objects.select_related('classroom', 'teacher').prefetch_related('report', 'students').all()
+
+    if classroom_id:
+        session_list = session_list.filter(classroom_id=classroom_id)
+    if teacher_query:
+        session_list = session_list.filter(
+            Q(teacher__name__icontains=teacher_query)
+            | Q(teacher__email__icontains=teacher_query)
+        )
+    if start_date:
+        session_list = session_list.filter(start_time__date__gte=start_date)
+    if end_date:
+        session_list = session_list.filter(start_time__date__lte=end_date)
+
+    session_list = session_list.order_by('id')
+
+    sessions_materialized = list(session_list)
+    for session in sessions_materialized:
+        session.student_names = list(session.students.values_list('name', flat=True))
+
+    context = {
+        'sessions': sessions_materialized,
+        'classrooms': Classroom.objects.order_by('name'),
+        'filters': {
+            'classroom': classroom_id,
+            'teacher': teacher_query,
+            'start_date': start_date,
+            'end_date': end_date,
+        },
+    }
+    return render(request, 'dashboard/sessions.html', context)
+
+
+def _sync_classroom_state(classroom):
+    has_open = Session.objects.filter(classroom=classroom, is_closed=False).exists()
+    if not has_open:
+        classroom.occupied = False
+        classroom.session_started_at = None
+        classroom.last_activity_at = None
+        classroom.save(update_fields=['occupied', 'session_started_at', 'last_activity_at'])
+
+
+@portal_admin_required
+def add_session(request):
+    errors = []
+    form = {'student_ids': []}
+
+    if request.method == 'POST':
+        classroom_id = request.POST.get('classroom_id', '').strip()
+        teacher_id = request.POST.get('teacher_id', '').strip()
+        start_time_raw = request.POST.get('start_time', '').strip()
+        student_ids = request.POST.getlist('student_ids')
+
+        form = {
+            'classroom_id': classroom_id,
+            'teacher_id': teacher_id,
+            'start_time': start_time_raw,
+            'student_ids': student_ids,
+        }
+
+        classroom = Classroom.objects.filter(id=classroom_id).first() if classroom_id else None
+        teacher = Staff.objects.filter(id=teacher_id, role='PROF').first() if teacher_id else None
+        selected_students = Student.objects.filter(id__in=student_ids).distinct() if student_ids else Student.objects.none()
+
+        if not classroom:
+            errors.append('A valid classroom is required.')
+
+        start_time = parse_datetime(start_time_raw) if start_time_raw else None
+        if not start_time:
+            errors.append('A valid start time is required.')
+        elif timezone.is_naive(start_time):
+            start_time = timezone.make_aware(start_time, timezone.get_current_timezone())
+
+        if classroom and Session.objects.filter(classroom=classroom, is_closed=False).exists():
+            errors.append('This classroom already has an active session.')
+
+        if not errors:
+            settings_obj = get_system_settings()
+            expected_report_time = start_time + timedelta(minutes=settings_obj.auto_finish_minutes)
+
+            session = Session.objects.create(
+                classroom=classroom,
+                teacher=teacher,
+                start_time=start_time,
+                expected_report_time=expected_report_time,
+                is_closed=False,
+            )
+            if selected_students.exists():
+                session.students.add(*selected_students)
+
+            classroom.occupied = True
+            classroom.session_started_at = start_time
+            classroom.last_activity_at = timezone.now()
+            classroom.save(update_fields=['occupied', 'session_started_at', 'last_activity_at'])
+
+            # If session is already overdue under current settings, generate report immediately.
+            auto_finish_active_classrooms()
+            return redirect('sessions')
+
+    context = {
+        'errors': errors,
+        'form': form,
+        'classrooms': Classroom.objects.order_by('name'),
+        'teachers': Staff.objects.filter(role='PROF').order_by('name'),
+        'students': Student.objects.order_by('name'),
+        'back_url': '/sessions/',
+    }
+    return render(request, 'dashboard/session_add.html', context)
+
+
+@portal_admin_required
+def edit_session(request, id):
+    session = Session.objects.select_related('classroom', 'teacher').prefetch_related('students').filter(id=id).first()
+    if not session:
+        return render(request, '404.html', status=404)
+
+    if session.is_closed:
+        messages.error(request, 'Closed sessions cannot be modified.')
+        return redirect('session_detail', id=session.id)
+
+    errors = []
+    form = {
+        'classroom_id': str(session.classroom_id),
+        'teacher_id': str(session.teacher_id) if session.teacher_id else '',
+        'start_time': timezone.localtime(session.start_time).strftime('%Y-%m-%dT%H:%M'),
+        'student_ids': [str(student_id) for student_id in session.students.values_list('id', flat=True)],
+    }
+
+    if request.method == 'POST':
+        classroom_id = request.POST.get('classroom_id', '').strip()
+        teacher_id = request.POST.get('teacher_id', '').strip()
+        start_time_raw = request.POST.get('start_time', '').strip()
+        student_ids = request.POST.getlist('student_ids')
+
+        form = {
+            'classroom_id': classroom_id,
+            'teacher_id': teacher_id,
+            'start_time': start_time_raw,
+            'student_ids': student_ids,
+        }
+
+        classroom = Classroom.objects.filter(id=classroom_id).first() if classroom_id else None
+        teacher = Staff.objects.filter(id=teacher_id, role='PROF').first() if teacher_id else None
+        selected_students = Student.objects.filter(id__in=student_ids).distinct() if student_ids else Student.objects.none()
+
+        if not classroom:
+            errors.append('A valid classroom is required.')
+
+        start_time = parse_datetime(start_time_raw) if start_time_raw else None
+        if not start_time:
+            errors.append('A valid start time is required.')
+        elif timezone.is_naive(start_time):
+            start_time = timezone.make_aware(start_time, timezone.get_current_timezone())
+
+        if classroom and Session.objects.filter(classroom=classroom, is_closed=False).exclude(id=session.id).exists():
+            errors.append('This classroom already has another active session.')
+
+        if not errors:
+            settings_obj = get_system_settings()
+            expected_report_time = start_time + timedelta(minutes=settings_obj.auto_finish_minutes)
+
+            previous_classroom = session.classroom
+            session.classroom = classroom
+            session.teacher = teacher
+            session.start_time = start_time
+            session.expected_report_time = expected_report_time
+            session.save(update_fields=['classroom', 'teacher', 'start_time', 'expected_report_time'])
+            session.students.set(selected_students)
+
+            classroom.occupied = True
+            classroom.session_started_at = start_time
+            classroom.last_activity_at = timezone.now()
+            classroom.save(update_fields=['occupied', 'session_started_at', 'last_activity_at'])
+
+            if previous_classroom.id != classroom.id:
+                _sync_classroom_state(previous_classroom)
+
+            auto_finish_active_classrooms()
+            messages.success(request, 'Session updated successfully.')
+            return redirect('session_detail', id=session.id)
+
+    context = {
+        'errors': errors,
+        'form': form,
+        'classrooms': Classroom.objects.order_by('name'),
+        'teachers': Staff.objects.filter(role='PROF').order_by('name'),
+        'students': Student.objects.order_by('name'),
+        'page_title': f'Edit Session #{session.id}',
+        'submit_label': 'Save Changes',
+        'is_edit': True,
+        'back_url': f'/sessions/{session.id}/',
+    }
+    return render(request, 'dashboard/session_add.html', context)
+
+
+@portal_admin_required
+def end_session(request, id):
+    if request.method != 'POST':
+        return redirect('sessions')
+
+    session = Session.objects.select_related('classroom').filter(id=id).first()
+    if not session:
+        return render(request, '404.html', status=404)
+
+    if session.is_closed:
+        messages.info(request, 'Session is already closed.')
+        return redirect('session_detail', id=session.id)
+
+    now = timezone.now()
+    generate_attendance_report_for_session(session, session_end=now)
+    _sync_classroom_state(session.classroom)
+    messages.success(request, 'Session ended and report generated.')
+    return redirect('session_detail', id=session.id)
+
+
+@portal_admin_required
+def delete_session(request, id):
+    if request.method != 'POST':
+        return redirect('sessions')
+
+    session = Session.objects.select_related('classroom').filter(id=id).first()
+    if not session:
+        return render(request, '404.html', status=404)
+
+    classroom = session.classroom
+    session.delete()
+    _sync_classroom_state(classroom)
+    messages.success(request, 'Session deleted successfully.')
+    return redirect('sessions')
+
+
+@portal_admin_required
+def session_detail(request, id):
+    session = Session.objects.select_related('classroom', 'teacher').prefetch_related('report', 'students').filter(id=id).first()
+    if not session:
+        return render(request, '404.html', status=404)
+
+    report = AttendanceReport.objects.filter(session=session).first()
+
+    if report:
+        total_students = report.total_students
+        total_staff = report.total_staff
+    else:
+        total_students = session.students.count()
+        total_staff = 1 if session.teacher else 0
+
+    student_names = list(session.students.values_list('name', flat=True))
+
+    context = {
+        'session': session,
+        'report': report,
+        'total_students': total_students,
+        'total_staff': total_staff,
+        'student_names': student_names,
+    }
+    return render(request, 'dashboard/session_detail.html', context)
 
 
 def _validate_staff_payload(payload, existing_staff=None):
