@@ -109,6 +109,58 @@
       .login-features i {
         font-size: 1.1rem;
       }
+
+      .brand-mark {
+        position: relative;
+        width: 2.35rem;
+        height: 2.35rem;
+        border-radius: 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(150deg, #696cff 0%, #03c3ec 100%);
+        box-shadow: 0 0.55rem 1.35rem rgba(105, 108, 255, 0.32);
+        flex-shrink: 0;
+      }
+
+      .brand-mark-core {
+        width: 1.12rem;
+        height: 1.12rem;
+        border: 2px solid rgba(255, 255, 255, 0.95);
+        border-radius: 0.35rem;
+        transform: rotate(45deg);
+      }
+
+      .brand-mark-dot {
+        position: absolute;
+        width: 0.42rem;
+        height: 0.42rem;
+        border-radius: 50%;
+        background: #fff;
+        top: 0.35rem;
+        right: 0.35rem;
+      }
+
+      .brand-wordmark {
+        display: inline-flex;
+        flex-direction: column;
+        line-height: 1.06;
+        letter-spacing: 0.01em;
+        color: #2d3b50;
+        font-weight: 700;
+      }
+
+      .brand-wordmark strong {
+        font-size: 1.02rem;
+      }
+
+      .brand-sub {
+        color: #7b8ca5;
+        font-size: 0.62rem;
+        font-weight: 600;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
     </style>
   </head>
 
@@ -146,10 +198,14 @@
                   <div class="d-flex align-items-center justify-content-between mb-4">
                     <div>
                       <div class="d-inline-flex align-items-center mb-2">
-                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle me-2" style="width: 38px; height: 38px; background: rgba(105, 108, 255, 0.12); color: #696cff;">
-                          <i class="bx bx-home-smile fs-3"></i>
+                        <span class="brand-mark me-2" aria-hidden="true">
+                          <span class="brand-mark-core"></span>
+                          <span class="brand-mark-dot"></span>
                         </span>
-                        <span class="fw-bolder fs-4">Smart Classroom</span>
+                        <span class="brand-wordmark">
+                          <strong>Smart Classroom</strong>
+                          <small class="brand-sub">Control Center</small>
+                        </span>
                       </div>
                       <h4 class="mb-1">Welcome back</h4>
                       <p class="text-muted mb-0">Sign in with an admin portal account.</p>
@@ -187,9 +243,6 @@
                     </div>
                   </form>
 
-                  <div class="mt-4 pt-3 border-top text-muted small">
-                    Superadmin accounts are intentionally blocked from this portal.
-                  </div>
                 </div>
               </div>
             </div>

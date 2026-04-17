@@ -1,11 +1,15 @@
 from io import BytesIO
 from datetime import timedelta
+from html import escape
 
 from django.core.mail import EmailMessage, get_connection
 from django.db import transaction
 from django.utils import timezone
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.units import inch
 
 from .models import AttendanceReport, Classroom, Session, SystemSettings
 
@@ -56,49 +60,126 @@ def _build_report_details(staff_names, student_names, session):
 
 def _build_pdf_attachment(report):
     buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        topMargin=0.75 * inch,
+        bottomMargin=0.75 * inch,
+        leftMargin=0.75 * inch,
+        rightMargin=0.75 * inch,
+    )
 
-    y = height - 50
-    line_height = 16
+    styles = getSampleStyleSheet()
 
-    title = f"Attendance Report - {report.classroom.name}"
-    pdf.setFont('Helvetica-Bold', 14)
-    pdf.drawString(40, y, title)
-    y -= line_height * 2
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=22,
+        textColor=colors.HexColor('#1e40af'),
+        spaceAfter=3,
+        fontName='Helvetica-Bold',
+    )
 
-    pdf.setFont('Helvetica', 10)
-    metadata = [
-        f"Generated: {timezone.localtime(report.generated_at).strftime('%Y-%m-%d %H:%M:%S')}",
-        f"Session start: {timezone.localtime(report.session_start).strftime('%Y-%m-%d %H:%M:%S')}",
-        f"Auto report time: {timezone.localtime(report.session_end).strftime('%Y-%m-%d %H:%M:%S')}",
-        f"Duration: {report.duration_minutes} minutes",
-        f"Teacher: {report.teacher.name if report.teacher else 'Not assigned'}",
-        f"Students count: {report.total_students}",
-        f"Staff count: {report.total_staff}",
+    subtitle_style = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#64748b'),
+        spaceAfter=12,
+        fontName='Helvetica',
+    )
+
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=12,
+        textColor=colors.HexColor('#1e40af'),
+        spaceAfter=8,
+        spaceBefore=12,
+        fontName='Helvetica-Bold',
+    )
+
+    story = []
+
+    story.append(Paragraph('Attendance Report', title_style))
+    story.append(Paragraph(f"Session #{report.session_id or 'N/A'}", subtitle_style))
+
+    session_start_local = timezone.localtime(report.session_start)
+    session_end_local = timezone.localtime(report.session_end)
+
+    header_data = [
+        ['Date', escape(session_start_local.strftime('%Y-%m-%d')), 'Classroom', escape(report.classroom.name)],
+        ['Start Time', escape(session_start_local.strftime('%H:%M:%S')), 'End Time', escape(session_end_local.strftime('%H:%M:%S'))],
+        ['Teacher', escape(report.teacher.name if report.teacher else 'Not assigned'), 'Duration', escape(f'{report.duration_minutes} minutes')],
+        ['Generated At', escape(timezone.localtime(report.generated_at).strftime('%Y-%m-%d %H:%M:%S')), 'Students', escape(str(report.total_students))],
     ]
 
-    for line in metadata:
-        pdf.drawString(40, y, line)
-        y -= line_height
+    header_table = Table(header_data, colWidths=[1.2 * inch, 2.0 * inch, 1.2 * inch, 2.2 * inch])
+    header_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#0f172a')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTNAME', (3, 0), (3, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9.5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+        ('TOPPADDING', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('LINEABOVE', (0, 0), (-1, 0), 1, colors.HexColor('#bfdbfe')),
+        ('LINEBELOW', (0, -1), (-1, -1), 1, colors.HexColor('#bfdbfe')),
+        ('GRID', (0, 0), (-1, -1), 0.35, colors.HexColor('#dbeafe')),
+    ]))
 
-    y -= line_height
-    pdf.setFont('Helvetica-Bold', 11)
-    pdf.drawString(40, y, 'Details')
-    y -= line_height
+    story.append(header_table)
+    story.append(Spacer(1, 0.22 * inch))
 
-    pdf.setFont('Helvetica', 9)
-    for raw_line in report.details.splitlines():
-        chunks = [raw_line[i:i + 115] for i in range(0, len(raw_line), 115)] or ['']
-        for chunk in chunks:
-            if y < 50:
-                pdf.showPage()
-                y = height - 50
-                pdf.setFont('Helvetica', 9)
-            pdf.drawString(40, y, chunk)
-            y -= 12
+    story.append(Paragraph('Student Roster', heading_style))
+    students = []
+    if report.session_id:
+        students = list(report.session.students.order_by('name'))
 
-    pdf.save()
+    roster_data = [['Student ID', 'Student Name', 'Speciality']]
+    for student in students:
+        roster_data.append([
+            escape(student.student_card_id or str(student.id)),
+            escape(student.name),
+            escape(student.get_specialization_display()),
+        ])
+
+    if len(roster_data) == 1:
+        roster_data.append(['-', 'No students linked to this session', '-'])
+
+    roster_table = Table(roster_data, colWidths=[1.5 * inch, 2.9 * inch, 2.2 * inch])
+    roster_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#1f2937')),
+        ('FONTSIZE', (0, 1), (-1, -1), 9.2),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#d1d5db')),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+    ]))
+    story.append(roster_table)
+    story.append(Spacer(1, 0.18 * inch))
+
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.HexColor('#94a3b8'),
+        alignment=1,
+    )
+    story.append(Paragraph('Smart Classroom Control System | Confidential', footer_style))
+
+    doc.build(story)
     buffer.seek(0)
     return buffer.read()
 
@@ -177,17 +258,27 @@ def generate_attendance_report_for_session(session, session_end=None, settings_o
 
     duration_minutes = settings_obj.auto_finish_minutes
 
-    report = AttendanceReport.objects.create(
-        session=session,
-        classroom=classroom,
-        teacher=teacher,
-        session_start=start_candidate,
-        session_end=session_end,
-        duration_minutes=duration_minutes,
-        total_students=len(student_names),
-        total_staff=1 if teacher else 0,
-        details=_build_report_details(staff_names, student_names, session),
-    )
+    # Check if report already exists for this session
+    existing_report = AttendanceReport.objects.filter(session=session).first()
+    
+    if existing_report:
+        # Update existing report with new end time
+        report = existing_report
+        report.session_end = session_end
+        report.save(update_fields=['session_end'])
+    else:
+        # Create new report
+        report = AttendanceReport.objects.create(
+            session=session,
+            classroom=classroom,
+            teacher=teacher,
+            session_start=start_candidate,
+            session_end=session_end,
+            duration_minutes=duration_minutes,
+            total_students=len(student_names),
+            total_staff=1 if teacher else 0,
+            details=_build_report_details(staff_names, student_names, session),
+        )
 
     session.teacher = teacher
     session.ended_at = session_end

@@ -68,6 +68,95 @@
 
             <div class="row g-4">
               <div class="col-12">
+                <h6 class="mb-3">Admin Control Center</h6>
+              </div>
+
+              <div class="col-md-6 col-lg-4">
+                <label for="default_list_page_size" class="form-label">Default list page size</label>
+                <input
+                  id="default_list_page_size"
+                  name="default_list_page_size"
+                  type="number"
+                  min="10"
+                  max="200"
+                  class="form-control"
+                  value="{{ settings_obj.default_list_page_size }}"
+                  required
+                />
+                <small class="text-muted">Applies to classes, students, staff, and sessions.</small>
+              </div>
+
+              <div class="col-md-6 col-lg-4">
+                <label for="default_sessions_order" class="form-label">Default sessions order</label>
+                <select id="default_sessions_order" name="default_sessions_order" class="form-select">
+                  <option value="id_desc" {% if settings_obj.default_sessions_order == 'id_desc' %}selected{% endif %}>Newest first</option>
+                  <option value="id_asc" {% if settings_obj.default_sessions_order == 'id_asc' %}selected{% endif %}>Oldest first</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-lg-8">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <div class="form-check form-switch mt-2">
+                      <input class="form-check-input" type="checkbox" id="allow_bulk_actions" name="allow_bulk_actions" {% if settings_obj.allow_bulk_actions %}checked{% endif %} />
+                      <label class="form-check-label" for="allow_bulk_actions">Enable bulk delete actions</label>
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="form-check form-switch mt-2">
+                      <input class="form-check-input" type="checkbox" id="show_kpi_badges" name="show_kpi_badges" {% if settings_obj.show_kpi_badges %}checked{% endif %} />
+                      <label class="form-check-label" for="show_kpi_badges">Show KPI badges in menu and headers</label>
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="form-check form-switch mt-2">
+                      <input class="form-check-input" type="checkbox" id="ui_compact_mode" name="ui_compact_mode" {% if settings_obj.ui_compact_mode %}checked{% endif %} />
+                      <label class="form-check-label" for="ui_compact_mode">Compact UI mode</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-4" />
+
+            <div class="row g-4">
+              <div class="col-12">
+                <h6 class="mb-3">MQTT Connectivity</h6>
+              </div>
+
+              <div class="col-12 col-lg-6">
+                <div class="border rounded p-3 h-100">
+                  <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="mqtt_production_mode" name="mqtt_production_mode" {% if settings_obj.mqtt_mode == 'production' %}checked{% endif %} />
+                    <label class="form-check-label" for="mqtt_production_mode">Use Production MQTT mode</label>
+                  </div>
+                  <small class="text-muted">Switch OFF for Test mode and ON for Production mode.</small>
+                </div>
+              </div>
+
+              <div class="col-md-6 col-lg-3">
+                <label for="mqtt_broker_host" class="form-label">MQTT Broker Address</label>
+                <input id="mqtt_broker_host" name="mqtt_broker_host" type="text" class="form-control" value="{{ settings_obj.mqtt_broker_host|default:mqtt_default_host }}" placeholder="mqtt.example.com or 192.168.1.10" required />
+              </div>
+
+              <div class="col-md-6 col-lg-3">
+                <label for="mqtt_broker_port" class="form-label">MQTT Broker Port</label>
+                <input id="mqtt_broker_port" name="mqtt_broker_port" type="number" min="1" class="form-control" value="{{ settings_obj.mqtt_broker_port|default:mqtt_default_port }}" required />
+              </div>
+
+              <div class="col-12">
+                <label for="mqtt_topic_wildcard" class="form-label">MQTT Topic Wildcard (Listener Subscription)</label>
+                <input id="mqtt_topic_wildcard" name="mqtt_topic_wildcard" type="text" class="form-control" value="{{ settings_obj.mqtt_topic_wildcard|default:mqtt_default_topic }}" placeholder="smartclass/#" required />
+              </div>
+            </div>
+
+            <hr class="my-4" />
+
+            <div class="row g-4">
+              <div class="col-12">
                 <h6 class="mb-3">Attendance report email delivery</h6>
               </div>
 

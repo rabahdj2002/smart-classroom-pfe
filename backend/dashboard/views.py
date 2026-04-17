@@ -3,6 +3,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.db import IntegrityError
 from django.http import HttpResponse
+from django.core.paginator import Paginator
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
@@ -13,6 +14,7 @@ from django.utils.dateparse import parse_datetime
 from django.utils.text import slugify
 from datetime import timedelta
 from functools import wraps
+from urllib.parse import urlencode
 import json
 
 from .reporting import (
@@ -26,7 +28,7 @@ from .mqtt_commands import publish_classroom_command
 
 
 def _is_portal_admin(user):
-    return user.is_authenticated and user.is_active and user.is_staff and not user.is_superuser
+    return user.is_authenticated and user.is_active and (user.is_staff or user.is_superuser)
 
 
 def portal_admin_required(view_func):
@@ -37,7 +39,7 @@ def portal_admin_required(view_func):
 
         if not _is_portal_admin(request.user):
             logout(request)
-            messages.error(request, 'Only admin portal accounts can access this website.')
+            messages.error(request, 'This account is not allowed to access the portal.')
             return redirect('login')
 
         return view_func(request, *args, **kwargs)
@@ -51,7 +53,7 @@ def login_view(request):
 
     if request.user.is_authenticated and request.user.is_superuser:
         logout(request)
-        messages.error(request, 'Superadmin accounts are not allowed in this portal.')
+        messages.error(request, 'This account is not allowed to access the portal.')
 
     error = ''
     next_url = request.GET.get('next') or '/'
@@ -69,10 +71,7 @@ def login_view(request):
             login(request, user)
             return redirect(next_url)
 
-        if user and user.is_superuser:
-            error = 'Superadmin accounts are not allowed in this portal.'
-        else:
-            error = 'Invalid credentials or unauthorized account.'
+        error = 'Invalid credentials or unauthorized account.'
 
     return render(request, 'dashboard/login.html', {'error': error, 'next': next_url})
 
@@ -136,15 +135,17 @@ def personal_info(request):
 
 @portal_admin_required
 def mqtt_docs(request):
-    mode = getattr(settings, 'SMARTCLASS_MODE', 'test')
+    settings_obj = get_system_settings()
+    broker_host = settings_obj.mqtt_broker_host or getattr(settings, 'DASHBOARD_MQTT_BROKER_HOST', '127.0.0.1')
+    broker_port = settings_obj.mqtt_broker_port or getattr(settings, 'DASHBOARD_MQTT_BROKER_PORT', 1883)
+    topic_wildcard = settings_obj.mqtt_topic_wildcard or getattr(settings, 'DASHBOARD_MQTT_TOPIC', 'smartclass/#')
     default_events_topic = 'smartclass/classrooms/<classroom_name>/events'
 
     context = {
         'mqtt': {
-            'mode': mode,
-            'broker_host': getattr(settings, 'DASHBOARD_MQTT_BROKER_HOST', '127.0.0.1'),
-            'broker_port': getattr(settings, 'DASHBOARD_MQTT_BROKER_PORT', 1883),
-            'topic_wildcard': getattr(settings, 'DASHBOARD_MQTT_TOPIC', 'smartclass/#'),
+            'broker_host': broker_host,
+            'broker_port': broker_port,
+            'topic_wildcard': topic_wildcard,
             'default_events_topic': default_events_topic,
             'username_set': bool(getattr(settings, 'DASHBOARD_MQTT_USERNAME', '')),
             'keepalive': getattr(settings, 'DASHBOARD_MQTT_KEEPALIVE_SECONDS', 60),
@@ -271,11 +272,13 @@ def dash(request):
 
 @portal_admin_required
 def classes(request):
+    settings_obj = get_system_settings()
     query = request.GET.get('q', '').strip()
     usage = request.GET.get('usage', '').strip()
     lights = request.GET.get('lights', '').strip()
     projector = request.GET.get('projector', '').strip()
     door = request.GET.get('door', '').strip()
+    page_number = request.GET.get('page', '1').strip()
 
     classrooms = Classroom.objects.all()
     if query:
@@ -302,8 +305,11 @@ def classes(request):
 
     classrooms = classrooms.order_by('name')
 
+    paginator = Paginator(classrooms, settings_obj.default_list_page_size)
+    page_obj = paginator.get_page(page_number)
+
     classroom_list = []
-    for room in classrooms:
+    for room in page_obj.object_list:
         today_sessions = Session.objects.filter(
             classroom=room,
             start_time__date=timezone.now().date(),
@@ -319,17 +325,56 @@ def classes(request):
             'occupied': room.occupied,
         })
 
+    filters = {
+        'q': query,
+        'usage': usage,
+        'lights': lights,
+        'projector': projector,
+        'door': door,
+    }
+    pagination_query = urlencode({key: value for key, value in filters.items() if value})
+
     context = {
         'classrooms': classroom_list,
-        'filters': {
-            'q': query,
-            'usage': usage,
-            'lights': lights,
-            'projector': projector,
-            'door': door,
-        },
+        'settings_obj': settings_obj,
+        'page_obj': page_obj,
+        'pagination_query': pagination_query,
+        'filters': filters,
     }
     return render(request, 'dashboard/classes.html', context)
+
+
+@portal_admin_required
+def bulk_delete_classes(request):
+    if request.method != 'POST':
+        return redirect('classes')
+
+    settings_obj = get_system_settings()
+    if not settings_obj.allow_bulk_actions:
+        messages.error(request, 'Bulk actions are disabled by system settings.')
+        return redirect('classes')
+
+    raw_ids = request.POST.getlist('class_ids')
+    class_ids = []
+    for raw_id in raw_ids:
+        try:
+            class_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
+
+    if not class_ids:
+        messages.warning(request, 'Select at least one classroom to delete.')
+        return redirect('classes')
+
+    classes_to_delete = Classroom.objects.filter(id__in=class_ids)
+    deleted_count = classes_to_delete.count()
+    if deleted_count == 0:
+        messages.warning(request, 'No matching classrooms were found for deletion.')
+        return redirect('classes')
+
+    classes_to_delete.delete()
+    messages.success(request, f'{deleted_count} classroom(s) deleted successfully.')
+    return redirect('classes')
 
 
 @portal_admin_required
@@ -456,14 +501,26 @@ def temperature_settings(request):
     settings_obj = get_system_settings()
     errors = []
     success_message = ''
+    mqtt_default_host = getattr(settings, 'DASHBOARD_MQTT_BROKER_HOST', '127.0.0.1')
+    mqtt_default_port = getattr(settings, 'DASHBOARD_MQTT_BROKER_PORT', 1883)
+    mqtt_default_topic = getattr(settings, 'DASHBOARD_MQTT_TOPIC', 'smartclass/#')
 
     if request.method == 'POST':
         auto_finish_enabled = _parse_bool(request.POST, 'auto_finish_enabled')
+        allow_bulk_actions = _parse_bool(request.POST, 'allow_bulk_actions')
+        show_kpi_badges = _parse_bool(request.POST, 'show_kpi_badges')
+        ui_compact_mode = _parse_bool(request.POST, 'ui_compact_mode')
         email_reports_enabled = _parse_bool(request.POST, 'email_reports_enabled')
         smtp_use_tls = _parse_bool(request.POST, 'smtp_use_tls')
+        mqtt_production_mode = _parse_bool(request.POST, 'mqtt_production_mode')
 
         cron_interval_minutes_raw = request.POST.get('cron_interval_minutes', '').strip()
         auto_finish_minutes_raw = request.POST.get('auto_finish_minutes', '').strip()
+        default_list_page_size_raw = request.POST.get('default_list_page_size', '').strip()
+        default_sessions_order = request.POST.get('default_sessions_order', '').strip()
+        mqtt_broker_host = request.POST.get('mqtt_broker_host', '').strip()
+        mqtt_broker_port_raw = request.POST.get('mqtt_broker_port', '').strip()
+        mqtt_topic_wildcard = request.POST.get('mqtt_topic_wildcard', '').strip()
         smtp_host = request.POST.get('smtp_host', '').strip()
         smtp_port_raw = request.POST.get('smtp_port', '').strip()
         smtp_username = request.POST.get('smtp_username', '').strip()
@@ -487,12 +544,46 @@ def temperature_settings(request):
             auto_finish_minutes = settings_obj.auto_finish_minutes
 
         try:
+            default_list_page_size = int(default_list_page_size_raw)
+            if default_list_page_size < 10 or default_list_page_size > 200:
+                errors.append('Default list page size must be between 10 and 200.')
+        except ValueError:
+            errors.append('Default list page size must be a valid integer.')
+            default_list_page_size = settings_obj.default_list_page_size
+
+        if default_sessions_order not in {'id_asc', 'id_desc'}:
+            errors.append('Default sessions order is invalid.')
+            default_sessions_order = settings_obj.default_sessions_order
+
+        try:
             smtp_port = int(smtp_port_raw)
             if smtp_port <= 0:
                 errors.append('SMTP port must be a positive number.')
         except ValueError:
             errors.append('SMTP port must be a valid integer.')
             smtp_port = settings_obj.smtp_port
+
+        try:
+            mqtt_broker_port = int(mqtt_broker_port_raw)
+            if mqtt_broker_port <= 0:
+                errors.append('MQTT broker port must be a positive number.')
+        except ValueError:
+            errors.append('MQTT broker port must be a valid integer.')
+            mqtt_broker_port = settings_obj.mqtt_broker_port
+
+        if not mqtt_broker_host:
+            errors.append('MQTT broker address is required.')
+
+        if not mqtt_topic_wildcard:
+            errors.append('MQTT topic wildcard is required.')
+
+        if mqtt_topic_wildcard and '#' in mqtt_topic_wildcard and not mqtt_topic_wildcard.endswith('/#') and mqtt_topic_wildcard != '#':
+            errors.append('MQTT topic wildcard using # must end with /# (example: smartclass/#).')
+
+        if mqtt_production_mode:
+            mqtt_mode = 'production'
+        else:
+            mqtt_mode = 'test'
 
         if email_reports_enabled and not smtp_from_email:
             errors.append('From email is required when automatic report emails are enabled.')
@@ -501,6 +592,15 @@ def temperature_settings(request):
             settings_obj.auto_finish_enabled = auto_finish_enabled
             settings_obj.cron_interval_minutes = cron_interval_minutes
             settings_obj.auto_finish_minutes = auto_finish_minutes
+            settings_obj.default_list_page_size = default_list_page_size
+            settings_obj.default_sessions_order = default_sessions_order
+            settings_obj.allow_bulk_actions = allow_bulk_actions
+            settings_obj.show_kpi_badges = show_kpi_badges
+            settings_obj.ui_compact_mode = ui_compact_mode
+            settings_obj.mqtt_mode = mqtt_mode
+            settings_obj.mqtt_broker_host = mqtt_broker_host
+            settings_obj.mqtt_broker_port = mqtt_broker_port
+            settings_obj.mqtt_topic_wildcard = mqtt_topic_wildcard
             settings_obj.email_reports_enabled = email_reports_enabled
             settings_obj.smtp_host = smtp_host
             settings_obj.smtp_port = smtp_port
@@ -519,6 +619,9 @@ def temperature_settings(request):
         'settings_obj': settings_obj,
         'errors': errors,
         'success_message': success_message,
+        'mqtt_default_host': mqtt_default_host,
+        'mqtt_default_port': mqtt_default_port,
+        'mqtt_default_topic': mqtt_default_topic,
     }
     return render(request, 'dashboard/settings.html', context)
 
@@ -667,9 +770,11 @@ def student_detail(request, id):
 
 @portal_admin_required
 def students(request):
+    settings_obj = get_system_settings()
     query = request.GET.get('q', '').strip()
     specialization = request.GET.get('specialization', '').strip()
     year = request.GET.get('year', '').strip()
+    page_number = request.GET.get('page', '1').strip()
 
     student_list = Student.objects.all()
     if query:
@@ -685,16 +790,57 @@ def students(request):
         student_list = student_list.filter(year=year)
 
     student_list = student_list.order_by('name')
+    paginator = Paginator(student_list, settings_obj.default_list_page_size)
+    page_obj = paginator.get_page(page_number)
+
+    filters = {
+        'q': query,
+        'specialization': specialization,
+        'year': year,
+    }
+    pagination_query = urlencode({key: value for key, value in filters.items() if value})
 
     context = {
-        'students': student_list,
-        'filters': {
-            'q': query,
-            'specialization': specialization,
-            'year': year,
-        },
+        'students': page_obj.object_list,
+        'settings_obj': settings_obj,
+        'page_obj': page_obj,
+        'pagination_query': pagination_query,
+        'filters': filters,
     }
     return render(request, 'dashboard/students.html', context)
+
+
+@portal_admin_required
+def bulk_delete_students(request):
+    if request.method != 'POST':
+        return redirect('students')
+
+    settings_obj = get_system_settings()
+    if not settings_obj.allow_bulk_actions:
+        messages.error(request, 'Bulk actions are disabled by system settings.')
+        return redirect('students')
+
+    raw_ids = request.POST.getlist('student_ids')
+    student_ids = []
+    for raw_id in raw_ids:
+        try:
+            student_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
+
+    if not student_ids:
+        messages.warning(request, 'Select at least one student to delete.')
+        return redirect('students')
+
+    students_to_delete = Student.objects.filter(id__in=student_ids)
+    deleted_count = students_to_delete.count()
+    if deleted_count == 0:
+        messages.warning(request, 'No matching students were found for deletion.')
+        return redirect('students')
+
+    students_to_delete.delete()
+    messages.success(request, f'{deleted_count} student(s) deleted successfully.')
+    return redirect('students')
 
 
 @portal_admin_required
@@ -742,10 +888,16 @@ def email_report(request, id):
 
 @portal_admin_required
 def sessions(request):
+    settings_obj = get_system_settings()
     classroom_id = request.GET.get('classroom', '').strip()
     teacher_query = request.GET.get('teacher', '').strip()
     start_date = request.GET.get('start_date', '').strip()
     end_date = request.GET.get('end_date', '').strip()
+    order = request.GET.get('order', settings_obj.default_sessions_order).strip()
+    page_number = request.GET.get('page', '1').strip()
+
+    if order not in {'id_asc', 'id_desc'}:
+        order = settings_obj.default_sessions_order
 
     session_list = Session.objects.select_related('classroom', 'teacher').prefetch_related('report', 'students').all()
 
@@ -761,21 +913,34 @@ def sessions(request):
     if end_date:
         session_list = session_list.filter(start_time__date__lte=end_date)
 
-    session_list = session_list.order_by('id')
+    if order == 'id_desc':
+        session_list = session_list.order_by('-id')
+    else:
+        session_list = session_list.order_by('id')
 
-    sessions_materialized = list(session_list)
+    paginator = Paginator(session_list, settings_obj.default_list_page_size)
+    page_obj = paginator.get_page(page_number)
+
+    sessions_materialized = list(page_obj.object_list)
     for session in sessions_materialized:
         session.student_names = list(session.students.values_list('name', flat=True))
 
+    filters = {
+        'classroom': classroom_id,
+        'teacher': teacher_query,
+        'start_date': start_date,
+        'end_date': end_date,
+        'order': order,
+    }
+    pagination_query = urlencode({key: value for key, value in filters.items() if value})
+
     context = {
         'sessions': sessions_materialized,
+        'settings_obj': settings_obj,
+        'page_obj': page_obj,
+        'pagination_query': pagination_query,
         'classrooms': Classroom.objects.order_by('name'),
-        'filters': {
-            'classroom': classroom_id,
-            'teacher': teacher_query,
-            'start_date': start_date,
-            'end_date': end_date,
-        },
+        'filters': filters,
     }
     return render(request, 'dashboard/sessions.html', context)
 
@@ -979,6 +1144,47 @@ def delete_session(request, id):
 
 
 @portal_admin_required
+def bulk_delete_sessions(request):
+    if request.method != 'POST':
+        return redirect('sessions')
+
+    settings_obj = get_system_settings()
+    if not settings_obj.allow_bulk_actions:
+        messages.error(request, 'Bulk actions are disabled by system settings.')
+        return redirect('sessions')
+
+    raw_ids = request.POST.getlist('session_ids')
+    session_ids = []
+    for raw_id in raw_ids:
+        try:
+            session_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
+
+    if not session_ids:
+        messages.warning(request, 'Select at least one session to delete.')
+        return redirect('sessions')
+
+    sessions_to_delete = list(
+        Session.objects.select_related('classroom').filter(id__in=session_ids)
+    )
+    if not sessions_to_delete:
+        messages.warning(request, 'No matching sessions were found for deletion.')
+        return redirect('sessions')
+
+    affected_classrooms = {session.classroom for session in sessions_to_delete}
+    deleted_count = len(sessions_to_delete)
+
+    Session.objects.filter(id__in=[session.id for session in sessions_to_delete]).delete()
+
+    for classroom in affected_classrooms:
+        _sync_classroom_state(classroom)
+
+    messages.success(request, f'{deleted_count} session(s) deleted successfully.')
+    return redirect('sessions')
+
+
+@portal_admin_required
 def session_detail(request, id):
     session = Session.objects.select_related('classroom', 'teacher').prefetch_related('report', 'students').filter(id=id).first()
     if not session:
@@ -1060,9 +1266,11 @@ def _validate_staff_payload(payload, existing_staff=None):
 
 @portal_admin_required
 def staff(request):
+    settings_obj = get_system_settings()
     query = request.GET.get('q', '').strip()
     role = request.GET.get('role', '').strip()
     privilege = request.GET.get('privilege', '').strip()
+    page_number = request.GET.get('page', '1').strip()
 
     staff_members = Staff.objects.all().order_by('name')
 
@@ -1089,14 +1297,23 @@ def staff(request):
     if privilege_field:
         staff_members = staff_members.filter(**{privilege_field: True})
 
+    paginator = Paginator(staff_members, settings_obj.default_list_page_size)
+    page_obj = paginator.get_page(page_number)
+
+    filters = {
+        'q': query,
+        'role': role,
+        'privilege': privilege,
+    }
+    pagination_query = urlencode({key: value for key, value in filters.items() if value})
+
     context = {
-        'staff_members': staff_members,
+        'staff_members': page_obj.object_list,
+        'settings_obj': settings_obj,
+        'page_obj': page_obj,
+        'pagination_query': pagination_query,
         'role_choices': Staff.ROLE_CHOICES,
-        'filters': {
-            'q': query,
-            'role': role,
-            'privilege': privilege,
-        },
+        'filters': filters,
     }
     return render(request, 'dashboard/staff.html', context)
 
@@ -1199,4 +1416,37 @@ def delete_staff(request, id):
     if staff_member:
         staff_member.delete()
 
+    return redirect('staff')
+
+
+@portal_admin_required
+def bulk_delete_staff(request):
+    if request.method != 'POST':
+        return redirect('staff')
+
+    settings_obj = get_system_settings()
+    if not settings_obj.allow_bulk_actions:
+        messages.error(request, 'Bulk actions are disabled by system settings.')
+        return redirect('staff')
+
+    raw_ids = request.POST.getlist('staff_ids')
+    staff_ids = []
+    for raw_id in raw_ids:
+        try:
+            staff_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
+
+    if not staff_ids:
+        messages.warning(request, 'Select at least one staff member to delete.')
+        return redirect('staff')
+
+    staff_to_delete = Staff.objects.filter(id__in=staff_ids)
+    deleted_count = staff_to_delete.count()
+    if deleted_count == 0:
+        messages.warning(request, 'No matching staff members were found for deletion.')
+        return redirect('staff')
+
+    staff_to_delete.delete()
+    messages.success(request, f'{deleted_count} staff member(s) deleted successfully.')
     return redirect('staff')

@@ -54,14 +54,20 @@
     <script src="{% static 'dashboard/js/config.js' %}"></script>
   </head>
 
-  <body>
+  <body class="{% if app_settings.ui_compact_mode %}compact-ui{% endif %}">
     <div class="mobile-topbar d-xl-none">
       <a href="javascript:void(0);" class="layout-menu-toggle mobile-topbar-toggle" aria-label="Open menu">
         <i class="bx bx-menu bx-sm"></i>
       </a>
       <a href="{% url 'dashboard' %}" class="mobile-topbar-brand">
-        <span class="mobile-topbar-mark">SC</span>
-        <span>Smart Hub</span>
+        <span class="brand-mark brand-mark-sm" aria-hidden="true">
+          <span class="brand-mark-core"></span>
+          <span class="brand-mark-dot"></span>
+        </span>
+        <span class="brand-wordmark">
+          <strong>Smart Classroom</strong>
+          <small class="brand-sub">Control Center</small>
+        </span>
       </a>
     </div>
 
@@ -73,66 +79,14 @@
         <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
           <div class="app-brand demo">
             <a href="{% url 'dashboard' %}" class="app-brand-link">
-              <span class="app-brand-logo demo">
-                <svg
-                  width="25"
-                  viewBox="0 0 25 42"
-                  version="1.1"
-                  xmlns="http://www.w3.org/2000/svg"
-                  xmlns:xlink="http://www.w3.org/1999/xlink"
-                >
-                  <defs>
-                    <path
-                      d="M13.7918663,0.358365126 L3.39788168,7.44174259 C0.566865006,9.69408886 -0.379795268,12.4788597 0.557900856,15.7960551 C0.68998853,16.2305145 1.09562888,17.7872135 3.12357076,19.2293357 C3.8146334,19.7207684 5.32369333,20.3834223 7.65075054,21.2172976 L7.59773219,21.2525164 L2.63468769,24.5493413 C0.445452254,26.3002124 0.0884951797,28.5083815 1.56381646,31.1738486 C2.83770406,32.8170431 5.20850219,33.2640127 7.09180128,32.5391577 C8.347334,32.0559211 11.4559176,30.0011079 16.4175519,26.3747182 C18.0338572,24.4997857 18.6973423,22.4544883 18.4080071,20.2388261 C17.963753,17.5346866 16.1776345,15.5799961 13.0496516,14.3747546 L10.9194936,13.4715819 L18.6192054,7.984237 L13.7918663,0.358365126 Z"
-                      id="path-1"
-                    ></path>
-                    <path
-                      d="M5.47320593,6.00457225 C4.05321814,8.216144 4.36334763,10.0722806 6.40359441,11.5729822 C8.61520715,12.571656 10.0999176,13.2171421 10.8577257,13.5094407 L15.5088241,14.433041 L18.6192054,7.984237 C15.5364148,3.11535317 13.9273018,0.573395879 13.7918663,0.358365126 C13.5790555,0.511491653 10.8061687,2.3935607 5.47320593,6.00457225 Z"
-                      id="path-3"
-                    ></path>
-                    <path
-                      d="M7.50063644,21.2294429 L12.3234468,23.3159332 C14.1688022,24.7579751 14.397098,26.4880487 13.008334,28.506154 C11.6195701,30.5242593 10.3099883,31.790241 9.07958868,32.3040991 C5.78142938,33.4346997 4.13234973,34 4.13234973,34 C4.13234973,34 2.75489982,33.0538207 2.37032616e-14,31.1614621 C-0.55822714,27.8186216 -0.55822714,26.0572515 -4.05231404e-15,25.8773518 C0.83734071,25.6075023 2.77988457,22.8248993 3.3049379,22.52991 C3.65497346,22.3332504 5.05353963,21.8997614 7.50063644,21.2294429 Z"
-                      id="path-4"
-                    ></path>
-                    <path
-                      d="M20.6,7.13333333 L25.6,13.8 C26.2627417,14.6836556 26.0836556,15.9372583 25.2,16.6 C24.8538077,16.8596443 24.4327404,17 24,17 L14,17 C12.8954305,17 12,16.1045695 12,15 C12,14.5672596 12.1403557,14.1461923 12.4,13.8 L17.4,7.13333333 C18.0627417,6.24967773 19.3163444,6.07059163 20.2,6.73333333 C20.3516113,6.84704183 20.4862915,6.981722 20.6,7.13333333 Z"
-                      id="path-5"
-                    ></path>
-                  </defs>
-                  <g id="g-app-brand" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-                    <g id="Brand-Logo" transform="translate(-27.000000, -15.000000)">
-                      <g id="Icon" transform="translate(27.000000, 15.000000)">
-                        <g id="Mask" transform="translate(0.000000, 8.000000)">
-                          <mask id="mask-2" fill="white">
-                            <use xlink:href="#path-1"></use>
-                          </mask>
-                          <use fill="#696cff" xlink:href="#path-1"></use>
-                          <g id="Path-3" mask="url(#mask-2)">
-                            <use fill="#696cff" xlink:href="#path-3"></use>
-                            <use fill-opacity="0.2" fill="#FFFFFF" xlink:href="#path-3"></use>
-                          </g>
-                          <g id="Path-4" mask="url(#mask-2)">
-                            <use fill="#696cff" xlink:href="#path-4"></use>
-                            <use fill-opacity="0.2" fill="#FFFFFF" xlink:href="#path-4"></use>
-                          </g>
-                        </g>
-                        <g
-                          id="Triangle"
-                          transform="translate(19.000000, 11.000000) rotate(-300.000000) translate(-19.000000, -11.000000) "
-                        >
-                          <use fill="#696cff" xlink:href="#path-5"></use>
-                          <use fill-opacity="0.2" fill="#FFFFFF" xlink:href="#path-5"></use>
-                        </g>
-                      </g>
-                    </g>
-                  </g>
-                </svg>
+              <span class="brand-mark" aria-hidden="true">
+                <span class="brand-mark-core"></span>
+                <span class="brand-mark-dot"></span>
               </span>
-              <span class="app-brand-text demo menu-text fw-bolder ms-2 d-flex align-items-center gap-2">
-                <span class="badge bg-label-primary rounded-pill px-2 py-1">SC</span>
-                <span class="d-flex flex-column lh-1">
-                  <span class="fw-semibold">Smart</span>
-                  <small class="text-muted" style="font-size: 0.62rem; letter-spacing: 0.06em;">Hub</small>
+              <span class="app-brand-text demo menu-text fw-bolder ms-2">
+                <span class="brand-wordmark">
+                  <strong>Smart Classroom</strong>
+                  <small class="brand-sub">Control Center</small>
                 </span>
               </span>
             </a>
@@ -159,7 +113,9 @@
                 <i class="menu-icon tf-icons bx bx-layout"></i>
                 <div class="d-flex align-items-center justify-content-between w-100">
                   <span>Classes</span>
+                  {% if app_settings.show_kpi_badges %}
                   <span class="badge bg-label-primary ms-2">{{ dashboard_counts.classrooms|default:0 }}</span>
+                  {% endif %}
                 </div>
               </a>
             </li>
@@ -169,7 +125,9 @@
                 <i class="menu-icon tf-icons bx bx-user"></i>
                 <div class="d-flex align-items-center justify-content-between w-100">
                   <span>Students</span>
+                  {% if app_settings.show_kpi_badges %}
                   <span class="badge bg-label-info ms-2">{{ dashboard_counts.students|default:0 }}</span>
+                  {% endif %}
                 </div>
               </a>
             </li>
@@ -179,7 +137,9 @@
                 <i class="menu-icon tf-icons bx bx-briefcase-alt-2"></i>
                 <div class="d-flex align-items-center justify-content-between w-100">
                   <span>Staff</span>
+                  {% if app_settings.show_kpi_badges %}
                   <span class="badge bg-label-success ms-2">{{ dashboard_counts.staff|default:0 }}</span>
+                  {% endif %}
                 </div>
               </a>
             </li>
@@ -189,7 +149,9 @@
                 <i class="menu-icon tf-icons bx bx-time-five"></i>
                 <div class="d-flex align-items-center justify-content-between w-100">
                   <span>Sessions</span>
+                  {% if app_settings.show_kpi_badges %}
                   <span class="badge bg-label-dark ms-2">{{ dashboard_counts.sessions|default:0 }}</span>
+                  {% endif %}
                 </div>
               </a>
             </li>
@@ -314,6 +276,97 @@
         -webkit-overflow-scrolling: touch;
       }
 
+      body.compact-ui .container-xxl {
+        max-width: 1320px;
+      }
+
+      body.compact-ui .card-header {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+      }
+
+      body.compact-ui .card-body {
+        padding-top: 0.85rem;
+        padding-bottom: 0.85rem;
+      }
+
+      body.compact-ui .table td,
+      body.compact-ui .table th {
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+      }
+
+      .brand-mark {
+        position: relative;
+        width: 2.35rem;
+        height: 2.35rem;
+        border-radius: 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(150deg, #696cff 0%, #03c3ec 100%);
+        box-shadow: 0 0.55rem 1.35rem rgba(105, 108, 255, 0.32);
+        flex-shrink: 0;
+      }
+
+      .brand-mark.brand-mark-sm {
+        width: 2.1rem;
+        height: 2.1rem;
+      }
+
+      .brand-mark-core {
+        width: 1.12rem;
+        height: 1.12rem;
+        border: 2px solid rgba(255, 255, 255, 0.95);
+        border-radius: 0.35rem;
+        transform: rotate(45deg);
+      }
+
+      .brand-mark-dot {
+        position: absolute;
+        width: 0.42rem;
+        height: 0.42rem;
+        border-radius: 50%;
+        background: #fff;
+        top: 0.35rem;
+        right: 0.35rem;
+      }
+
+      .brand-wordmark {
+        display: inline-flex;
+        flex-direction: column;
+        line-height: 1.06;
+        letter-spacing: 0.01em;
+        color: #2d3b50;
+        font-weight: 700;
+      }
+
+      .brand-wordmark strong {
+        font-size: 1.02rem;
+      }
+
+      .brand-sub {
+        color: #7b8ca5;
+        font-size: 0.62rem;
+        font-weight: 600;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+
+      .app-brand .app-brand-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+      }
+
+      .app-brand .brand-wordmark strong {
+        font-size: 0.96rem;
+      }
+
+      .app-brand .brand-sub {
+        font-size: 0.56rem;
+      }
+
       @media (max-width: 1199.98px) {
         .container-xxl {
           padding-left: 0.75rem;
@@ -385,20 +438,16 @@
           min-width: 0;
         }
 
-        .mobile-topbar-mark {
-          width: 2rem;
-          height: 2rem;
-          border-radius: 999px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          color: #fff;
-          background: linear-gradient(145deg, #696cff, #03c3ec);
-          flex-shrink: 0;
-        }
-
         .app-brand-text.demo.menu-text {
           display: none !important;
+        }
+
+        .mobile-topbar .brand-wordmark {
+          font-size: 0.98rem;
+        }
+
+        .mobile-topbar .brand-sub {
+          font-size: 0.58rem;
         }
 
         .page-header {
@@ -447,6 +496,86 @@
 
         .table-responsive.text-nowrap .btn {
           width: 100%;
+        }
+
+        .table-responsive .mobile-card-table {
+          width: 100%;
+          min-width: 0;
+          border-collapse: separate;
+          border-spacing: 0;
+          background: transparent;
+        }
+
+        .table-responsive .mobile-card-table thead {
+          display: none;
+        }
+
+        .table-responsive .mobile-card-table,
+        .table-responsive .mobile-card-table tbody,
+        .table-responsive .mobile-card-table tr,
+        .table-responsive .mobile-card-table td {
+          display: block;
+          width: 100%;
+        }
+
+        .table-responsive .mobile-card-table tbody tr {
+          margin: 0.6rem;
+          padding: 0.35rem 0.8rem;
+          border: 1px solid rgba(67, 89, 113, 0.14);
+          border-radius: 0.9rem;
+          background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+          box-shadow: 0 0.3rem 0.9rem rgba(67, 89, 113, 0.1);
+        }
+
+        .table-responsive .mobile-card-table td {
+          border: 0;
+          border-top: 1px solid rgba(67, 89, 113, 0.1);
+          padding: 0.62rem 0;
+          white-space: normal !important;
+          overflow-wrap: anywhere;
+          display: grid;
+          grid-template-columns: minmax(5.6rem, 42%) minmax(0, 1fr);
+          align-items: center;
+          column-gap: 0.55rem;
+        }
+
+        .table-responsive .mobile-card-table td:first-child {
+          border-top: 0;
+        }
+
+        .table-responsive .mobile-card-table td::before {
+          content: attr(data-label);
+          font-size: 0.72rem;
+          font-weight: 700;
+          letter-spacing: 0.03em;
+          text-transform: uppercase;
+          color: #697a8d;
+          line-height: 1.2;
+        }
+
+        .table-responsive .mobile-card-table td[data-label="Select"] {
+          grid-template-columns: 1fr;
+          justify-items: end;
+          padding: 0.4rem 0 0.2rem;
+        }
+
+        .table-responsive .mobile-card-table td[data-label="Select"]::before {
+          display: none;
+        }
+
+        .table-responsive .mobile-card-table td[data-label="Action"],
+        .table-responsive .mobile-card-table td[data-label="Actions"] {
+          grid-template-columns: 1fr;
+          align-items: start;
+        }
+
+        .table-responsive .mobile-card-table td .d-flex {
+          gap: 0.45rem;
+        }
+
+        .table-responsive .mobile-card-table td .btn {
+          width: auto;
+          min-height: 2rem;
         }
 
         .content-wrapper .card-body {

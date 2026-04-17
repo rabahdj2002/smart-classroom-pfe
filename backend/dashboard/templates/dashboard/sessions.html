@@ -33,7 +33,14 @@
               <label for="end_date" class="form-label">End date</label>
               <input id="end_date" name="end_date" type="date" class="form-control" value="{{ filters.end_date }}" />
             </div>
-            <div class="col-md-2 page-actions">
+            <div class="col-md-2">
+              <label for="order" class="form-label">Order by ID</label>
+              <select id="order" name="order" class="form-select">
+                <option value="id_asc" {% if filters.order == 'id_asc' %}selected{% endif %}>Oldest first</option>
+                <option value="id_desc" {% if filters.order == 'id_desc' %}selected{% endif %}>Newest first</option>
+              </select>
+            </div>
+            <div class="col-md-12 page-actions">
               <div class="filter-actions">
                 <button type="submit" class="btn btn-primary">Apply</button>
                 <a href="{% url 'sessions' %}" class="btn btn-outline-secondary">Reset</a>
@@ -47,14 +54,28 @@
         <div class="card-header responsive-card-header d-flex justify-content-between align-items-center">
           <h5 class="mb-0">All Sessions</h5>
           <div class="page-actions">
-            <span class="badge bg-label-primary">{{ sessions|length }} result{{ sessions|length|pluralize }}</span>
+            {% if settings_obj.show_kpi_badges %}
+            <span class="badge bg-label-primary">{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}</span>
+            {% endif %}
             <a href="{% url 'add_session' %}" class="btn btn-primary btn-sm"><i class="bx bx-plus me-1"></i>Add Session</a>
           </div>
         </div>
         <div class="table-responsive text-nowrap">
-          <table class="table table-hover">
+          {% if settings_obj.allow_bulk_actions %}
+            <div class="d-flex justify-content-between align-items-center px-3 pt-3 pb-2">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="selectAllSessions" />
+                <label class="form-check-label" for="selectAllSessions">Select all</label>
+              </div>
+              <button type="submit" form="bulkDeleteSessionsForm" id="bulkDeleteBtn" class="btn btn-sm btn-outline-danger" disabled onclick="return confirm('Delete selected sessions and their reports if present?');">
+                <i class="bx bx-trash me-1"></i>Delete Selected
+              </button>
+            </div>
+          {% endif %}
+          <table class="table table-hover mobile-card-table">
             <thead>
               <tr>
+                {% if settings_obj.allow_bulk_actions %}<th style="width: 52px;"></th>{% endif %}
                 <th>Session ID</th>
                 <th>Classroom</th>
                 <th>Teacher</th>
@@ -68,25 +89,28 @@
             <tbody>
               {% for session in sessions %}
               <tr>
-                <td>#{{ session.id }}</td>
-                <td>{{ session.classroom.name }}</td>
-                <td>{{ session.teacher.name|default:'Not assigned' }}</td>
-                <td>{{ session.start_time|date:'Y-m-d H:i' }}</td>
-                <td>
+                {% if settings_obj.allow_bulk_actions %}<td data-label="Select">
+                  <input class="form-check-input session-select" type="checkbox" name="session_ids" value="{{ session.id }}" form="bulkDeleteSessionsForm" />
+                </td>{% endif %}
+                <td data-label="Session ID">#{{ session.id }}</td>
+                <td data-label="Classroom">{{ session.classroom.name }}</td>
+                <td data-label="Teacher">{{ session.teacher.name|default:'Not assigned' }}</td>
+                <td data-label="Session Start">{{ session.start_time|date:'Y-m-d H:i' }}</td>
+                <td data-label="Duration">
                   {% if session.report %}
                     {{ session.report.duration_minutes }} min
                   {% else %}
                     <span class="badge bg-label-info">In progress</span>
                   {% endif %}
                 </td>
-                <td>
+                <td data-label="Students">
                   {% if session.report %}
                     {{ session.report.total_students }}
                   {% else %}
                     {{ session.students.count }}
                   {% endif %}
                 </td>
-                <td>
+                <td data-label="Email">
                   {% if session.report and session.report.emailed %}
                     <span class="badge bg-label-success">Sent</span>
                   {% elif session.report and session.report.email_error %}
@@ -97,7 +121,7 @@
                     <span class="badge bg-label-info">Pending</span>
                   {% endif %}
                 </td>
-                <td>
+                <td data-label="Action">
                   <div class="d-flex flex-wrap gap-2">
                     <a href="{% url 'session_detail' session.id %}" class="btn btn-sm btn-outline-primary">
                       <i class="bx bx-show me-1"></i>View
@@ -129,14 +153,69 @@
               </tr>
               {% empty %}
               <tr>
-                <td colspan="8" class="text-center">No sessions found.</td>
+                <td colspan="{% if settings_obj.allow_bulk_actions %}9{% else %}8{% endif %}" class="text-center">No sessions found.</td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
+          {% if settings_obj.allow_bulk_actions %}
+          <form method="post" action="{% url 'bulk_delete_sessions' %}" id="bulkDeleteSessionsForm" class="d-none">
+            {% csrf_token %}
+          </form>
+          {% endif %}
         </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+          <small class="text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</small>
+          <div class="btn-group" role="group" aria-label="Sessions pagination">
+            {% if page_obj.has_previous %}
+            <a class="btn btn-sm btn-outline-secondary" href="{% if pagination_query %}?{{ pagination_query }}&page={{ page_obj.previous_page_number }}{% else %}?page={{ page_obj.previous_page_number }}{% endif %}">Previous</a>
+            {% else %}
+            <button class="btn btn-sm btn-outline-secondary" disabled>Previous</button>
+            {% endif %}
+
+            {% if page_obj.has_next %}
+            <a class="btn btn-sm btn-outline-secondary" href="{% if pagination_query %}?{{ pagination_query }}&page={{ page_obj.next_page_number }}{% else %}?page={{ page_obj.next_page_number }}{% endif %}">Next</a>
+            {% else %}
+            <button class="btn btn-sm btn-outline-secondary" disabled>Next</button>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
 </div>
+<script>
+  (function () {
+    const selectAll = document.getElementById('selectAllSessions');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const checkboxes = Array.from(document.querySelectorAll('.session-select'));
+
+    if (!selectAll || !bulkDeleteBtn || !checkboxes.length) {
+      return;
+    }
+
+    function refreshState() {
+      const selectedCount = checkboxes.filter((item) => item.checked).length;
+      bulkDeleteBtn.disabled = selectedCount === 0;
+      selectAll.checked = selectedCount > 0 && selectedCount === checkboxes.length;
+      selectAll.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
+    }
+
+    selectAll.addEventListener('change', function () {
+      const checked = selectAll.checked;
+      checkboxes.forEach((item) => {
+        item.checked = checked;
+      });
+      refreshState();
+    });
+
+    checkboxes.forEach((item) => {
+      item.addEventListener('change', refreshState);
+    });
+
+    refreshState();
+  })();
+</script>
 {% endblock %}

@@ -302,26 +302,28 @@ def _should_start_mqtt_listener():
 
 
 def _mqtt_loop():
-    broker_host = getattr(settings, 'DASHBOARD_MQTT_BROKER_HOST', '127.0.0.1')
-    broker_port = int(getattr(settings, 'DASHBOARD_MQTT_BROKER_PORT', 1883))
-    keepalive = int(getattr(settings, 'DASHBOARD_MQTT_KEEPALIVE_SECONDS', 60))
-    topic = getattr(settings, 'DASHBOARD_MQTT_TOPIC', 'smartclass/#')
     username = getattr(settings, 'DASHBOARD_MQTT_USERNAME', '')
     password = getattr(settings, 'DASHBOARD_MQTT_PASSWORD', '')
     reconnect_delay = int(getattr(settings, 'DASHBOARD_MQTT_RECONNECT_DELAY_SECONDS', 3))
-
-    def on_connect(client, _userdata, _flags, rc):
-        if rc == 0:
-            client.subscribe(topic)
-            logger.info('MQTT connected. host=%s port=%s topic=%s', broker_host, broker_port, topic)
-        else:
-            logger.warning('MQTT connection failed with rc=%s', rc)
 
     def on_message(_client, _userdata, msg):
         process_mqtt_payload(msg.topic, msg.payload)
 
     while True:
         try:
+            settings_obj = get_system_settings()
+            broker_host = settings_obj.mqtt_broker_host or getattr(settings, 'DASHBOARD_MQTT_BROKER_HOST', '127.0.0.1')
+            broker_port = int(settings_obj.mqtt_broker_port or getattr(settings, 'DASHBOARD_MQTT_BROKER_PORT', 1883))
+            keepalive = int(getattr(settings, 'DASHBOARD_MQTT_KEEPALIVE_SECONDS', 60))
+            topic = settings_obj.mqtt_topic_wildcard or getattr(settings, 'DASHBOARD_MQTT_TOPIC', 'smartclass/#')
+
+            def on_connect(client, _userdata, _flags, rc):
+                if rc == 0:
+                    client.subscribe(topic)
+                    logger.info('MQTT connected. host=%s port=%s topic=%s', broker_host, broker_port, topic)
+                else:
+                    logger.warning('MQTT connection failed with rc=%s', rc)
+
             client = mqtt.Client()
             if username:
                 client.username_pw_set(username=username, password=password or None)

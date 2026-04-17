@@ -44,12 +44,33 @@
         <div class="card">
           <div class="card-header responsive-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Students Overview</h5>
-            <a href="{% url 'add_student' %}" class="btn btn-primary btn-sm"><i class="bx bx-plus"></i> Add Student</a>
+            <div class="d-flex align-items-center gap-2">
+              {% if settings_obj.show_kpi_badges %}
+              <span class="badge bg-label-primary">{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}</span>
+              {% endif %}
+              <a href="{% url 'add_student' %}" class="btn btn-primary btn-sm"><i class="bx bx-plus"></i> Add Student</a>
+            </div>
           </div>
           <div class="table-responsive text-nowrap">
-            <table class="table table-hover">
+            {% if settings_obj.allow_bulk_actions %}
+            <form method="post" action="{% url 'bulk_delete_students' %}" id="bulkDeleteStudentsForm">
+              {% csrf_token %}
+              <div class="d-flex justify-content-between align-items-center px-3 pt-3 pb-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="selectAllStudents" />
+                  <label class="form-check-label" for="selectAllStudents">Select all</label>
+                </div>
+                <button type="submit" id="bulkDeleteStudentsBtn" class="btn btn-sm btn-outline-danger" disabled onclick="return confirm('Delete selected students?');">
+                  <i class="bx bx-trash me-1"></i>Delete Selected
+                </button>
+              </div>
+            {% endif %}
+            <table class="table table-hover mobile-card-table">
               <thead>
                 <tr>
+                  {% if settings_obj.allow_bulk_actions %}
+                  <th style="width: 52px;"></th>
+                  {% endif %}
                   <th>Name</th>
                   <th>Email</th>
                   <th>Specialization</th>
@@ -61,21 +82,47 @@
               <tbody class="table-border-bottom-0">
                 {% for student in students %}
                   <tr data-href="{% url 'student_detail' student.id %}" class="clickable-row" style="cursor: pointer;">
-                    <td>{{ student.name }}</td>
-                    <td>{{ student.email }}</td>
-                    <td>{{ student.get_specialization_display }}</td>
-                    <td>{{ student.year }}</td>
-                    <td>{{ student.student_card_id }}</td>
-                    <td>{{ student.rfid_number }}</td>
+                    {% if settings_obj.allow_bulk_actions %}
+                    <td data-label="Select">
+                      <input class="form-check-input student-select" type="checkbox" name="student_ids" value="{{ student.id }}" />
+                    </td>
+                    {% endif %}
+                    <td data-label="Name">{{ student.name }}</td>
+                    <td data-label="Email">{{ student.email }}</td>
+                    <td data-label="Specialization">{{ student.get_specialization_display }}</td>
+                    <td data-label="Year">{{ student.year }}</td>
+                    <td data-label="Student Card">{{ student.student_card_id }}</td>
+                    <td data-label="RFID">{{ student.rfid_number }}</td>
                   </tr>
                 {% empty %}
                   <tr>
-                    <td colspan="6" class="text-center">No students found.</td>
+                    <td colspan="{% if settings_obj.allow_bulk_actions %}7{% else %}6{% endif %}" class="text-center">No students found.</td>
                   </tr>
                 {% endfor %}
               </tbody>
             </table>
+            {% if settings_obj.allow_bulk_actions %}
+            </form>
+            {% endif %}
           </div>
+          {% if page_obj.paginator.num_pages > 1 %}
+          <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</small>
+            <div class="btn-group" role="group" aria-label="Students pagination">
+              {% if page_obj.has_previous %}
+              <a class="btn btn-sm btn-outline-secondary" href="{% if pagination_query %}?{{ pagination_query }}&page={{ page_obj.previous_page_number }}{% else %}?page={{ page_obj.previous_page_number }}{% endif %}">Previous</a>
+              {% else %}
+              <button class="btn btn-sm btn-outline-secondary" disabled>Previous</button>
+              {% endif %}
+
+              {% if page_obj.has_next %}
+              <a class="btn btn-sm btn-outline-secondary" href="{% if pagination_query %}?{{ pagination_query }}&page={{ page_obj.next_page_number }}{% else %}?page={{ page_obj.next_page_number }}{% endif %}">Next</a>
+              {% else %}
+              <button class="btn btn-sm btn-outline-secondary" disabled>Next</button>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
       <footer class="content-footer footer bg-footer-theme">
@@ -89,10 +136,42 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       document.querySelectorAll('tr.clickable-row[data-href]').forEach(function (row) {
-        row.addEventListener('click', function () {
+        row.addEventListener('click', function (event) {
+          if (event.target.closest('input') || event.target.closest('button') || event.target.closest('a') || event.target.closest('label')) {
+            return;
+          }
           window.location.href = row.getAttribute('data-href');
         });
       });
+
+      const selectAll = document.getElementById('selectAllStudents');
+      const bulkDeleteBtn = document.getElementById('bulkDeleteStudentsBtn');
+      const checkboxes = Array.from(document.querySelectorAll('.student-select'));
+
+      if (!selectAll || !bulkDeleteBtn || !checkboxes.length) {
+        return;
+      }
+
+      function refreshState() {
+        const selectedCount = checkboxes.filter((item) => item.checked).length;
+        bulkDeleteBtn.disabled = selectedCount === 0;
+        selectAll.checked = selectedCount > 0 && selectedCount === checkboxes.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
+      }
+
+      selectAll.addEventListener('change', function () {
+        const checked = selectAll.checked;
+        checkboxes.forEach((item) => {
+          item.checked = checked;
+        });
+        refreshState();
+      });
+
+      checkboxes.forEach((item) => {
+        item.addEventListener('change', refreshState);
+      });
+
+      refreshState();
     });
   </script>
 {% endblock %}

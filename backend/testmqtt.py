@@ -39,26 +39,31 @@ def build_dummy_payload(classroom_name):
 
 def main():
     env_mode = os.getenv("SMARTCLASS_MODE", "test").strip().lower()
-    default_host = "127.0.0.1" if env_mode == "test" else "192.168.70.25"
 
     parser = argparse.ArgumentParser(description="Publish dummy SmartClass MQTT data")
     parser.add_argument("--mode", choices=["test", "production"], default=env_mode, help="Runtime mode for default host selection")
-    parser.add_argument("--host", default=default_host, help="MQTT broker host")
+    parser.add_argument("--host", default=None, help="MQTT broker host")
     parser.add_argument("--port", type=int, default=1883, help="MQTT broker port")
     parser.add_argument("--topic", default="", help="MQTT topic (default: smartclass/classrooms/<classroom>/events)")
-    parser.add_argument("--classroom", default="d1", help="Classroom name in payload")
+    parser.add_argument("--classroom", default="d3", help="Classroom name in payload")
     parser.add_argument("--count", type=int, default=5, help="Number of messages to publish")
     parser.add_argument("--interval", type=float, default=1.0, help="Seconds between messages")
     args = parser.parse_args()
 
-    if "--host" not in os.sys.argv:
+    if not args.host:
         args.host = "127.0.0.1" if args.mode == "test" else "192.168.70.25"
 
     if not args.topic:
         args.topic = f"smartclass/classrooms/{args.classroom}/events"
 
-    client = mqtt.Client()
-    client.connect(args.host, args.port, 60)
+    client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+
+    try:
+        client.connect(args.host, args.port, 60)
+    except OSError as exc:
+        print(f"Failed to connect to MQTT broker {args.host}:{args.port} ({exc})")
+        return
+
     client.loop_start()
 
     print(f"Connected to MQTT broker {args.host}:{args.port}")

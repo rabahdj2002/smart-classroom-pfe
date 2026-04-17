@@ -79,6 +79,11 @@ class SystemSettings(models.Model):
     cron_interval_minutes = models.PositiveIntegerField(default=5)
     last_auto_finish_run_at = models.DateTimeField(null=True, blank=True)
     auto_finish_minutes = models.PositiveIntegerField(default=90)
+    default_list_page_size = models.PositiveIntegerField(default=50)
+    default_sessions_order = models.CharField(max_length=8, default='id_desc')
+    allow_bulk_actions = models.BooleanField(default=True)
+    show_kpi_badges = models.BooleanField(default=True)
+    ui_compact_mode = models.BooleanField(default=False)
     email_reports_enabled = models.BooleanField(default=False)
     smtp_host = models.CharField(max_length=255, blank=True)
     smtp_port = models.PositiveIntegerField(default=587)
@@ -86,6 +91,10 @@ class SystemSettings(models.Model):
     smtp_password = models.CharField(max_length=255, blank=True)
     smtp_use_tls = models.BooleanField(default=True)
     smtp_from_email = models.EmailField(blank=True)
+    mqtt_mode = models.CharField(max_length=16, default='production')
+    mqtt_broker_host = models.CharField(max_length=255, blank=True)
+    mqtt_broker_port = models.PositiveIntegerField(default=1883)
+    mqtt_topic_wildcard = models.CharField(max_length=255, default='smartclass/#')
 
     def __str__(self):
         return "System Settings"

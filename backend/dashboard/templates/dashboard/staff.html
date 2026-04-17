@@ -49,12 +49,33 @@
         <div class="card">
           <div class="card-header responsive-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Staff Directory</h5>
-            <a href="{% url 'add_staff' %}" class="btn btn-primary btn-sm"><i class="bx bx-plus"></i> Add Staff Member</a>
+            <div class="d-flex align-items-center gap-2">
+              {% if settings_obj.show_kpi_badges %}
+              <span class="badge bg-label-primary">{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}</span>
+              {% endif %}
+              <a href="{% url 'add_staff' %}" class="btn btn-primary btn-sm"><i class="bx bx-plus"></i> Add Staff Member</a>
+            </div>
           </div>
           <div class="table-responsive text-nowrap">
-            <table class="table table-hover" id="staffTable">
+            {% if settings_obj.allow_bulk_actions %}
+            <form method="post" action="{% url 'bulk_delete_staff' %}" id="bulkDeleteStaffForm">
+              {% csrf_token %}
+              <div class="d-flex justify-content-between align-items-center px-3 pt-3 pb-2">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="selectAllStaff" />
+                  <label class="form-check-label" for="selectAllStaff">Select all</label>
+                </div>
+                <button type="submit" id="bulkDeleteStaffBtn" class="btn btn-sm btn-outline-danger" disabled onclick="return confirm('Delete selected staff members?');">
+                  <i class="bx bx-trash me-1"></i>Delete Selected
+                </button>
+              </div>
+            {% endif %}
+            <table class="table table-hover mobile-card-table" id="staffTable">
               <thead>
                 <tr>
+                  {% if settings_obj.allow_bulk_actions %}
+                  <th style="width: 52px;"></th>
+                  {% endif %}
                   <th>Name</th>
                   <th>Email</th>
                   <th>Job</th>
@@ -67,12 +88,17 @@
               <tbody class="table-border-bottom-0">
                 {% for member in staff_members %}
                   <tr>
-                    <td>{{ member.name }}</td>
-                    <td>{{ member.email }}</td>
-                    <td>{{ member.get_role_display }}</td>
-                    <td>{{ member.id_number }}</td>
-                    <td>{{ member.rfid_number }}</td>
-                    <td>
+                    {% if settings_obj.allow_bulk_actions %}
+                    <td data-label="Select">
+                      <input class="form-check-input staff-select" type="checkbox" name="staff_ids" value="{{ member.id }}" />
+                    </td>
+                    {% endif %}
+                    <td data-label="Name">{{ member.name }}</td>
+                    <td data-label="Email">{{ member.email }}</td>
+                    <td data-label="Job">{{ member.get_role_display }}</td>
+                    <td data-label="ID Number">{{ member.id_number }}</td>
+                    <td data-label="RFID Card Serial">{{ member.rfid_number }}</td>
+                    <td data-label="Privileges">
                       {% if member.can_open_door %}<span class="badge bg-label-success me-1 mb-1">Door</span>{% endif %}
                       {% if member.can_control_lights %}<span class="badge bg-label-info me-1 mb-1">Lights</span>{% endif %}
                       {% if member.can_control_projector %}<span class="badge bg-label-warning me-1 mb-1">Projector</span>{% endif %}
@@ -82,7 +108,7 @@
                         <span class="badge bg-label-secondary">No special privileges</span>
                       {% endif %}
                     </td>
-                    <td class="text-end">
+                    <td class="text-end" data-label="Actions">
                       <a href="{% url 'edit_staff' member.id %}" class="btn btn-sm btn-outline-primary me-1">
                         <i class="bx bx-edit-alt"></i> Modify
                       </a>
@@ -100,12 +126,33 @@
                   </tr>
                 {% empty %}
                   <tr>
-                    <td colspan="7" class="text-center">No staff members found.</td>
+                    <td colspan="{% if settings_obj.allow_bulk_actions %}8{% else %}7{% endif %}" class="text-center">No staff members found.</td>
                   </tr>
                 {% endfor %}
               </tbody>
             </table>
+            {% if settings_obj.allow_bulk_actions %}
+            </form>
+            {% endif %}
           </div>
+          {% if page_obj.paginator.num_pages > 1 %}
+          <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</small>
+            <div class="btn-group" role="group" aria-label="Staff pagination">
+              {% if page_obj.has_previous %}
+              <a class="btn btn-sm btn-outline-secondary" href="{% if pagination_query %}?{{ pagination_query }}&page={{ page_obj.previous_page_number }}{% else %}?page={{ page_obj.previous_page_number }}{% endif %}">Previous</a>
+              {% else %}
+              <button class="btn btn-sm btn-outline-secondary" disabled>Previous</button>
+              {% endif %}
+
+              {% if page_obj.has_next %}
+              <a class="btn btn-sm btn-outline-secondary" href="{% if pagination_query %}?{{ pagination_query }}&page={{ page_obj.next_page_number }}{% else %}?page={{ page_obj.next_page_number }}{% endif %}">Next</a>
+              {% else %}
+              <button class="btn btn-sm btn-outline-secondary" disabled>Next</button>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
 
@@ -143,6 +190,9 @@
       var deleteModal = document.getElementById('deleteStaffModal');
       var deleteForm = document.getElementById('deleteStaffForm');
       var deleteName = document.getElementById('deleteStaffName');
+      var selectAll = document.getElementById('selectAllStaff');
+      var bulkDeleteBtn = document.getElementById('bulkDeleteStaffBtn');
+      var checkboxes = Array.from(document.querySelectorAll('.staff-select'));
 
       deleteModal.addEventListener('show.bs.modal', function (event) {
         var button = event.relatedTarget;
@@ -152,6 +202,31 @@
         deleteName.textContent = staffName;
         deleteForm.action = '/staff/' + staffId + '/delete/';
       });
+
+      if (!selectAll || !bulkDeleteBtn || !checkboxes.length) {
+        return;
+      }
+
+      function refreshState() {
+        var selectedCount = checkboxes.filter(function (item) { return item.checked; }).length;
+        bulkDeleteBtn.disabled = selectedCount === 0;
+        selectAll.checked = selectedCount > 0 && selectedCount === checkboxes.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < checkboxes.length;
+      }
+
+      selectAll.addEventListener('change', function () {
+        var checked = selectAll.checked;
+        checkboxes.forEach(function (item) {
+          item.checked = checked;
+        });
+        refreshState();
+      });
+
+      checkboxes.forEach(function (item) {
+        item.addEventListener('change', refreshState);
+      });
+
+      refreshState();
     });
   </script>
 {% endblock %}
