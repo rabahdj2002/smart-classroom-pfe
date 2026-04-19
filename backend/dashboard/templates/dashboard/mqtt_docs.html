@@ -26,6 +26,7 @@
               <p class="mb-2"><strong>Host:</strong> {{ mqtt.broker_host }}</p>
               <p class="mb-2"><strong>Port:</strong> {{ mqtt.broker_port }}</p>
               <p class="mb-2"><strong>Subscribed wildcard:</strong> <code>{{ mqtt.topic_wildcard }}</code></p>
+              <p class="mb-2"><strong>Username configured:</strong> {% if mqtt.username_set %}Yes{% else %}No{% endif %}</p>
               <p class="mb-2"><strong>Keepalive:</strong> {{ mqtt.keepalive }} sec</p>
               <p class="mb-0"><strong>Reconnect delay:</strong> {{ mqtt.reconnect_delay }} sec</p>
             </div>
@@ -145,9 +146,65 @@ python backend/testmqtt.py --host {{ mqtt.broker_host }} --port {{ mqtt.broker_p
         </div>
       </div>
 
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">5) Security And Authentication</h5>
+        </div>
+        <div class="card-body pt-4">
+          <p class="mb-2"><strong>Recommended authentication approach</strong></p>
+          <ul>
+            <li>Use dedicated MQTT credentials per environment (test and production).</li>
+            <li>Never store broker passwords in firmware source or public repositories.</li>
+            <li>Rotate credentials regularly and after any suspected device compromise.</li>
+          </ul>
+
+          <p class="mb-2"><strong>Authorization and ACL rules</strong></p>
+          <ul>
+            <li>Allow each device to publish only to its own events topic.</li>
+            <li>Allow each device to subscribe only to its own commands topic.</li>
+            <li>Deny wildcard publish permissions for edge devices in production.</li>
+          </ul>
+
+          <p class="mb-2"><strong>Transport security</strong></p>
+          <ul class="mb-0">
+            <li>Prefer MQTT over TLS (commonly port 8883) outside trusted local networks.</li>
+            <li>Validate broker certificates on clients when TLS is enabled.</li>
+            <li>Disable anonymous broker access in production environments.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">6) Critical Reliability Details</h5>
+        </div>
+        <div class="card-body pt-4">
+          <p class="mb-2"><strong>Message handling</strong></p>
+          <ul>
+            <li>Use QoS 1 for important state events when delivery confirmation is required.</li>
+            <li>Avoid retained event payloads unless state replay is explicitly intended.</li>
+            <li>Include ISO <code>timestamp</code> values to keep session timing deterministic.</li>
+          </ul>
+
+          <p class="mb-2"><strong>Payload consistency</strong></p>
+          <ul>
+            <li>Send explicit booleans for status flags: <code>occupied</code>, <code>lights_on</code>, <code>door</code>, <code>projector_on</code>.</li>
+            <li>Keep classroom names and RFID formats consistent across all devices.</li>
+            <li>Use <code>new_session: true</code> when you intentionally need a session split.</li>
+          </ul>
+
+          <p class="mb-2"><strong>Operational controls</strong></p>
+          <ul class="mb-0">
+            <li>Monitor broker availability, reconnect rates, and authentication failures.</li>
+            <li>Configure broker persistence and backups to reduce data loss risk.</li>
+            <li>Keep a mapping of device IDs to classrooms for faster incident response.</li>
+          </ul>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
-          <h5 class="mb-0">5) Troubleshooting</h5>
+          <h5 class="mb-0">7) Troubleshooting</h5>
         </div>
         <div class="card-body pt-4">
           <ul class="mb-0">
@@ -156,6 +213,7 @@ python backend/testmqtt.py --host {{ mqtt.broker_host }} --port {{ mqtt.broker_p
             <li>Commands not received by device: confirm device is subscribed to the classroom commands topic.</li>
             <li>Wrong occupancy status: always include explicit <strong>occupied</strong> in event payload.</li>
             <li>Time mismatch in sessions/reports: include ISO <strong>timestamp</strong> in each event.</li>
+            <li>TLS or auth failures: verify certificate trust chain and MQTT credentials for the active environment.</li>
           </ul>
         </div>
       </div>
