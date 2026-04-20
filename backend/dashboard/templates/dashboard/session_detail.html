@@ -46,6 +46,14 @@
         <div class="col-md-3">
           <div class="card h-100">
             <div class="card-body">
+              <span class="text-muted d-block mb-1 small">Type</span>
+              <h5 class="mb-0">{{ session.get_session_type_display }}</h5>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card h-100">
+            <div class="card-body">
               <span class="text-muted d-block mb-1 small">Teacher</span>
               <h5 class="mb-0">{{ session.teacher.name|default:'Not assigned' }}</h5>
             </div>
@@ -74,7 +82,7 @@
           <div class="card h-100">
             <div class="card-body">
               <span class="text-muted d-block mb-1 small">Students Count</span>
-              <h4 class="mb-0">{{ total_students }}</h4>
+              <h4 class="mb-0">{% if session.session_type == 'inspection' %}0{% else %}{{ total_students }}{% endif %}</h4>
             </div>
           </div>
         </div>
@@ -82,7 +90,7 @@
           <div class="card h-100">
             <div class="card-body">
               <span class="text-muted d-block mb-1 small">Staff Count</span>
-              <h4 class="mb-0">{{ total_staff }}</h4>
+              <h4 class="mb-0">{% if session.session_type == 'inspection' %}0{% else %}{{ total_staff }}{% endif %}</h4>
             </div>
           </div>
         </div>
@@ -90,7 +98,9 @@
           <div class="card h-100">
             <div class="card-body">
               <span class="text-muted d-block mb-1 small">Email Delivery</span>
-              {% if report and report.emailed %}
+              {% if session.session_type == 'inspection' %}
+                <span class="badge bg-label-secondary">N/A</span>
+              {% elif report and report.emailed %}
                 <span class="badge bg-label-success">Sent {{ report.email_sent_at|date:'Y-m-d H:i' }}</span>
               {% elif report and report.email_error %}
                 <span class="badge bg-label-danger">Failed</span>
@@ -107,11 +117,13 @@
 
       <div class="card mb-4">
         <div class="card-header">
-          <h5 class="mb-0">Students in Session</h5>
+          <h5 class="mb-0">{% if session.session_type == 'inspection' %}Inspection Record{% else %}Students in Session{% endif %}</h5>
         </div>
         <div class="card-body pt-4">
           <div class="mb-2"></div>
-          {% if student_names %}
+          {% if session.session_type == 'inspection' %}
+            <p class="mb-0 text-muted">This inspection is a timestamped record only. No students are linked to it.</p>
+          {% elif student_names %}
             {% for student_name in student_names %}
               <span class="badge bg-label-info me-1 mb-1">{{ student_name }}</span>
             {% endfor %}
@@ -140,7 +152,9 @@
         </div>
         <div class="card-body pt-4">
           <div class="mb-2"></div>
-          {% if report %}
+          {% if session.session_type == 'inspection' %}
+          <p class="mb-0 text-muted">Inspection sessions do not generate attendance reports.</p>
+          {% elif report %}
           <pre class="mb-0" style="white-space: pre-wrap;">{{ report.details }}</pre>
           {% else %}
           <p class="mb-0 text-muted">This session is still active. The report will appear automatically when the configured duration is reached.</p>

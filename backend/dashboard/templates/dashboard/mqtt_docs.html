@@ -7,26 +7,19 @@
       <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">System /</span> MQTT Integration Guide</h4>
 
       <div class="alert alert-primary mb-4" role="alert">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-          <div>
-            <h6 class="alert-heading mb-1">Developer Quick Start</h6>
-            <p class="mb-2">Connect your device directly to <code>{{ mqtt.broker_host }}:{{ mqtt.broker_port }}</code>.</p>
-            <p class="mb-0">Send classroom events to <code>smartclass/classrooms/&lt;room&gt;/events</code>, then subscribe on your device to <code>smartclass/classrooms/&lt;room&gt;/commands</code> to receive control actions from the platform.</p>
-          </div>
-        </div>
+        <h6 class="alert-heading mb-1">MQTT at a glance</h6>
+        <p class="mb-2">The dashboard listens on <code>{{ mqtt.topic_wildcard }}</code> and uses server time for every recorded event.</p>
+        <p class="mb-0">Devices send data to the dashboard, and the dashboard sends commands or responses back to the device.</p>
       </div>
 
       <div class="row g-4 mb-4">
         <div class="col-lg-6">
           <div class="card h-100">
-            <div class="card-header">
-              <h5 class="mb-0">Broker Runtime</h5>
-            </div>
+            <div class="card-header"><h5 class="mb-0">Broker</h5></div>
             <div class="card-body pt-4">
               <p class="mb-2"><strong>Host:</strong> {{ mqtt.broker_host }}</p>
               <p class="mb-2"><strong>Port:</strong> {{ mqtt.broker_port }}</p>
-              <p class="mb-2"><strong>Subscribed wildcard:</strong> <code>{{ mqtt.topic_wildcard }}</code></p>
-              <p class="mb-2"><strong>Username configured:</strong> {% if mqtt.username_set %}Yes{% else %}No{% endif %}</p>
+              <p class="mb-2"><strong>Wildcard:</strong> <code>{{ mqtt.topic_wildcard }}</code></p>
               <p class="mb-2"><strong>Keepalive:</strong> {{ mqtt.keepalive }} sec</p>
               <p class="mb-0"><strong>Reconnect delay:</strong> {{ mqtt.reconnect_delay }} sec</p>
             </div>
@@ -34,187 +27,162 @@
         </div>
         <div class="col-lg-6">
           <div class="card h-100">
-            <div class="card-header">
-              <h5 class="mb-0">Topic Map</h5>
-            </div>
+            <div class="card-header"><h5 class="mb-0">Core Topics</h5></div>
             <div class="card-body pt-4">
-              <p class="mb-2"><strong>Device publishes events to platform:</strong></p>
-              <pre class="mb-3">{{ mqtt.default_events_topic }}</pre>
-              <p class="mb-2"><strong>Device subscribes for commands from platform:</strong></p>
-              <pre class="mb-0">smartclass/classrooms/&lt;classroom_name&gt;/commands</pre>
+              <p class="mb-2"><strong>Device to dashboard:</strong></p>
+              <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/events</pre>
+              <p class="mb-2"><strong>Dashboard to device commands:</strong></p>
+              <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/commands</pre>
+              <p class="mb-2"><strong>Request / response topics:</strong></p>
+              <pre class="mb-0">smartclass/classrooms/&lt;classroom_name&gt;/access/request
+smartclass/classrooms/&lt;classroom_name&gt;/access/response
+smartclass/classrooms/&lt;classroom_name&gt;/door-delay/request
+smartclass/classrooms/&lt;classroom_name&gt;/door-delay/response
+smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
             </div>
           </div>
         </div>
       </div>
 
       <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="mb-0">1) Send Data To Platform (Device → Dashboard)</h5>
-        </div>
+        <div class="card-header"><h5 class="mb-0">1. Device to Dashboard</h5></div>
         <div class="card-body pt-4">
-          <p class="mb-2">Publish JSON payloads on the events topic. These payloads update classroom state and session attendance.</p>
-          <p class="mb-2"><strong>Minimum fields</strong></p>
-          <ul>
-            <li><strong>classroom_name</strong> or <strong>classroom_id</strong></li>
-            <li><strong>occupied</strong> (true/false)</li>
-          </ul>
+          <p class="mb-3">Send JSON to the dashboard. The server ignores any client timestamp and records its own time.</p>
 
-          <p class="mb-2"><strong>Common optional fields</strong></p>
-          <ul>
-            <li><strong>teacher_rfid</strong> or <strong>staff_rfid</strong></li>
-            <li><strong>student_rfids</strong> array or <strong>student_rfid</strong></li>
-            <li><strong>timestamp</strong> (ISO datetime)</li>
-            <li><strong>lights_on</strong>, <strong>door</strong>, <strong>projector_on</strong></li>
-            <li><strong>smoke_detected</strong>, <strong>danger_indicator</strong></li>
-            <li><strong>new_session</strong> (force session split)</li>
-          </ul>
-
-          <p class="mb-2"><strong>Canonical event example</strong></p>
-          <pre class="mb-0">{
+          <div class="mb-4">
+            <h6 class="mb-2">A. Classroom state / live events</h6>
+            <p class="mb-2">Use this for occupancy and room state changes.</p>
+            <pre class="mb-3">{
   "classroom_name": "d3",
-  "timestamp": "2026-04-17T15:10:05+01:00",
-  "teacher_rfid": "123456789123",
-  "student_rfids": ["1234567891254", "STU-002"],
   "occupied": true,
   "lights_on": true,
   "door": false,
   "projector_on": true,
   "smoke_detected": false,
   "danger_indicator": false,
+  "teacher_rfid": "123456789123",
   "new_session": false
 }</pre>
+            <p class="mb-1"><strong>Fields</strong></p>
+            <ul class="mb-0">
+              <li><strong>classroom_id</strong>, <strong>classroom_name</strong>, or <strong>classroom</strong>: classroom target.</li>
+              <li><strong>occupied</strong>, <strong>lights_on</strong>, <strong>door</strong>, <strong>projector_on</strong>, <strong>smoke_detected</strong>, <strong>danger_indicator</strong>: room state.</li>
+              <li><strong>teacher_rfid</strong> or <strong>staff_rfid</strong>: attaches a staff member to the active session if applicable.</li>
+              <li><strong>student_rfid</strong>, <strong>student_rfids</strong>, or <strong>students</strong>: attaches students to the active session if applicable.</li>
+              <li><strong>new_session</strong>, <strong>session_start</strong>, <strong>start_new_session</strong>, <strong>force_new_session</strong>: close the current session and start a new one.</li>
+            </ul>
+          </div>
+
+          <div class="mb-4">
+            <h6 class="mb-2">B. Teacher access request</h6>
+            <p class="mb-2">Use this before opening a class or inspection session.</p>
+            <pre class="mb-3">{
+  "teacher_rfid": "123456789123",
+  "request_id": "door-req-001"
+}</pre>
+            <p class="mb-1"><strong>Required field</strong></p>
+            <ul class="mb-0">
+              <li><strong>teacher_rfid</strong>, <strong>staff_rfid</strong>, or <strong>rfid_number</strong></li>
+            </ul>
+          </div>
+
+          <div class="mb-4">
+            <h6 class="mb-2">C. Student attendance request</h6>
+            <p class="mb-2">Send this after the teacher session is open to mark arrivals.</p>
+            <pre class="mb-3">{
+  "student_rfids": ["1234567891254", "STU-002"],
+  "event": "attendance_request"
+}</pre>
+            <p class="mb-1"><strong>Fields</strong></p>
+            <ul class="mb-0">
+              <li><strong>student_rfid</strong> for a single student, or <strong>student_rfids</strong> / <strong>students</strong> for multiple students.</li>
+              <li><strong>event</strong>, <strong>command</strong>, <strong>request</strong>, or <strong>type</strong> can be used as a marker, but the RFID list is what matters.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h6 class="mb-2">D. Door delay request</h6>
+            <p class="mb-2">Use this to ask the server for the configured student door-close delay.</p>
+            <pre class="mb-3">{
+  "command": "door_delay_request",
+  "request_id": "delay-001"
+}</pre>
+          </div>
         </div>
       </div>
 
       <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="mb-0">2) Receive Commands From Platform (Dashboard → Device)</h5>
-        </div>
+        <div class="card-header"><h5 class="mb-0">2. Dashboard to Device</h5></div>
         <div class="card-body pt-4">
-          <p class="mb-2">Subscribe your microcontroller/service to:</p>
-          <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/commands</pre>
-
-          <p class="mb-2"><strong>Command payload format</strong></p>
-          <pre class="mb-3">{
-  "command": "lights" | "projector" | "smoke_reset",
+          <div class="mb-4">
+            <h6 class="mb-2">A. Classroom commands</h6>
+            <p class="mb-2">The dashboard publishes control commands to the classroom command topic.</p>
+            <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/commands</pre>
+            <pre class="mb-3">{
+  "command": "lights",
   "classroom_id": 3,
   "classroom_name": "d3",
-  "value": true | false
+  "value": true
 }</pre>
+            <p class="mb-1"><strong>Supported commands</strong></p>
+            <ul class="mb-0">
+              <li><strong>lights</strong>: switch the lights relay using <strong>value</strong>.</li>
+              <li><strong>projector</strong>: switch the projector relay using <strong>value</strong>.</li>
+              <li><strong>smoke_reset</strong>: clear the smoke alarm after local checks.</li>
+            </ul>
+          </div>
 
-          <p class="mb-2"><strong>How devices should handle commands</strong></p>
+          <div class="mb-4">
+            <h6 class="mb-2">B. Teacher access response</h6>
+            <p class="mb-2">The server responds to access requests on the response topic for that classroom.</p>
+            <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/access/response</pre>
+            <pre class="mb-3">{
+  "event": "teacher_access_response",
+  "request_id": "door-req-001",
+  "approved": true,
+  "reason": "authorized_in_time_window",
+  "classroom_id": 3,
+  "classroom_name": "d3",
+  "teacher_id": 12,
+  "teacher_name": "Prof. Ali",
+  "access_window_minutes": 10,
+  "slot_index": 0,
+  "slot_label": "08:00 - 09:30",
+  "slot_start": "2026-04-20T08:00:00+01:00",
+  "slot_end": "2026-04-20T09:30:00+01:00",
+  "checked_at": "2026-04-20T08:04:00+01:00"
+}</pre>
+            <p class="mb-0 text-muted">If the teacher is an administrator, the response reason is <code>authorized_admin_override</code> and the session becomes an inspection.</p>
+          </div>
+
+          <div>
+            <h6 class="mb-2">C. Door delay response</h6>
+            <p class="mb-2">The response is a plain number in minutes.</p>
+            <pre class="mb-0">10</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header"><h5 class="mb-0">3. Session Rules</h5></div>
+        <div class="card-body pt-4">
           <ul class="mb-0">
-            <li><strong>lights</strong>: set lights relay to <strong>value</strong>.</li>
-            <li><strong>projector</strong>: set projector relay to <strong>value</strong>.</li>
-            <li><strong>smoke_reset</strong>: clear smoke alarm state after local safety checks.</li>
+            <li><strong>Class</strong> sessions are opened for teachers and can collect student attendance.</li>
+            <li><strong>Inspection</strong> sessions are only for administrators, are closed immediately, and do not use duration, reports, or students.</li>
+            <li>Attendance records are timestamped by the server.</li>
+            <li>If no open class session exists, attendance requests are ignored with a warning.</li>
+            <li>Teacher access requests create the session first, then attendance requests fill that open session.</li>
           </ul>
         </div>
       </div>
 
       <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="mb-0">3) Tested CLI Examples</h5>
-        </div>
+        <div class="card-header"><h5 class="mb-0">4. Quick CLI Tests</h5></div>
         <div class="card-body pt-4">
-          <p class="mb-2"><strong>Publish classroom event (device simulation)</strong></p>
-          <pre class="mb-3">mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/events -m "{\"classroom_name\":\"d3\",\"teacher_rfid\":\"123456789123\",\"occupied\":true,\"lights_on\":true}"</pre>
-
-          <p class="mb-2"><strong>Listen for commands for classroom d3</strong></p>
-          <pre class="mb-3">mosquitto_sub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/commands -v</pre>
-
-          <p class="mb-2"><strong>Publish command manually (for verification)</strong></p>
-          <pre class="mb-3">mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/commands -m "{\"command\":\"lights\",\"classroom_name\":\"d3\",\"value\":true}"</pre>
-
-          <p class="mb-2"><strong>Use built-in test publisher script</strong></p>
-          <pre class="mb-0">python backend/testmqtt.py --host {{ mqtt.broker_host }} --port {{ mqtt.broker_port }} --classroom d3 --count 3 --interval 1
-python backend/testmqtt.py --host {{ mqtt.broker_host }} --port {{ mqtt.broker_port }} --classroom d3 --count 1</pre>
-        </div>
-      </div>
-
-      <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="mb-0">4) Session And Attendance Behavior</h5>
-        </div>
-        <div class="card-body pt-4">
-          <ul class="mb-0">
-            <li>If no open session exists for a room, the first valid event opens one automatically.</li>
-            <li>If <strong>new_session</strong> is true, the current session closes and a new one starts.</li>
-            <li>If teacher RFID changes in the same room, the previous session is closed and replaced.</li>
-            <li>Student RFIDs in payload are attached to the active session for attendance reporting.</li>
-            <li>Auto-finish closes overdue sessions and generates reports based on settings.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="mb-0">5) Security And Authentication</h5>
-        </div>
-        <div class="card-body pt-4">
-          <p class="mb-2"><strong>Recommended authentication approach</strong></p>
-          <ul>
-            <li>Use dedicated MQTT credentials per environment (test and production).</li>
-            <li>Never store broker passwords in firmware source or public repositories.</li>
-            <li>Rotate credentials regularly and after any suspected device compromise.</li>
-          </ul>
-
-          <p class="mb-2"><strong>Authorization and ACL rules</strong></p>
-          <ul>
-            <li>Allow each device to publish only to its own events topic.</li>
-            <li>Allow each device to subscribe only to its own commands topic.</li>
-            <li>Deny wildcard publish permissions for edge devices in production.</li>
-          </ul>
-
-          <p class="mb-2"><strong>Transport security</strong></p>
-          <ul class="mb-0">
-            <li>Prefer MQTT over TLS (commonly port 8883) outside trusted local networks.</li>
-            <li>Validate broker certificates on clients when TLS is enabled.</li>
-            <li>Disable anonymous broker access in production environments.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="mb-0">6) Critical Reliability Details</h5>
-        </div>
-        <div class="card-body pt-4">
-          <p class="mb-2"><strong>Message handling</strong></p>
-          <ul>
-            <li>Use QoS 1 for important state events when delivery confirmation is required.</li>
-            <li>Avoid retained event payloads unless state replay is explicitly intended.</li>
-            <li>Include ISO <code>timestamp</code> values to keep session timing deterministic.</li>
-          </ul>
-
-          <p class="mb-2"><strong>Payload consistency</strong></p>
-          <ul>
-            <li>Send explicit booleans for status flags: <code>occupied</code>, <code>lights_on</code>, <code>door</code>, <code>projector_on</code>.</li>
-            <li>Keep classroom names and RFID formats consistent across all devices.</li>
-            <li>Use <code>new_session: true</code> when you intentionally need a session split.</li>
-          </ul>
-
-          <p class="mb-2"><strong>Operational controls</strong></p>
-          <ul class="mb-0">
-            <li>Monitor broker availability, reconnect rates, and authentication failures.</li>
-            <li>Configure broker persistence and backups to reduce data loss risk.</li>
-            <li>Keep a mapping of device IDs to classrooms for faster incident response.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <h5 class="mb-0">7) Troubleshooting</h5>
-        </div>
-        <div class="card-body pt-4">
-          <ul class="mb-0">
-            <li>No dashboard updates: verify topic path and broker credentials first.</li>
-            <li>Unknown teacher/student: confirm RFID values match database records exactly.</li>
-            <li>Commands not received by device: confirm device is subscribed to the classroom commands topic.</li>
-            <li>Wrong occupancy status: always include explicit <strong>occupied</strong> in event payload.</li>
-            <li>Time mismatch in sessions/reports: include ISO <strong>timestamp</strong> in each event.</li>
-            <li>TLS or auth failures: verify certificate trust chain and MQTT credentials for the active environment.</li>
-          </ul>
+          <pre class="mb-3">mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/access/request -m "{\"teacher_rfid\":\"123456789123\"}"
+mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/attendance/request -m "{\"student_rfids\":[\"STU-001\",\"STU-002\"]}"
+mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/door-delay/request -m "{\"command\":\"door_delay_request\"}"
+mosquitto_sub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/commands -v</pre>
         </div>
       </div>
     </div>

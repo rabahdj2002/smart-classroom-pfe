@@ -95,12 +95,25 @@ class SystemSettings(models.Model):
     mqtt_broker_host = models.CharField(max_length=255, blank=True)
     mqtt_broker_port = models.PositiveIntegerField(default=1883)
     mqtt_topic_wildcard = models.CharField(max_length=255, default='smartclass/#')
+    teacher_access_window_minutes = models.PositiveIntegerField(default=10)
+    student_door_close_delay_minutes = models.PositiveIntegerField(default=10)
 
     def __str__(self):
         return "System Settings"
 
 
 class Session(models.Model):
+    SESSION_TYPE_CHOICES = [
+        ('class', 'Class Session'),
+        ('inspection', 'Admin Inspection'),
+    ]
+    
+    ACCESS_TYPE_CHOICES = [
+        ('timetable', 'Scheduled Timetable'),
+        ('out_of_schedule', 'Out-of-Schedule Override'),
+        ('none', 'N/A (Inspection)'),
+    ]
+    
     classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name='sessions')
     teacher = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, related_name='sessions')
     students = models.ManyToManyField(Student, blank=True, related_name='sessions')
@@ -108,6 +121,8 @@ class Session(models.Model):
     expected_report_time = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
     is_closed = models.BooleanField(default=False)
+    session_type = models.CharField(max_length=15, choices=SESSION_TYPE_CHOICES, default='class')
+    access_type = models.CharField(max_length=20, choices=ACCESS_TYPE_CHOICES, default='none')
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -115,6 +130,22 @@ class Session(models.Model):
 
     def __str__(self):
         return f"Session {self.id} - {self.classroom.name} ({self.start_time:%Y-%m-%d %H:%M})"
+
+
+class StudentSessionAttendance(models.Model):
+    """Track when each student arrived during a session."""
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='student_attendances')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='session_attendances')
+    arrival_time = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['arrival_time']
+        unique_together = ('session', 'student')
+        verbose_name_plural = 'Student Session Attendances'
+
+    def __str__(self):
+        return f"{self.student.name} - {self.session} ({self.arrival_time:%H:%M:%S})"
 
 
 class AttendanceReport(models.Model):
@@ -137,5 +168,72 @@ class AttendanceReport(models.Model):
 
     def __str__(self):
         return f"Report {self.classroom.name} ({self.session_start:%Y-%m-%d %H:%M} - {self.session_end:%H:%M})"
-    
+
+
+class ImmediateTeacherAccessGrant(models.Model):
+    teacher = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='immediate_access_grants')
+    classroom = models.ForeignKey(
+        Classroom,
+        on_delete=models.CASCADE,
+        related_name='immediate_access_grants',
+        null=True,
+        blank=True,
+    )
+    granted_by_username = models.CharField(max_length=150, blank=True)
+    granted_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-granted_at']
+
+    def __str__(self):
+        scope = self.classroom.name if self.classroom_id else 'Any classroom'
+        return f"Immediate access for {self.teacher.name} ({scope}) until {self.expires_at:%Y-%m-%d %H:%M}"
+
+
+class ClassTimetableSlot(models.Model):
+    WEEKDAY_CHOICES = [
+        (5, 'Saturday'),
+        (6, 'Sunday'),
+        (0, 'Monday'),
+        (1, 'Tuesday'),
+        (2, 'Wednesday'),
+        (3, 'Thursday'),
+    ]
+
+    SLOT_CHOICES = [
+        (0, '08:00 - 09:30'),
+        (1, '09:30 - 11:00'),
+        (2, '11:00 - 12:30'),
+        (3, '12:30 - 14:00'),
+        (4, '14:00 - 15:30'),
+        (5, '15:30 - 17:00'),
+    ]
+
+    classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name='timetable_slots')
+    weekday = models.PositiveSmallIntegerField(choices=WEEKDAY_CHOICES)
+    slot_index = models.PositiveSmallIntegerField(choices=SLOT_CHOICES)
+    subject = models.CharField(max_length=120, blank=True)
+    teacher = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='timetable_slots',
+        limit_choices_to={'role': 'PROF'},
+    )
+
+    class Meta:
+        ordering = ['weekday', 'slot_index']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['classroom', 'weekday', 'slot_index'],
+                name='unique_timetable_slot_per_classroom',
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.classroom.name} | {self.get_weekday_display()} | {self.get_slot_index_display()}"
+
 

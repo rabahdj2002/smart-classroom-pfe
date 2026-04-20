@@ -4,21 +4,30 @@ import os
 import sys
 import threading
 import time
-from datetime import timedelta
+from datetime import datetime, time as dt_time, timedelta
 
 import paho.mqtt.client as mqtt
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 
-from .models import AttendanceReport, Classroom, Session, Staff, Student
+from .models import AttendanceReport, ClassTimetableSlot, Classroom, ImmediateTeacherAccessGrant, Session, Staff, Student, StudentSessionAttendance
+from .mqtt_commands import publish_custom_topic
 from .reporting import auto_finish_active_classrooms, generate_attendance_report_for_session, get_system_settings
 
 logger = logging.getLogger(__name__)
 
 _mqtt_started = False
 _mqtt_lock = threading.Lock()
+TIMETABLE_SLOT_STARTS = [
+    dt_time(8, 0),
+    dt_time(9, 30),
+    dt_time(11, 0),
+    dt_time(12, 30),
+    dt_time(14, 0),
+    dt_time(15, 30),
+]
+TIMETABLE_SLOT_DURATION_MINUTES = 90
 
 
 def _bool_or_none(value):
@@ -35,20 +44,6 @@ def _bool_or_none(value):
         if normalized in {'0', 'false', 'off', 'no'}:
             return False
     return None
-
-
-def _resolve_timestamp(data):
-    raw = data.get('timestamp')
-    if not raw:
-        return timezone.now()
-
-    parsed = parse_datetime(str(raw))
-    if not parsed:
-        return timezone.now()
-
-    if timezone.is_naive(parsed):
-        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
-    return parsed
 
 
 def _resolve_classroom(data, topic):
@@ -250,6 +245,372 @@ def _sync_session_from_rfids(classroom, data, event_time):
     return activity_detected
 
 
+def _is_teacher_access_request(topic, data):
+    if '/access/response' in topic:
+        return False
+
+    command = str(data.get('command', '')).strip().lower()
+    event = str(data.get('event', '')).strip().lower()
+    request = str(data.get('request', '')).strip().lower()
+    message_type = str(data.get('type', '')).strip().lower()
+
+    return (
+        topic.endswith('/access/request')
+        or command in {'teacher_access_check', 'teacher_authorization_check'}
+        or event in {'teacher_access_request', 'teacher_authorization_request'}
+        or request in {'teacher_access', 'teacher_authorization'}
+        or message_type in {'teacher_access_request', 'teacher_authorization_request'}
+    )
+
+
+def _is_student_door_delay_request(topic, data):
+    if '/door-delay/response' in topic:
+        return False
+
+    if topic.endswith('/door-delay/request'):
+        return True
+
+    command = str(data.get('command', '')).strip().lower()
+    event = str(data.get('event', '')).strip().lower()
+    request = str(data.get('request', '')).strip().lower()
+    message_type = str(data.get('type', '')).strip().lower()
+
+    return (
+        command in {'door_delay_request', 'student_delay_request'}
+        or event in {'door_delay_request', 'student_delay_request'}
+        or request in {'door_delay', 'student_delay'}
+        or message_type in {'door_delay_request', 'student_delay_request'}
+    )
+
+
+def _is_attendance_request(topic, data):
+    if '/attendance/response' in topic:
+        return False
+
+    if topic.endswith('/attendance/request'):
+        return True
+
+    command = str(data.get('command', '')).strip().lower()
+    event = str(data.get('event', '')).strip().lower()
+    request = str(data.get('request', '')).strip().lower()
+    message_type = str(data.get('type', '')).strip().lower()
+
+    return (
+        command in {'attendance_request', 'student_attendance'}
+        or event in {'attendance_request', 'student_attendance'}
+        or request in {'attendance', 'student_attendance'}
+        or message_type in {'attendance_request', 'student_attendance'}
+    )
+
+
+
+def _resolve_response_topic(topic, payload_data, classroom):
+    explicit_topic = str(payload_data.get('response_topic', '')).strip()
+    if explicit_topic:
+        return explicit_topic
+
+    if topic.endswith('/door-delay/request'):
+        return f"{topic[:-len('request')]}response"
+
+    if topic.endswith('/access/request'):
+        return f"{topic[:-len('request')]}response"
+
+    if classroom:
+        return f'smartclass/classrooms/{classroom.name}/access/response'
+
+    return 'smartclass/access/response'
+
+
+def _slot_bounds(reference_date, slot_index):
+    slot_start_naive = datetime.combine(reference_date, TIMETABLE_SLOT_STARTS[slot_index])
+    slot_start = timezone.make_aware(slot_start_naive, timezone.get_current_timezone())
+    slot_end = slot_start + timedelta(minutes=TIMETABLE_SLOT_DURATION_MINUTES)
+    return slot_start, slot_end
+
+
+def _evaluate_teacher_access(classroom, teacher_rfid, event_time, request_id=None):
+    checked_at = timezone.localtime(event_time)
+    payload = {
+        'event': 'teacher_access_response',
+        'request_id': request_id,
+        'approved': False,
+        'classroom_id': classroom.id,
+        'classroom_name': classroom.name,
+        'checked_at': checked_at.isoformat(),
+    }
+
+    if not teacher_rfid:
+        payload['reason'] = 'missing_teacher_rfid'
+        return payload
+
+    teacher = Staff.objects.filter(rfid_number=str(teacher_rfid).strip(), role='PROF').first()
+    if not teacher:
+        admin_teacher = Staff.objects.filter(rfid_number=str(teacher_rfid).strip(), role='ADMIN').first()
+        if admin_teacher:
+            payload.update(
+                {
+                    'approved': True,
+                    'reason': 'authorized_admin_override',
+                    'teacher_id': admin_teacher.id,
+                    'teacher_name': admin_teacher.name,
+                    'teacher_rfid': admin_teacher.rfid_number,
+                    'access_window_minutes': 0,
+                }
+            )
+            return payload
+
+    if not teacher:
+        payload['reason'] = 'teacher_not_found'
+        payload['teacher_rfid'] = str(teacher_rfid).strip()
+        return payload
+
+    settings_obj = get_system_settings()
+    window_minutes = settings_obj.teacher_access_window_minutes or 10
+    payload['teacher_id'] = teacher.id
+    payload['teacher_name'] = teacher.name
+    payload['teacher_rfid'] = teacher.rfid_number
+    payload['access_window_minutes'] = window_minutes
+
+    immediate_access_grant = ImmediateTeacherAccessGrant.objects.filter(
+        teacher=teacher,
+        is_active=True,
+        expires_at__gte=event_time,
+    ).filter(
+        classroom__isnull=True,
+    ).order_by('-granted_at').first()
+
+    if not immediate_access_grant:
+        immediate_access_grant = ImmediateTeacherAccessGrant.objects.filter(
+            teacher=teacher,
+            classroom=classroom,
+            is_active=True,
+            expires_at__gte=event_time,
+        ).order_by('-granted_at').first()
+
+    if immediate_access_grant:
+        payload.update(
+            {
+                'approved': True,
+                'reason': 'authorized_immediate_override',
+                'override_expires_at': timezone.localtime(immediate_access_grant.expires_at).isoformat(),
+                'override_scope': immediate_access_grant.classroom.name if immediate_access_grant.classroom_id else 'all_classrooms',
+            }
+        )
+        return payload
+
+    weekday = checked_at.weekday()
+    teacher_slots = list(
+        ClassTimetableSlot.objects.filter(
+            classroom=classroom,
+            weekday=weekday,
+            teacher=teacher,
+        ).order_by('slot_index')
+    )
+
+    if not teacher_slots:
+        payload['reason'] = 'no_timetable_slot_for_teacher'
+        payload['weekday'] = weekday
+        return payload
+
+    closest_slot = None
+    closest_delta_minutes = None
+
+    for slot in teacher_slots:
+        slot_start, slot_end = _slot_bounds(checked_at.date(), slot.slot_index)
+        delta_minutes = abs((event_time - slot_start).total_seconds()) / 60.0
+        if closest_delta_minutes is None or delta_minutes < closest_delta_minutes:
+            closest_delta_minutes = delta_minutes
+            closest_slot = (slot, slot_start, slot_end)
+
+        if delta_minutes <= window_minutes:
+            payload.update(
+                {
+                    'approved': True,
+                    'reason': 'authorized_in_time_window',
+                    'weekday': weekday,
+                    'slot_index': slot.slot_index,
+                    'slot_label': slot.get_slot_index_display(),
+                    'slot_start': slot_start.isoformat(),
+                    'slot_end': slot_end.isoformat(),
+                    'subject': slot.subject,
+                }
+            )
+            return payload
+
+    if closest_slot:
+        slot, slot_start, slot_end = closest_slot
+        payload.update(
+            {
+                'reason': 'outside_allowed_time_window',
+                'weekday': weekday,
+                'closest_slot_index': slot.slot_index,
+                'closest_slot_label': slot.get_slot_index_display(),
+                'closest_slot_start': slot_start.isoformat(),
+                'closest_slot_end': slot_end.isoformat(),
+                'minutes_from_start': round(closest_delta_minutes, 2),
+            }
+        )
+
+    return payload
+
+
+def _create_session_from_teacher_access(classroom, response_payload, event_time):
+    """
+    Create a session when teacher access is approved.
+    Session type and access type determined by the reason for approval:
+    - inspection session for admin_override (no time restrictions)
+    - class session with out_of_schedule access for immediate_override
+    - class session with timetable access for in_time_window
+    """
+    reason = response_payload.get('reason', '')
+    teacher_id = response_payload.get('teacher_id')
+    
+    if not teacher_id:
+        return
+    
+    teacher = Staff.objects.filter(id=teacher_id).first()
+    if not teacher:
+        return
+    
+    # Determine session type and access type based on reason
+    if reason == 'authorized_admin_override':
+        session_type = 'inspection'
+        access_type = 'none'
+    elif reason == 'authorized_immediate_override':
+        session_type = 'class'
+        access_type = 'out_of_schedule'
+    elif reason == 'authorized_in_time_window':
+        session_type = 'class'
+        access_type = 'timetable'
+    else:
+        session_type = 'class'
+        access_type = 'none'
+    
+    # Close any existing open sessions to start fresh
+    _close_open_sessions_for_classroom(classroom, event_time)
+    
+    settings_obj = get_system_settings()
+    expected_time = event_time + timedelta(minutes=settings_obj.auto_finish_minutes)
+    
+    session_kwargs = {
+        'classroom': classroom,
+        'teacher': teacher if teacher.role in {'PROF', 'ADMIN'} else None,
+        'start_time': event_time,
+        'session_type': session_type,
+        'access_type': access_type,
+    }
+
+    if session_type == 'inspection':
+        session_kwargs.update(
+            {
+                'expected_report_time': None,
+                'ended_at': event_time,
+                'is_closed': True,
+            }
+        )
+    else:
+        session_kwargs['expected_report_time'] = expected_time
+
+    Session.objects.create(**session_kwargs)
+
+
+def _handle_teacher_access_request(topic, data, event_time):
+    classroom = _resolve_classroom(data, topic)
+    response_topic = _resolve_response_topic(topic, data, classroom)
+
+    if not classroom:
+        response_payload = {
+            'event': 'teacher_access_response',
+            'request_id': data.get('request_id'),
+            'approved': False,
+            'reason': 'classroom_not_found',
+            'checked_at': timezone.localtime(event_time).isoformat(),
+        }
+    else:
+        teacher_rfid = data.get('teacher_rfid') or data.get('staff_rfid') or data.get('rfid_number')
+        response_payload = _evaluate_teacher_access(
+            classroom=classroom,
+            teacher_rfid=teacher_rfid,
+            event_time=event_time,
+            request_id=data.get('request_id'),
+        )
+
+        if response_payload.get('approved'):
+            _create_session_from_teacher_access(
+                classroom=classroom,
+                response_payload=response_payload,
+                event_time=event_time,
+            )
+
+    try:
+        publish_custom_topic(response_topic, response_payload)
+    except Exception:
+        logger.exception('Failed to publish teacher access response. topic=%s payload=%s', response_topic, response_payload)
+
+
+def _handle_student_door_delay_request(topic, data, event_time):
+    classroom = _resolve_classroom(data, topic)
+    response_topic = _resolve_response_topic(topic, data, classroom)
+
+    if not classroom:
+        response_payload = 0
+    else:
+        settings_obj = get_system_settings()
+        response_payload = int(settings_obj.student_door_close_delay_minutes)
+
+    try:
+        publish_custom_topic(response_topic, response_payload)
+    except Exception:
+        logger.exception('Failed to publish student door delay response. topic=%s payload=%s', response_topic, response_payload)
+
+
+def _handle_attendance_request(topic, data, event_time):
+    """
+    Handle student attendance request from the device.
+    Records when each student arrives at the session.
+    """
+    classroom = _resolve_classroom(data, topic)
+
+    if not classroom:
+        logger.warning('Attendance request received but classroom could not be resolved. topic=%s', topic)
+        return
+
+    session = _get_open_session_for_classroom(classroom)
+    if not session:
+        logger.warning('Attendance request received but no open session found for classroom %s. topic=%s', classroom.name, topic)
+        return
+
+    student_rfids = _normalize_student_rfids(data)
+    if student_rfids:
+        students = list(Student.objects.filter(rfid_number__in=student_rfids))
+        if students:
+            attendance_records = []
+            for student in students:
+                # Create or get attendance record with arrival time
+                attendance, created = StudentSessionAttendance.objects.get_or_create(
+                    session=session,
+                    student=student,
+                    defaults={'arrival_time': event_time}
+                )
+                attendance_records.append(attendance)
+                
+                # Also ensure student is in the session's M2M relationship
+                session.students.add(student)
+            
+            logger.info('Recorded attendance for %d students in session %d', len(attendance_records), session.id)
+            for attendance in attendance_records:
+                logger.info('Student %s arrived at %s', attendance.student.name, attendance.arrival_time)
+
+            missing = sorted(set(student_rfids) - {s.rfid_number for s in students})
+            if missing:
+                logger.warning('Unknown student RFIDs in attendance request: %s', ', '.join(missing))
+        else:
+            logger.warning('No students found for provided RFIDs in attendance request. topic=%s', topic)
+    else:
+        logger.warning('Attendance request received but no student RFIDs provided. topic=%s', topic)
+
+
+
 def process_mqtt_payload(topic, payload):
     try:
         decoded = payload.decode('utf-8') if isinstance(payload, (bytes, bytearray)) else str(payload)
@@ -261,7 +622,19 @@ def process_mqtt_payload(topic, payload):
         logger.exception('Failed to parse MQTT payload. topic=%s', topic)
         return
 
-    event_time = _resolve_timestamp(data)
+    event_time = timezone.now()
+
+    if _is_teacher_access_request(topic, data):
+        _handle_teacher_access_request(topic, data, event_time)
+        return
+
+    if _is_student_door_delay_request(topic, data):
+        _handle_student_door_delay_request(topic, data, event_time)
+        return
+
+    if _is_attendance_request(topic, data):
+        _handle_attendance_request(topic, data, event_time)
+        return
 
     with transaction.atomic():
         classroom = _resolve_classroom(data, topic)

@@ -53,10 +53,24 @@
       <div class="card">
         <div class="card-header responsive-card-header d-flex justify-content-between align-items-center">
           <h5 class="mb-0">All Sessions</h5>
-          <div class="page-actions">
+          <div class="page-actions d-flex align-items-center gap-2 flex-wrap justify-content-end">
             {% if settings_obj.show_kpi_badges %}
             <span class="badge bg-label-primary">{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}</span>
             {% endif %}
+            <div class="dropdown">
+              <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Backup / Export
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{% url 'export_sessions' 'csv' %}{% if pagination_query %}?{{ pagination_query }}{% endif %}">CSV</a></li>
+                <li><a class="dropdown-item" href="{% url 'export_sessions' 'xlsx' %}{% if pagination_query %}?{{ pagination_query }}{% endif %}">Excel</a></li>
+                <li><a class="dropdown-item" href="{% url 'export_sessions' 'pdf' %}{% if pagination_query %}?{{ pagination_query }}{% endif %}">PDF</a></li>
+                <li><a class="dropdown-item" href="{% url 'export_sessions' 'json' %}">JSON Backup</a></li>
+              </ul>
+            </div>
+            <button type="button" class="btn btn-outline-warning btn-sm" data-restore-trigger="sessions">
+              Restore
+            </button>
             <a href="{% url 'add_session' %}" class="btn btn-primary btn-sm"><i class="bx bx-plus me-1"></i>Add Session</a>
           </div>
         </div>
@@ -76,8 +90,8 @@
             <thead>
               <tr>
                 {% if settings_obj.allow_bulk_actions %}<th style="width: 52px;"></th>{% endif %}
-                <th>Session ID</th>
                 <th>Classroom</th>
+                <th>Type</th>
                 <th>Teacher</th>
                 <th>Session Start</th>
                 <th>Duration</th>
@@ -92,26 +106,38 @@
                 {% if settings_obj.allow_bulk_actions %}<td data-label="Select">
                   <input class="form-check-input session-select" type="checkbox" name="session_ids" value="{{ session.id }}" form="bulkDeleteSessionsForm" />
                 </td>{% endif %}
-                <td data-label="Session ID">#{{ session.id }}</td>
                 <td data-label="Classroom">{{ session.classroom.name }}</td>
+                <td data-label="Type">
+                  {% if session.session_type == 'inspection' %}
+                    <span class="badge bg-label-warning">Inspection</span>
+                  {% else %}
+                    <span class="badge bg-label-primary">Class</span>
+                  {% endif %}
+                </td>
                 <td data-label="Teacher">{{ session.teacher.name|default:'Not assigned' }}</td>
                 <td data-label="Session Start">{{ session.start_time|date:'Y-m-d H:i' }}</td>
                 <td data-label="Duration">
-                  {% if session.report %}
+                  {% if session.session_type == 'inspection' %}
+                    <span class="badge bg-label-secondary">N/A</span>
+                  {% elif session.report %}
                     {{ session.report.duration_minutes }} min
                   {% else %}
                     <span class="badge bg-label-info">In progress</span>
                   {% endif %}
                 </td>
                 <td data-label="Students">
-                  {% if session.report %}
+                  {% if session.session_type == 'inspection' %}
+                    0
+                  {% elif session.report %}
                     {{ session.report.total_students }}
                   {% else %}
                     {{ session.students.count }}
                   {% endif %}
                 </td>
                 <td data-label="Email">
-                  {% if session.report and session.report.emailed %}
+                  {% if session.session_type == 'inspection' %}
+                    <span class="badge bg-label-secondary">N/A</span>
+                  {% elif session.report and session.report.emailed %}
                     <span class="badge bg-label-success">Sent</span>
                   {% elif session.report and session.report.email_error %}
                     <span class="badge bg-label-danger" title="{{ session.report.email_error }}">Failed</span>
@@ -183,11 +209,39 @@
         </div>
         {% endif %}
       </div>
+      <form method="post" action="{% url 'restore_sessions' %}" enctype="multipart/form-data" id="restoreSessionsForm" class="d-none">
+        {% csrf_token %}
+        <input type="file" name="backup_file" id="restoreSessionsFile" accept="application/json,.json" />
+      </form>
     </div>
   </div>
 </div>
 <script>
   (function () {
+    const restoreTrigger = document.querySelector('[data-restore-trigger="sessions"]');
+    const restoreForm = document.getElementById('restoreSessionsForm');
+    const restoreFile = document.getElementById('restoreSessionsFile');
+
+    if (restoreTrigger && restoreForm && restoreFile) {
+      restoreTrigger.addEventListener('click', function () {
+        restoreFile.click();
+      });
+
+      restoreFile.addEventListener('change', function () {
+        if (!restoreFile.files || !restoreFile.files.length) {
+          return;
+        }
+
+        const confirmed = window.confirm('Restore this JSON backup? This will replace the current students, classrooms, sessions, staff, and reports.');
+        if (!confirmed) {
+          restoreFile.value = '';
+          return;
+        }
+
+        restoreForm.submit();
+      });
+    }
+
     const selectAll = document.getElementById('selectAllSessions');
     const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
     const checkboxes = Array.from(document.querySelectorAll('.session-select'));

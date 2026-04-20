@@ -69,10 +69,24 @@
         <div class="card">
           <div class="card-header responsive-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Classrooms Overview</h5>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
               {% if settings_obj.show_kpi_badges %}
               <span class="badge bg-label-primary">{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}</span>
               {% endif %}
+              <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  Backup / Export
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="{% url 'export_classes' 'csv' %}{% if pagination_query %}?{{ pagination_query }}{% endif %}">CSV</a></li>
+                  <li><a class="dropdown-item" href="{% url 'export_classes' 'xlsx' %}{% if pagination_query %}?{{ pagination_query }}{% endif %}">Excel</a></li>
+                  <li><a class="dropdown-item" href="{% url 'export_classes' 'pdf' %}{% if pagination_query %}?{{ pagination_query }}{% endif %}">PDF</a></li>
+                  <li><a class="dropdown-item" href="{% url 'export_classes' 'json' %}">JSON Backup</a></li>
+                </ul>
+              </div>
+              <button type="button" class="btn btn-outline-warning btn-sm" data-restore-trigger="classes">
+                Restore
+              </button>
               <a href="{% url 'add_class' %}" class="btn btn-primary btn-sm">
                 <i class="bx bx-plus"></i> Add Class
               </a>
@@ -185,6 +199,10 @@
           </div>
           {% endif %}
         </div>
+        <form method="post" action="{% url 'restore_classes' %}" enctype="multipart/form-data" id="restoreClassesForm" class="d-none">
+          {% csrf_token %}
+          <input type="file" name="backup_file" id="restoreClassesFile" accept="application/json,.json" />
+        </form>
       </div>
 
       <footer class="content-footer footer bg-footer-theme">
@@ -205,6 +223,30 @@
           window.location.href = row.getAttribute('data-href');
         });
       });
+
+      const restoreTrigger = document.querySelector('[data-restore-trigger="classes"]');
+      const restoreForm = document.getElementById('restoreClassesForm');
+      const restoreFile = document.getElementById('restoreClassesFile');
+
+      if (restoreTrigger && restoreForm && restoreFile) {
+        restoreTrigger.addEventListener('click', function () {
+          restoreFile.click();
+        });
+
+        restoreFile.addEventListener('change', function () {
+          if (!restoreFile.files || !restoreFile.files.length) {
+            return;
+          }
+
+          const confirmed = window.confirm('Restore this JSON backup? This will replace the current students, classrooms, sessions, staff, and reports.');
+          if (!confirmed) {
+            restoreFile.value = '';
+            return;
+          }
+
+          restoreForm.submit();
+        });
+      }
 
       const selectAll = document.getElementById('selectAllClasses');
       const bulkDeleteBtn = document.getElementById('bulkDeleteClassesBtn');

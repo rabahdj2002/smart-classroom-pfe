@@ -7,16 +7,17 @@ from django.core.paginator import Paginator
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from .models import Student, Staff, Classroom, AttendanceReport, Session, SystemSettings
+from .models import AttendanceReport, ClassTimetableSlot, Classroom, ImmediateTeacherAccessGrant, Session, Staff, Student, SystemSettings
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.dateparse import parse_datetime
 from django.utils.text import slugify
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from functools import wraps
 from urllib.parse import urlencode
 import json
 
+from .backup import build_backup_response, build_section_export, restore_backup_from_file
 from .reporting import (
     auto_finish_active_classrooms,
     build_report_pdf_attachment,
@@ -157,6 +158,31 @@ def mqtt_docs(request):
 
 def _parse_bool(post_data, key):
     return post_data.get(key) in ['on', 'true', '1', 'yes']
+
+
+TIMETABLE_WEEKDAYS = [
+    (5, 'Saturday'),
+    (6, 'Sunday'),
+    (0, 'Monday'),
+    (1, 'Tuesday'),
+    (2, 'Wednesday'),
+    (3, 'Thursday'),
+]
+TIMETABLE_SLOT_STARTS = [
+    time(8, 0),
+    time(9, 30),
+    time(11, 0),
+    time(12, 30),
+    time(14, 0),
+    time(15, 30),
+]
+TIMETABLE_SLOT_DURATION_MINUTES = 90
+
+
+def _format_timetable_slot_label(slot_index):
+    start_dt = datetime.combine(timezone.localdate(), TIMETABLE_SLOT_STARTS[slot_index])
+    end_dt = start_dt + timedelta(minutes=TIMETABLE_SLOT_DURATION_MINUTES)
+    return f'{start_dt:%H:%M} - {end_dt:%H:%M}'
     
 @portal_admin_required
 def dash(request):
@@ -451,6 +477,102 @@ def classroom_detail(request, id):
 
 
 @portal_admin_required
+def classroom_timetable(request, id):
+    classroom = Classroom.objects.filter(id=id).first()
+    if not classroom:
+        return render(request, '404.html', status=404)
+
+    teachers = Staff.objects.filter(role='PROF').order_by('name')
+    teacher_by_id = {str(teacher.id): teacher for teacher in teachers}
+
+    existing_slots = {
+        (slot.weekday, slot.slot_index): slot
+        for slot in ClassTimetableSlot.objects.filter(classroom=classroom).select_related('teacher')
+    }
+
+    if request.method == 'POST':
+        errors = []
+        change_count = 0
+
+        for weekday, _ in TIMETABLE_WEEKDAYS:
+            for slot_index, _start in enumerate(TIMETABLE_SLOT_STARTS):
+                teacher_raw = request.POST.get(f'teacher_{weekday}_{slot_index}', '').strip()
+                subject = request.POST.get(f'subject_{weekday}_{slot_index}', '').strip()
+
+                teacher = None
+                if teacher_raw:
+                    teacher = teacher_by_id.get(teacher_raw)
+                    if not teacher:
+                        errors.append('One or more selected teachers are invalid.')
+                        continue
+
+                slot = existing_slots.get((weekday, slot_index))
+                if not teacher and not subject:
+                    if slot:
+                        slot.delete()
+                        change_count += 1
+                    continue
+
+                if slot:
+                    update_fields = []
+                    if slot.teacher_id != (teacher.id if teacher else None):
+                        slot.teacher = teacher
+                        update_fields.append('teacher')
+                    if slot.subject != subject:
+                        slot.subject = subject
+                        update_fields.append('subject')
+
+                    if update_fields:
+                        slot.save(update_fields=update_fields)
+                        change_count += 1
+                else:
+                    ClassTimetableSlot.objects.create(
+                        classroom=classroom,
+                        weekday=weekday,
+                        slot_index=slot_index,
+                        teacher=teacher,
+                        subject=subject,
+                    )
+                    change_count += 1
+
+        if errors:
+            messages.error(request, errors[0])
+        else:
+            messages.success(request, f'Timetable updated successfully ({change_count} change(s)).')
+        return redirect('classroom_timetable', id=classroom.id)
+
+    rows = []
+    for slot_index, _start in enumerate(TIMETABLE_SLOT_STARTS):
+        cells = []
+        for weekday, _label in TIMETABLE_WEEKDAYS:
+            slot = existing_slots.get((weekday, slot_index))
+            cells.append(
+                {
+                    'weekday': weekday,
+                    'slot_index': slot_index,
+                    'teacher_id': str(slot.teacher_id) if slot and slot.teacher_id else '',
+                    'subject': slot.subject if slot else '',
+                }
+            )
+
+        rows.append(
+            {
+                'slot_index': slot_index,
+                'slot_label': _format_timetable_slot_label(slot_index),
+                'cells': cells,
+            }
+        )
+
+    context = {
+        'classroom': classroom,
+        'teachers': teachers,
+        'weekday_columns': [{'value': value, 'label': label} for value, label in TIMETABLE_WEEKDAYS],
+        'slot_rows': rows,
+    }
+    return render(request, 'dashboard/class_timetable.html', context)
+
+
+@portal_admin_required
 def classroom_command(request, id):
     if request.method != 'POST':
         return redirect('classroom_detail', id=id)
@@ -506,6 +628,68 @@ def temperature_settings(request):
     mqtt_default_topic = getattr(settings, 'DASHBOARD_MQTT_TOPIC', 'smartclass/#')
 
     if request.method == 'POST':
+        settings_action = request.POST.get('settings_action', 'save_system_settings').strip()
+
+        if settings_action == 'grant_teacher_access':
+            teacher_identifier = request.POST.get('teacher_identifier', '').strip()
+            classroom_id_raw = request.POST.get('override_classroom_id', '').strip()
+            duration_minutes_raw = request.POST.get('override_duration_minutes', '').strip()
+
+            teacher = None
+            if teacher_identifier:
+                teacher = Staff.objects.filter(role='PROF', id_number__iexact=teacher_identifier).first()
+            if not teacher and teacher_identifier:
+                teacher = Staff.objects.filter(role='PROF', rfid_number__iexact=teacher_identifier).first()
+            if not teacher and teacher_identifier.isdigit():
+                teacher = Staff.objects.filter(role='PROF', id=int(teacher_identifier)).first()
+
+            if not teacher:
+                messages.error(request, 'Teacher not found. Use teacher ID Number, RFID, or database ID.')
+                return redirect('temperature_settings')
+
+            classroom = None
+            if classroom_id_raw:
+                classroom = Classroom.objects.filter(id=classroom_id_raw).first()
+                if not classroom:
+                    messages.error(request, 'Selected classroom was not found.')
+                    return redirect('temperature_settings')
+
+            try:
+                duration_minutes = int(duration_minutes_raw or '120')
+                if duration_minutes <= 0:
+                    raise ValueError()
+            except ValueError:
+                messages.error(request, 'Immediate access duration must be a valid positive number of minutes.')
+                return redirect('temperature_settings')
+
+            expires_at = timezone.now() + timedelta(minutes=duration_minutes)
+            ImmediateTeacherAccessGrant.objects.create(
+                teacher=teacher,
+                classroom=classroom,
+                granted_by_username=request.user.username or '',
+                expires_at=expires_at,
+                is_active=True,
+            )
+
+            target_scope = classroom.name if classroom else 'all classrooms'
+            messages.success(
+                request,
+                f'Immediate access granted to {teacher.name} for {target_scope} until {timezone.localtime(expires_at):%Y-%m-%d %H:%M}.',
+            )
+            return redirect('temperature_settings')
+
+        if settings_action == 'revoke_teacher_access':
+            grant_id = request.POST.get('grant_id', '').strip()
+            grant = ImmediateTeacherAccessGrant.objects.filter(id=grant_id, is_active=True).first()
+            if not grant:
+                messages.error(request, 'Immediate access grant not found or already revoked.')
+                return redirect('temperature_settings')
+
+            grant.is_active = False
+            grant.save(update_fields=['is_active'])
+            messages.success(request, 'Immediate access grant revoked successfully.')
+            return redirect('temperature_settings')
+
         auto_finish_enabled = _parse_bool(request.POST, 'auto_finish_enabled')
         allow_bulk_actions = _parse_bool(request.POST, 'allow_bulk_actions')
         show_kpi_badges = _parse_bool(request.POST, 'show_kpi_badges')
@@ -516,6 +700,8 @@ def temperature_settings(request):
 
         cron_interval_minutes_raw = request.POST.get('cron_interval_minutes', '').strip()
         auto_finish_minutes_raw = request.POST.get('auto_finish_minutes', '').strip()
+        teacher_access_window_minutes_raw = request.POST.get('teacher_access_window_minutes', '').strip()
+        student_door_close_delay_minutes_raw = request.POST.get('student_door_close_delay_minutes', '').strip()
         default_list_page_size_raw = request.POST.get('default_list_page_size', '').strip()
         default_sessions_order = request.POST.get('default_sessions_order', '').strip()
         mqtt_broker_host = request.POST.get('mqtt_broker_host', '').strip()
@@ -542,6 +728,22 @@ def temperature_settings(request):
         except ValueError:
             errors.append('Auto-finish duration must be a valid integer.')
             auto_finish_minutes = settings_obj.auto_finish_minutes
+
+        try:
+            teacher_access_window_minutes = int(teacher_access_window_minutes_raw)
+            if teacher_access_window_minutes <= 0:
+                errors.append('Teacher access window must be greater than 0 minutes.')
+        except ValueError:
+            errors.append('Teacher access window must be a valid integer.')
+            teacher_access_window_minutes = settings_obj.teacher_access_window_minutes
+
+        try:
+            student_door_close_delay_minutes = int(student_door_close_delay_minutes_raw)
+            if student_door_close_delay_minutes <= 0:
+                errors.append('Student door-close delay must be greater than 0 minutes.')
+        except ValueError:
+            errors.append('Student door-close delay must be a valid integer.')
+            student_door_close_delay_minutes = settings_obj.student_door_close_delay_minutes
 
         try:
             default_list_page_size = int(default_list_page_size_raw)
@@ -592,6 +794,8 @@ def temperature_settings(request):
             settings_obj.auto_finish_enabled = auto_finish_enabled
             settings_obj.cron_interval_minutes = cron_interval_minutes
             settings_obj.auto_finish_minutes = auto_finish_minutes
+            settings_obj.teacher_access_window_minutes = teacher_access_window_minutes
+            settings_obj.student_door_close_delay_minutes = student_door_close_delay_minutes
             settings_obj.default_list_page_size = default_list_page_size
             settings_obj.default_sessions_order = default_sessions_order
             settings_obj.allow_bulk_actions = allow_bulk_actions
@@ -622,6 +826,11 @@ def temperature_settings(request):
         'mqtt_default_host': mqtt_default_host,
         'mqtt_default_port': mqtt_default_port,
         'mqtt_default_topic': mqtt_default_topic,
+        'classrooms': Classroom.objects.order_by('name'),
+        'active_teacher_access_grants': ImmediateTeacherAccessGrant.objects.select_related('teacher', 'classroom').filter(
+            is_active=True,
+            expires_at__gte=timezone.now(),
+        ),
     }
     return render(request, 'dashboard/settings.html', context)
 
@@ -766,6 +975,187 @@ def student_detail(request, id):
         'recent_sessions': recent_sessions,
     }
     return render(request, 'dashboard/student_detail.html', context)
+
+
+def _build_query_string(filters):
+    return urlencode({key: value for key, value in filters.items() if value})
+
+
+@portal_admin_required
+def export_students(request, export_format):
+    settings_obj = get_system_settings()
+    query = request.GET.get('q', '').strip()
+    specialization = request.GET.get('specialization', '').strip()
+    year = request.GET.get('year', '').strip()
+
+    student_list = Student.objects.all()
+    if query:
+        student_list = student_list.filter(
+            Q(name__icontains=query)
+            | Q(email__icontains=query)
+            | Q(rfid_number__icontains=query)
+            | Q(student_card_id__icontains=query)
+        )
+    if specialization:
+        student_list = student_list.filter(specialization=specialization)
+    if year:
+        student_list = student_list.filter(year=year)
+
+    student_list = student_list.order_by('name')
+
+    if export_format == 'json':
+        return build_backup_response()
+
+    return build_section_export('students', export_format, student_list)
+
+
+@portal_admin_required
+def restore_students(request):
+    if request.method != 'POST':
+        return redirect('students')
+
+    backup_file = request.FILES.get('backup_file')
+    if not backup_file:
+        messages.error(request, 'Choose a JSON backup file to restore.')
+        return redirect('students')
+
+    try:
+        restored = restore_backup_from_file(backup_file)
+        messages.success(
+            request,
+            'Backup restored successfully: '
+            f"{restored['students']} students, {restored['classrooms']} classrooms, "
+            f"{restored['sessions']} sessions, {restored['attendance_reports']} reports."
+        )
+    except Exception as exc:
+        messages.error(request, f'Backup restore failed: {exc}')
+
+    return redirect('students')
+
+
+@portal_admin_required
+def export_classes(request, export_format):
+    settings_obj = get_system_settings()
+    query = request.GET.get('q', '').strip()
+    usage = request.GET.get('usage', '').strip()
+    lights = request.GET.get('lights', '').strip()
+    projector = request.GET.get('projector', '').strip()
+    door = request.GET.get('door', '').strip()
+
+    classroom_list = Classroom.objects.all()
+    if query:
+        classroom_list = classroom_list.filter(name__icontains=query)
+    if usage == 'used':
+        classroom_list = classroom_list.filter(occupied=True)
+    elif usage == 'unused':
+        classroom_list = classroom_list.filter(occupied=False)
+
+    if lights == 'on':
+        classroom_list = classroom_list.filter(lights_on=True)
+    elif lights == 'off':
+        classroom_list = classroom_list.filter(lights_on=False)
+
+    if projector == 'on':
+        classroom_list = classroom_list.filter(projector_on=True)
+    elif projector == 'off':
+        classroom_list = classroom_list.filter(projector_on=False)
+
+    if door == 'open':
+        classroom_list = classroom_list.filter(door=True)
+    elif door == 'closed':
+        classroom_list = classroom_list.filter(door=False)
+
+    classroom_list = classroom_list.order_by('name')
+
+    if export_format == 'json':
+        return build_backup_response()
+
+    return build_section_export('classrooms', export_format, classroom_list)
+
+
+@portal_admin_required
+def restore_classes(request):
+    if request.method != 'POST':
+        return redirect('classes')
+
+    backup_file = request.FILES.get('backup_file')
+    if not backup_file:
+        messages.error(request, 'Choose a JSON backup file to restore.')
+        return redirect('classes')
+
+    try:
+        restored = restore_backup_from_file(backup_file)
+        messages.success(
+            request,
+            'Backup restored successfully: '
+            f"{restored['students']} students, {restored['classrooms']} classrooms, "
+            f"{restored['sessions']} sessions, {restored['attendance_reports']} reports."
+        )
+    except Exception as exc:
+        messages.error(request, f'Backup restore failed: {exc}')
+
+    return redirect('classes')
+
+
+@portal_admin_required
+def export_sessions(request, export_format):
+    settings_obj = get_system_settings()
+    classroom_id = request.GET.get('classroom', '').strip()
+    teacher_query = request.GET.get('teacher', '').strip()
+    start_date = request.GET.get('start_date', '').strip()
+    end_date = request.GET.get('end_date', '').strip()
+    order = request.GET.get('order', settings_obj.default_sessions_order).strip()
+
+    if order not in {'id_asc', 'id_desc'}:
+        order = settings_obj.default_sessions_order
+
+    session_list = Session.objects.select_related('classroom', 'teacher').prefetch_related('students').all()
+
+    if classroom_id:
+        session_list = session_list.filter(classroom_id=classroom_id)
+    if teacher_query:
+        session_list = session_list.filter(
+            Q(teacher__name__icontains=teacher_query)
+            | Q(teacher__email__icontains=teacher_query)
+        )
+    if start_date:
+        session_list = session_list.filter(start_time__date__gte=start_date)
+    if end_date:
+        session_list = session_list.filter(start_time__date__lte=end_date)
+
+    if order == 'id_desc':
+        session_list = session_list.order_by('-id')
+    else:
+        session_list = session_list.order_by('id')
+
+    if export_format == 'json':
+        return build_backup_response()
+
+    return build_section_export('sessions', export_format, session_list)
+
+
+@portal_admin_required
+def restore_sessions(request):
+    if request.method != 'POST':
+        return redirect('sessions')
+
+    backup_file = request.FILES.get('backup_file')
+    if not backup_file:
+        messages.error(request, 'Choose a JSON backup file to restore.')
+        return redirect('sessions')
+
+    try:
+        restored = restore_backup_from_file(backup_file)
+        messages.success(
+            request,
+            'Backup restored successfully: '
+            f"{restored['students']} students, {restored['classrooms']} classrooms, "
+            f"{restored['sessions']} sessions, {restored['attendance_reports']} reports."
+        )
+    except Exception as exc:
+        messages.error(request, f'Backup restore failed: {exc}')
+
+    return redirect('sessions')
 
 
 @portal_admin_required
@@ -957,27 +1347,38 @@ def _sync_classroom_state(classroom):
 @portal_admin_required
 def add_session(request):
     errors = []
-    form = {'student_ids': []}
+    form = {'student_ids': [], 'session_type': 'class'}
 
     if request.method == 'POST':
         classroom_id = request.POST.get('classroom_id', '').strip()
         teacher_id = request.POST.get('teacher_id', '').strip()
+        staff_id = request.POST.get('staff_id', '').strip()
         start_time_raw = request.POST.get('start_time', '').strip()
+        session_type = request.POST.get('session_type', 'class').strip()
         student_ids = request.POST.getlist('student_ids')
 
         form = {
             'classroom_id': classroom_id,
             'teacher_id': teacher_id,
+            'staff_id': staff_id,
             'start_time': start_time_raw,
+            'session_type': session_type,
             'student_ids': student_ids,
         }
 
         classroom = Classroom.objects.filter(id=classroom_id).first() if classroom_id else None
         teacher = Staff.objects.filter(id=teacher_id, role='PROF').first() if teacher_id else None
-        selected_students = Student.objects.filter(id__in=student_ids).distinct() if student_ids else Student.objects.none()
+        inspection_staff = Staff.objects.filter(id=staff_id, role='ADMIN').first() if staff_id else None
+        selected_staff = inspection_staff if session_type == 'inspection' else teacher
+        selected_students = Student.objects.filter(id__in=student_ids).distinct() if student_ids and session_type == 'class' else Student.objects.none()
 
         if not classroom:
             errors.append('A valid classroom is required.')
+
+        if session_type not in {'class', 'inspection'}:
+            errors.append('A valid session type is required.')
+        if session_type == 'inspection' and staff_id and inspection_staff is None:
+            errors.append('Inspection sessions can only be assigned to administrators.')
 
         start_time = parse_datetime(start_time_raw) if start_time_raw else None
         if not start_time:
@@ -990,25 +1391,31 @@ def add_session(request):
 
         if not errors:
             settings_obj = get_system_settings()
-            expected_report_time = start_time + timedelta(minutes=settings_obj.auto_finish_minutes)
+            expected_report_time = None if session_type == 'inspection' else start_time + timedelta(minutes=settings_obj.auto_finish_minutes)
 
             session = Session.objects.create(
                 classroom=classroom,
-                teacher=teacher,
+                teacher=selected_staff,
                 start_time=start_time,
                 expected_report_time=expected_report_time,
-                is_closed=False,
+                is_closed=session_type == 'inspection',
+                session_type=session_type,
+                access_type='none' if session_type == 'inspection' else 'timetable',
+                ended_at=start_time if session_type == 'inspection' else None,
             )
-            if selected_students.exists():
+            if session_type == 'class' and selected_students.exists():
                 session.students.add(*selected_students)
 
-            classroom.occupied = True
-            classroom.session_started_at = start_time
-            classroom.last_activity_at = timezone.now()
-            classroom.save(update_fields=['occupied', 'session_started_at', 'last_activity_at'])
+            if session_type == 'class':
+                classroom.occupied = True
+                classroom.session_started_at = start_time
+                classroom.last_activity_at = timezone.now()
+                classroom.save(update_fields=['occupied', 'session_started_at', 'last_activity_at'])
 
-            # If session is already overdue under current settings, generate report immediately.
-            auto_finish_active_classrooms()
+                # If session is already overdue under current settings, generate report immediately.
+                auto_finish_active_classrooms()
+            else:
+                _sync_classroom_state(classroom)
             return redirect('sessions')
 
     context = {
@@ -1016,7 +1423,9 @@ def add_session(request):
         'form': form,
         'classrooms': Classroom.objects.order_by('name'),
         'teachers': Staff.objects.filter(role='PROF').order_by('name'),
+        'staff_members': Staff.objects.filter(role='ADMIN').order_by('name'),
         'students': Student.objects.order_by('name'),
+        'session_type_choices': Session.SESSION_TYPE_CHOICES,
         'back_url': '/sessions/',
     }
     return render(request, 'dashboard/session_add.html', context)
@@ -1036,29 +1445,42 @@ def edit_session(request, id):
     form = {
         'classroom_id': str(session.classroom_id),
         'teacher_id': str(session.teacher_id) if session.teacher_id else '',
+        'staff_id': str(session.teacher_id) if session.session_type == 'inspection' and session.teacher_id else '',
         'start_time': timezone.localtime(session.start_time).strftime('%Y-%m-%dT%H:%M'),
+        'session_type': session.session_type,
         'student_ids': [str(student_id) for student_id in session.students.values_list('id', flat=True)],
     }
 
     if request.method == 'POST':
         classroom_id = request.POST.get('classroom_id', '').strip()
         teacher_id = request.POST.get('teacher_id', '').strip()
+        staff_id = request.POST.get('staff_id', '').strip()
         start_time_raw = request.POST.get('start_time', '').strip()
+        session_type = request.POST.get('session_type', session.session_type).strip()
         student_ids = request.POST.getlist('student_ids')
 
         form = {
             'classroom_id': classroom_id,
             'teacher_id': teacher_id,
+            'staff_id': staff_id,
             'start_time': start_time_raw,
+            'session_type': session_type,
             'student_ids': student_ids,
         }
 
         classroom = Classroom.objects.filter(id=classroom_id).first() if classroom_id else None
         teacher = Staff.objects.filter(id=teacher_id, role='PROF').first() if teacher_id else None
-        selected_students = Student.objects.filter(id__in=student_ids).distinct() if student_ids else Student.objects.none()
+        inspection_staff = Staff.objects.filter(id=staff_id, role='ADMIN').first() if staff_id else None
+        selected_staff = inspection_staff if session_type == 'inspection' else teacher
+        selected_students = Student.objects.filter(id__in=student_ids).distinct() if student_ids and session_type == 'class' else Student.objects.none()
 
         if not classroom:
             errors.append('A valid classroom is required.')
+
+        if session_type not in {'class', 'inspection'}:
+            errors.append('A valid session type is required.')
+        if session_type == 'inspection' and staff_id and inspection_staff is None:
+            errors.append('Inspection sessions can only be assigned to administrators.')
 
         start_time = parse_datetime(start_time_raw) if start_time_raw else None
         if not start_time:
@@ -1071,25 +1493,40 @@ def edit_session(request, id):
 
         if not errors:
             settings_obj = get_system_settings()
-            expected_report_time = start_time + timedelta(minutes=settings_obj.auto_finish_minutes)
+            expected_report_time = None if session_type == 'inspection' else start_time + timedelta(minutes=settings_obj.auto_finish_minutes)
 
             previous_classroom = session.classroom
             session.classroom = classroom
-            session.teacher = teacher
+            session.teacher = selected_staff
             session.start_time = start_time
             session.expected_report_time = expected_report_time
-            session.save(update_fields=['classroom', 'teacher', 'start_time', 'expected_report_time'])
-            session.students.set(selected_students)
+            session.session_type = session_type
+            session.access_type = 'none' if session_type == 'inspection' else 'timetable'
+            if session_type == 'inspection':
+                session.is_closed = True
+                session.ended_at = start_time
+            else:
+                session.ended_at = None
+                session.is_closed = False
+            session.save(update_fields=['classroom', 'teacher', 'start_time', 'expected_report_time', 'session_type', 'access_type', 'ended_at', 'is_closed'])
+            if session_type == 'class':
+                session.students.set(selected_students)
+            else:
+                session.students.clear()
 
-            classroom.occupied = True
-            classroom.session_started_at = start_time
-            classroom.last_activity_at = timezone.now()
-            classroom.save(update_fields=['occupied', 'session_started_at', 'last_activity_at'])
+            if session_type == 'class':
+                classroom.occupied = True
+                classroom.session_started_at = start_time
+                classroom.last_activity_at = timezone.now()
+                classroom.save(update_fields=['occupied', 'session_started_at', 'last_activity_at'])
+            else:
+                _sync_classroom_state(classroom)
 
             if previous_classroom.id != classroom.id:
                 _sync_classroom_state(previous_classroom)
 
-            auto_finish_active_classrooms()
+            if session_type == 'class':
+                auto_finish_active_classrooms()
             messages.success(request, 'Session updated successfully.')
             return redirect('session_detail', id=session.id)
 
@@ -1098,7 +1535,9 @@ def edit_session(request, id):
         'form': form,
         'classrooms': Classroom.objects.order_by('name'),
         'teachers': Staff.objects.filter(role='PROF').order_by('name'),
+        'staff_members': Staff.objects.filter(role='ADMIN').order_by('name'),
         'students': Student.objects.order_by('name'),
+        'session_type_choices': Session.SESSION_TYPE_CHOICES,
         'page_title': f'Edit Session #{session.id}',
         'submit_label': 'Save Changes',
         'is_edit': True,
@@ -1121,6 +1560,15 @@ def end_session(request, id):
         return redirect('session_detail', id=session.id)
 
     now = timezone.now()
+    if session.session_type == 'inspection':
+        session.is_closed = True
+        session.ended_at = session.ended_at or now
+        session.expected_report_time = None
+        session.save(update_fields=['is_closed', 'ended_at', 'expected_report_time'])
+        _sync_classroom_state(session.classroom)
+        messages.success(request, 'Inspection recorded.')
+        return redirect('session_detail', id=session.id)
+
     generate_attendance_report_for_session(session, session_end=now)
     _sync_classroom_state(session.classroom)
     messages.success(request, 'Session ended and report generated.')
@@ -1190,16 +1638,19 @@ def session_detail(request, id):
     if not session:
         return render(request, '404.html', status=404)
 
-    report = AttendanceReport.objects.filter(session=session).first()
+    report = None if session.session_type == 'inspection' else AttendanceReport.objects.filter(session=session).first()
 
     if report:
         total_students = report.total_students
         total_staff = report.total_staff
+    elif session.session_type == 'inspection':
+        total_students = 0
+        total_staff = 0
     else:
         total_students = session.students.count()
         total_staff = 1 if session.teacher else 0
 
-    student_names = list(session.students.values_list('name', flat=True))
+    student_names = [] if session.session_type == 'inspection' else list(session.students.values_list('name', flat=True))
 
     context = {
         'session': session,
@@ -1316,6 +1767,66 @@ def staff(request):
         'filters': filters,
     }
     return render(request, 'dashboard/staff.html', context)
+
+
+@portal_admin_required
+def export_staff(request, export_format):
+    query = request.GET.get('q', '').strip()
+    role = request.GET.get('role', '').strip()
+    privilege = request.GET.get('privilege', '').strip()
+
+    staff_members = Staff.objects.all().order_by('name')
+
+    if query:
+        staff_members = staff_members.filter(
+            Q(name__icontains=query)
+            | Q(email__icontains=query)
+            | Q(id_number__icontains=query)
+            | Q(rfid_number__icontains=query)
+        )
+    if role:
+        staff_members = staff_members.filter(role=role)
+
+    privilege_map = {
+        'door': 'can_open_door',
+        'lights': 'can_control_lights',
+        'projector': 'can_control_projector',
+        'classrooms': 'can_manage_classrooms',
+        'staff': 'can_manage_staff',
+    }
+    privilege_field = privilege_map.get(privilege)
+    if privilege_field:
+        staff_members = staff_members.filter(**{privilege_field: True})
+
+    if export_format == 'json':
+        return build_backup_response()
+
+    return build_section_export('staff', export_format, staff_members)
+
+
+@portal_admin_required
+def restore_staff(request):
+    if request.method != 'POST':
+        return redirect('staff')
+
+    backup_file = request.FILES.get('backup_file')
+    if not backup_file:
+        messages.error(request, 'Choose a JSON backup file to restore.')
+        return redirect('staff')
+
+    try:
+        restored = restore_backup_from_file(backup_file)
+        messages.success(
+            request,
+            'Backup restored successfully: '
+            f"{restored['staff']} staff members, {restored['students']} students, "
+            f"{restored['classrooms']} classrooms, {restored['sessions']} sessions, "
+            f"{restored['attendance_reports']} reports."
+        )
+    except Exception as exc:
+        messages.error(request, f'Backup restore failed: {exc}')
+
+    return redirect('staff')
 
 
 @portal_admin_required

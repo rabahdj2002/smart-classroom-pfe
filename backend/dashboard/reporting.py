@@ -245,6 +245,14 @@ def maybe_email_report(report, settings_obj=None, force=False):
 
 
 def generate_attendance_report_for_session(session, session_end=None, settings_obj=None):
+    if session.session_type == 'inspection':
+        session.is_closed = True
+        if session.ended_at is None:
+            session.ended_at = session.start_time
+        session.expected_report_time = None
+        session.save(update_fields=['ended_at', 'expected_report_time', 'is_closed'])
+        return None
+
     settings_obj = settings_obj or get_system_settings()
     start_candidate = session.start_time
     classroom = session.classroom
@@ -301,6 +309,9 @@ def auto_finish_active_classrooms(now=None):
     open_sessions = Session.objects.select_related('classroom', 'teacher').filter(is_closed=False)
 
     for session in open_sessions:
+        if session.session_type == 'inspection':
+            continue
+
         scheduled_report_time = session.start_time + timedelta(minutes=settings_obj.auto_finish_minutes)
         if session.expected_report_time != scheduled_report_time:
             session.expected_report_time = scheduled_report_time

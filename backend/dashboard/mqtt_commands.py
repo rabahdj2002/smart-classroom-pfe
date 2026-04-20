@@ -53,3 +53,9 @@ def publish_classroom_command(classroom, command, value=None):
     _publish_payload(topic, payload)
     logger.info('Published MQTT command to %s: %s', topic, payload)
     return topic, payload
+
+
+def publish_custom_topic(topic, payload):
+    _publish_payload(topic, payload)
+    logger.info('Published MQTT payload to %s: %s', topic, payload)
+    return topic, payload

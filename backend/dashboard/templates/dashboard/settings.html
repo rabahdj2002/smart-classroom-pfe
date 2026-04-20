@@ -12,6 +12,16 @@
       </div>
       {% endif %}
 
+      {% if messages %}
+      <div class="mb-3">
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}" role="alert">
+          {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
       {% if errors %}
       <div class="alert alert-danger" role="alert">
         <ul class="mb-0">
@@ -59,6 +69,28 @@
                     value="{{ settings_obj.cron_interval_minutes }}"
                     required
                   />
+                  <label for="teacher_access_window_minutes" class="form-label mt-3">Teacher class-start access window (minutes)</label>
+                  <input
+                    id="teacher_access_window_minutes"
+                    name="teacher_access_window_minutes"
+                    type="number"
+                    min="1"
+                    class="form-control"
+                    value="{{ settings_obj.teacher_access_window_minutes }}"
+                    required
+                  />
+                  <small class="text-muted d-block">Used by MQTT access checks. Typical values: 5 or 10 minutes around class start.</small>
+                  <label for="student_door_close_delay_minutes" class="form-label mt-3">Student door-close delay (minutes)</label>
+                  <input
+                    id="student_door_close_delay_minutes"
+                    name="student_door_close_delay_minutes"
+                    type="number"
+                    min="1"
+                    class="form-control"
+                    value="{{ settings_obj.student_door_close_delay_minutes }}"
+                    required
+                  />
+                  <small class="text-muted d-block">How long the door can remain open for delayed students before a close request should be approved.</small>
                   <small class="text-muted">Default 90 minutes = 1h30 from session start, no manual end required.</small>
                 </div>
               </div>
@@ -206,6 +238,102 @@
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header responsive-card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Immediate Teacher Access Override</h5>
+          <span class="badge bg-label-warning">Out-of-schedule access</span>
+        </div>
+        <div class="card-body pt-4">
+          <form method="POST" class="row g-3">
+            {% csrf_token %}
+            <input type="hidden" name="settings_action" value="grant_teacher_access" />
+
+            <div class="col-md-4">
+              <label for="teacher_identifier" class="form-label">Teacher ID</label>
+              <input
+                id="teacher_identifier"
+                name="teacher_identifier"
+                type="text"
+                class="form-control"
+                placeholder="ID Number, RFID, or DB ID"
+                required
+              />
+              <small class="text-muted">ID Number is recommended.</small>
+            </div>
+
+            <div class="col-md-4">
+              <label for="override_classroom_id" class="form-label">Classroom Scope</label>
+              <select id="override_classroom_id" name="override_classroom_id" class="form-select">
+                <option value="">All classrooms</option>
+                {% for classroom in classrooms %}
+                <option value="{{ classroom.id }}">{{ classroom.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label for="override_duration_minutes" class="form-label">Duration (minutes)</label>
+              <input
+                id="override_duration_minutes"
+                name="override_duration_minutes"
+                type="number"
+                min="1"
+                value="120"
+                class="form-control"
+                required
+              />
+            </div>
+
+            <div class="col-md-1 d-flex align-items-end">
+              <button type="submit" class="btn btn-warning w-100">
+                Grant
+              </button>
+            </div>
+          </form>
+
+          <hr class="my-4" />
+
+          <h6 class="mb-3">Active Overrides</h6>
+          {% if active_teacher_access_grants %}
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle">
+              <thead>
+                <tr>
+                  <th>Teacher</th>
+                  <th>ID Number</th>
+                  <th>Scope</th>
+                  <th>Granted By</th>
+                  <th>Expires At</th>
+                  <th style="width: 120px;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for grant in active_teacher_access_grants %}
+                <tr>
+                  <td>{{ grant.teacher.name }}</td>
+                  <td>{{ grant.teacher.id_number }}</td>
+                  <td>{% if grant.classroom %}{{ grant.classroom.name }}{% else %}All classrooms{% endif %}</td>
+                  <td>{{ grant.granted_by_username|default:'-' }}</td>
+                  <td>{{ grant.expires_at|date:'Y-m-d H:i' }}</td>
+                  <td>
+                    <form method="POST" class="m-0">
+                      {% csrf_token %}
+                      <input type="hidden" name="settings_action" value="revoke_teacher_access" />
+                      <input type="hidden" name="grant_id" value="{{ grant.id }}" />
+                      <button type="submit" class="btn btn-outline-danger btn-sm w-100">Revoke</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-muted mb-0">No active immediate access overrides.</p>
+          {% endif %}
         </div>
       </div>
     </div>

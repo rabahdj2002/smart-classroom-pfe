@@ -44,6 +44,27 @@
                 </select>
               </div>
 
+              <div class="col-md-4" id="inspection-staff-block">
+                <label for="staff_id" class="form-label">Staff for Inspection</label>
+                <select id="staff_id" name="staff_id" class="form-select">
+                  <option value="">No staff assigned</option>
+                  {% for staff in staff_members %}
+                  <option value="{{ staff.id }}" {% if form.staff_id == staff.id|stringformat:"s" %}selected{% endif %}>{{ staff.name }} ({{ staff.get_role_display }})</option>
+                  {% endfor %}
+                </select>
+                <small class="text-muted">Used only when the session type is Inspection.</small>
+              </div>
+
+              <div class="col-md-4">
+                <label for="session_type" class="form-label">Session Type</label>
+                <select id="session_type" name="session_type" class="form-select">
+                  {% for value, label in session_type_choices %}
+                  <option value="{{ value }}" {% if form.session_type == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <small class="text-muted">Inspection sessions are recorded only and do not include students or reports.</small>
+              </div>
+
               <div class="col-md-4">
                 <label for="start_time" class="form-label">Session Start</label>
                 <input
@@ -57,7 +78,7 @@
                 <small class="text-muted">If this start time is already overdue, report generation will happen immediately.</small>
               </div>
 
-              <div class="col-12">
+              <div class="col-12" id="students-block">
                 <label for="student_ids" class="form-label">Students (optional)</label>
                 <select id="student_ids" name="student_ids" class="form-select" multiple size="8">
                   {% for student in students %}
@@ -77,4 +98,30 @@
     </div>
   </div>
 </div>
+<script>
+  (function () {
+    const sessionType = document.getElementById('session_type');
+    const studentsBlock = document.getElementById('students-block');
+    const teacherField = document.getElementById('teacher_id');
+    const inspectionStaffBlock = document.getElementById('inspection-staff-block');
+
+    function refreshSessionFields() {
+      const inspection = sessionType && sessionType.value === 'inspection';
+      if (studentsBlock) {
+        studentsBlock.style.display = inspection ? 'none' : '';
+      }
+      if (teacherField) {
+        teacherField.closest('.col-md-4').style.display = inspection ? 'none' : '';
+      }
+      if (inspectionStaffBlock) {
+        inspectionStaffBlock.style.display = inspection ? '' : 'none';
+      }
+    }
+
+    if (sessionType) {
+      sessionType.addEventListener('change', refreshSessionFields);
+      refreshSessionFields();
+    }
+  })();
+</script>
 {% endblock %}
