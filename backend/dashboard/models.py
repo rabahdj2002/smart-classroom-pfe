@@ -97,6 +97,8 @@ class SystemSettings(models.Model):
     mqtt_topic_wildcard = models.CharField(max_length=255, default='smartclass/#')
     teacher_access_window_minutes = models.PositiveIntegerField(default=10)
     student_door_close_delay_minutes = models.PositiveIntegerField(default=10)
+    ramadan_mode = models.BooleanField(default=False)
+    ramadan_start_time = models.TimeField(default='08:30:00')
 
     def __str__(self):
         return "System Settings"

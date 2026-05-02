@@ -27,7 +27,6 @@ TIMETABLE_SLOT_STARTS = [
     dt_time(14, 0),
     dt_time(15, 30),
 ]
-TIMETABLE_SLOT_DURATION_MINUTES = 90
 
 
 def _bool_or_none(value):
@@ -321,10 +320,25 @@ def _resolve_response_topic(topic, payload_data, classroom):
     return 'smartclass/access/response'
 
 
+TIMETABLE_SLOT_DURATION_MINUTES = 90
+RAMADAN_SLOT_DURATION_MINUTES = 75
+
+
 def _slot_bounds(reference_date, slot_index):
-    slot_start_naive = datetime.combine(reference_date, TIMETABLE_SLOT_STARTS[slot_index])
-    slot_start = timezone.make_aware(slot_start_naive, timezone.get_current_timezone())
-    slot_end = slot_start + timedelta(minutes=TIMETABLE_SLOT_DURATION_MINUTES)
+    settings_obj = get_system_settings()
+
+    if settings_obj.ramadan_mode:
+        start_time = settings_obj.ramadan_start_time or dt_time(8, 30)
+        duration = RAMADAN_SLOT_DURATION_MINUTES
+        # Calculate start time for the given slot index (each slot is 'duration' minutes)
+        slot_start_dt = datetime.combine(reference_date, start_time) + timedelta(minutes=slot_index * duration)
+        slot_start = timezone.make_aware(slot_start_dt, timezone.get_current_timezone())
+    else:
+        slot_start_naive = datetime.combine(reference_date, TIMETABLE_SLOT_STARTS[slot_index])
+        slot_start = timezone.make_aware(slot_start_naive, timezone.get_current_timezone())
+        duration = TIMETABLE_SLOT_DURATION_MINUTES
+
+    slot_end = slot_start + timedelta(minutes=duration)
     return slot_start, slot_end
 
 

@@ -177,11 +177,22 @@ TIMETABLE_SLOT_STARTS = [
     time(15, 30),
 ]
 TIMETABLE_SLOT_DURATION_MINUTES = 90
+RAMADAN_SLOT_DURATION_MINUTES = 75
 
 
-def _format_timetable_slot_label(slot_index):
-    start_dt = datetime.combine(timezone.localdate(), TIMETABLE_SLOT_STARTS[slot_index])
-    end_dt = start_dt + timedelta(minutes=TIMETABLE_SLOT_DURATION_MINUTES)
+def _format_timetable_slot_label(slot_index, system_settings=None):
+    slot_start_time = TIMETABLE_SLOT_STARTS[slot_index]
+    duration = TIMETABLE_SLOT_DURATION_MINUTES
+
+    if system_settings and system_settings.ramadan_mode:
+        ramadan_start = system_settings.ramadan_start_time or time(8, 30)
+        duration = RAMADAN_SLOT_DURATION_MINUTES
+        # Calculate start time for the given slot index (each slot is 'duration' minutes)
+        start_dt = datetime.combine(timezone.localdate(), ramadan_start) + timedelta(minutes=slot_index * duration)
+    else:
+        start_dt = datetime.combine(timezone.localdate(), slot_start_time)
+
+    end_dt = start_dt + timedelta(minutes=duration)
     return f'{start_dt:%H:%M} - {end_dt:%H:%M}'
     
 @portal_admin_required
@@ -482,6 +493,7 @@ def classroom_timetable(request, id):
     if not classroom:
         return render(request, '404.html', status=404)
 
+    system_settings = get_system_settings()
     teachers = Staff.objects.filter(role='PROF').order_by('name')
     teacher_by_id = {str(teacher.id): teacher for teacher in teachers}
 
@@ -558,7 +570,7 @@ def classroom_timetable(request, id):
         rows.append(
             {
                 'slot_index': slot_index,
-                'slot_label': _format_timetable_slot_label(slot_index),
+                'slot_label': _format_timetable_slot_label(slot_index, system_settings),
                 'cells': cells,
             }
         )
@@ -697,11 +709,13 @@ def temperature_settings(request):
         email_reports_enabled = _parse_bool(request.POST, 'email_reports_enabled')
         smtp_use_tls = _parse_bool(request.POST, 'smtp_use_tls')
         mqtt_production_mode = _parse_bool(request.POST, 'mqtt_production_mode')
+        ramadan_mode = _parse_bool(request.POST, 'ramadan_mode')
 
         cron_interval_minutes_raw = request.POST.get('cron_interval_minutes', '').strip()
         auto_finish_minutes_raw = request.POST.get('auto_finish_minutes', '').strip()
         teacher_access_window_minutes_raw = request.POST.get('teacher_access_window_minutes', '').strip()
         student_door_close_delay_minutes_raw = request.POST.get('student_door_close_delay_minutes', '').strip()
+        ramadan_start_time_raw = request.POST.get('ramadan_start_time', '').strip()
         default_list_page_size_raw = request.POST.get('default_list_page_size', '').strip()
         default_sessions_order = request.POST.get('default_sessions_order', '').strip()
         mqtt_broker_host = request.POST.get('mqtt_broker_host', '').strip()
@@ -790,12 +804,24 @@ def temperature_settings(request):
         if email_reports_enabled and not smtp_from_email:
             errors.append('From email is required when automatic report emails are enabled.')
 
+        if ramadan_start_time_raw:
+            try:
+                # Basic validation for HH:MM format
+                from datetime import datetime
+                datetime.strptime(ramadan_start_time_raw, '%H:%M')
+            except ValueError:
+                errors.append('Ramadan start time must be in HH:MM format.')
+                ramadan_start_time_raw = settings_obj.ramadan_start_time.strftime('%H:%M') if settings_obj.ramadan_start_time else '08:30'
+
         if not errors:
             settings_obj.auto_finish_enabled = auto_finish_enabled
             settings_obj.cron_interval_minutes = cron_interval_minutes
             settings_obj.auto_finish_minutes = auto_finish_minutes
             settings_obj.teacher_access_window_minutes = teacher_access_window_minutes
             settings_obj.student_door_close_delay_minutes = student_door_close_delay_minutes
+            settings_obj.ramadan_mode = ramadan_mode
+            if ramadan_start_time_raw:
+                settings_obj.ramadan_start_time = ramadan_start_time_raw
             settings_obj.default_list_page_size = default_list_page_size
             settings_obj.default_sessions_order = default_sessions_order
             settings_obj.allow_bulk_actions = allow_bulk_actions

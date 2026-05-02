@@ -91,6 +91,22 @@
                     required
                   />
                   <small class="text-muted d-block">How long the door can remain open for delayed students before a close request should be approved.</small>
+                  
+                  <h6 class="mt-4 mb-3">Ramadan Mode</h6>
+                  <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="ramadan_mode" name="ramadan_mode" {% if settings_obj.ramadan_mode %}checked{% endif %} />
+                    <label class="form-check-label" for="ramadan_mode">Enable Ramadan Schedule (1-hour 15-minute sessions)</label>
+                  </div>
+                  <label for="ramadan_start_time" class="form-label">Ramadan Start Time (First Slot)</label>
+                  <input
+                    id="ramadan_start_time"
+                    name="ramadan_start_time"
+                    type="time"
+                    class="form-control"
+                    value="{{ settings_obj.ramadan_start_time|time:'H:i' }}"
+                  />
+                  <small class="text-muted d-block">When active, slots are calculated as 1 hour 15-minute blocks starting from this time.</small>
+
                   <small class="text-muted">Default 90 minutes = 1h30 from session start, no manual end required.</small>
                 </div>
               </div>
