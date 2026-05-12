@@ -1,167 +1,57 @@
-# Smart Classroom Platform
+# HeisenHelmet Safety Cloud
 
-Smart Classroom Platform is a Django-based control center for classroom operations.
-It combines live MQTT events from classroom devices with a web dashboard used by staff
-to monitor rooms, manage sessions, and generate attendance reports.
+HeisenHelmet is a high-end IoT safety platform designed for real-time fleet management. It integrates helmet telemetry (GPS, Alcohol, MPU, Battery) with a dynamic web dashboard for supervisor monitoring and automated incident response.
 
-## Core Features
+## 🚀 Core Features
 
-- Real-time classroom status via MQTT (occupancy, lights, projector, door, smoke, danger)
-- Session lifecycle management (start, split, close, auto-finish)
-- Attendance capture from RFID payloads (teacher + students)
-- PDF attendance reports with session summary and student roster
-- Optional report email delivery through SMTP
-- Admin controls for pagination, UI density, KPI badges, and bulk actions
-- MQTT integration guide in-app for device developers
+- **Real-Time Telemetry**: Live tracking of speed, location, alcohol levels, and helmet status (worn/strapped/tilt).
+- **Incident Intelligence**: Automatic crash detection and alcohol threshold alerts with a global notification system.
+- **Priority Status Logic**: Intelligent state management (Accident > Drunk > Online/Offline).
+- **Fleet Management**: Centralized settings for speed limits, safety thresholds, and map refresh rates.
+- **Production Ready**: Full support for remote hosting, Cloudflare subdomains, and WSS (Secure WebSockets).
+- **Documentation In-App**: Built-in protocol guides and administrator manuals.
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-- Python 3.10+
-- Django 5.1
-- SQLite (default)
-- MQTT (paho-mqtt)
-- ReportLab (PDF generation)
+- **Backend**: Django 6.0.3 (Python 3.10+)
+- **Messaging**: MQTT (Paho MQTT) with WebSocket Secure (WSS) support.
+- **Database**: SQLite (Production-ready state management).
+- **Frontend**: Glassmorphism UI with Oklahoma LCH (oklch) color system.
 
-## Repository Layout
+## 📂 Project Structure
 
-- backend/ - Django project
-- backend/dashboard/ - main application (views, models, MQTT, reporting)
-- backend/smartclass/ - Django project settings and URLs
-- backend/static/ - dashboard static assets
-- template/ - original UI template assets (reference)
+- `backend/dashboard/`: Core logic, MQTT listener, and safety models.
+- `backend/smartclass/`: Project configuration and security settings.
+- `backend/static/`: Custom CSS and dashboard assets.
+- `DASHBOARD_TECHNICAL_GUIDE.md`: Deep dive into system architecture and IoT data flow.
+- `DASHBOARD_USER_GUIDE.md`: Administrator manual and safety protocol reference.
 
-## Quick Start
+## 🏁 Quick Start
 
-### 1) Create and activate virtual environment
-
-Windows PowerShell:
-
+### 1. Setup Environment
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-### 2) Install dependencies
-
-```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
 pip install -r backend/requirements.txt
 ```
 
-### 3) Apply migrations
-
+### 2. Initialize Database
 ```powershell
-python backend/manage.py migrate
+cd backend
+python manage.py migrate
 ```
 
-### 4) Create admin user (if needed)
-
+### 3. Launch Platform
 ```powershell
-python backend/manage.py createsuperuser
+python manage.py runserver 0.0.0.0:8000
 ```
+*Note: The MQTT background listener starts automatically with the server.*
 
-### 5) Run development server
+## 🌐 Remote Hosting (Cloudflare)
+To host on a subdomain (e.g., `helmet.yourdomain.com`):
+1. Configure `CSRF_TRUSTED_ORIGINS` in `settings.py`.
+2. Set your **Public WebSocket Host** in the platform's Settings page.
+3. Ensure your MQTT broker handles WSS (Port 443 recommended for Cloudflare).
 
-```powershell
-python backend/manage.py runserver
-```
-
-Open: http://127.0.0.1:8000
-
-## Settings You Can Control In The UI
-
-Open Settings page in the dashboard to configure:
-
-- Auto-finish timing and interval
-- Pagination defaults and sessions order
-- Bulk actions, KPI badges, compact mode
-- SMTP report email delivery
-- MQTT broker host/port/topic wildcard
-- MQTT production/test mode toggle
-
-## MQTT Integration
-
-### Device sends events to platform
-
-Topic pattern:
-
-```text
-smartclass/classrooms/<classroom_name>/events
-```
-
-Typical payload:
-
-```json
-{
-	"classroom_name": "d3",
-	"timestamp": "2026-04-17T15:10:05+01:00",
-	"teacher_rfid": "123456789123",
-	"student_rfids": ["1234567891254", "STU-002"],
-	"occupied": true,
-	"lights_on": true,
-	"door": false,
-	"projector_on": true,
-	"smoke_detected": false,
-	"danger_indicator": false,
-	"new_session": false
-}
-```
-
-### Device receives commands from platform
-
-Subscribe to:
-
-```text
-smartclass/classrooms/<classroom_name>/commands
-```
-
-Command payload shape:
-
-```json
-{
-	"command": "lights",
-	"classroom_id": 3,
-	"classroom_name": "d3",
-	"value": true
-}
-```
-
-Supported commands:
-
-- lights
-- projector
-- smoke_reset
-
-## Useful Management Commands
-
-```powershell
-python backend/manage.py check
-python backend/manage.py makemigrations
-python backend/manage.py migrate
-```
-
-## Test Publisher
-
-Use the built-in MQTT test script:
-
-```powershell
-python backend/testmqtt.py --host <broker_host> --port <broker_port> --classroom d3 --count 3 --interval 1
-```
-
-## Production Notes
-
-- Set DEBUG=False before deployment
-- Restrict ALLOWED_HOSTS to known hostnames/IPs
-- Use a secure secret key from environment
-- Configure SMTP only if report email is enabled
-- Keep MQTT broker credentials private
-
-## Troubleshooting
-
-- No dashboard updates: verify broker host/port and topic wildcard
-- Unknown RFID warnings: ensure RFID values exist in Staff/Student records
-- Commands not received: verify device is subscribed to the room command topic
-- Report emails failing: verify SMTP host, port, credentials, and from email
-
-## License
-
-Internal academic project.
+## 🛡️ License
+Proprietary HeisenHelmet Safety Protocol.
