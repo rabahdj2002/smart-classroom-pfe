@@ -1,14 +1,9 @@
-from .models import Student, Staff, Classroom, Session, SystemSettings
+from .models import SystemSettings, Incident
 
-
-def dashboard_counts(request):
-    app_settings, _ = SystemSettings.objects.get_or_create(pk=1)
+def app_settings(request):
+    settings = SystemSettings.objects.first()
+    critical_incidents_count = Incident.objects.filter(resolved=False).count()
     return {
-        'dashboard_counts': {
-            'students': Student.objects.count(),
-            'staff': Staff.objects.count(),
-            'classrooms': Classroom.objects.count(),
-            'sessions': Session.objects.count(),
-        },
-        'app_settings': app_settings,
+        'app_settings': settings,
+        'global_critical_incidents': critical_incidents_count
     }

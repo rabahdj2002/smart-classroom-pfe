@@ -1,597 +1,171 @@
-
 {% load static %}
 <!DOCTYPE html>
-<html
-  lang="en"
-  class="light-style layout-menu-fixed"
-  dir="ltr"
-  data-theme="theme-default"
-  data-assets-path="../assets/"
-  data-template="vertical-menu-template-free"
->
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0"
-    />
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ app_settings.platform_name|default:"HeisenHelmet" }} - IoT Safety Platform</title>
+  <link rel="stylesheet" href="{% static 'dashboard/css/styles.css' %}">
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sb">
+      <div class="sb-brand">
+        <a href="/" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 12px;">
+            <div class="sb-logo" aria-hidden="true" style="background: linear-gradient(135deg, var(--ink) 0%, #333 100%); width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; color: #fff;">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                </svg>
+            </div>
+            <div class="sb-name" style="line-height: 1.1;">
+                <span style="font-size: 16px; font-weight: 700; background: linear-gradient(to right, var(--ink), #555); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{{ app_settings.platform_name|default:"HeisenHelmet" }}</span>
+                <small style="margin-top: 2px;">IoT Safety Cloud</small>
+            </div>
+        </a>
+      </div>
 
-    <title>Smart Classroom Dashboard</title>
+      <nav class="sb-nav">
+        <div class="sb-section">Core Fleet</div>
+        <a class="sb-item {% if request.path == '/' %}active{% endif %}" href="/"><span class="nav-mark"></span><span>Safety Map</span></a>
+        <a class="sb-item {% if '/riders/' in request.path %}active{% endif %}" href="{% url 'riders' %}"><span class="nav-mark"></span><span>Riders</span></a>
+        
+        <div class="sb-section">Incidents</div>
+        <a class="sb-item {% if '/incidents/' in request.path %}active{% endif %}" href="{% url 'incidents' %}"><span class="nav-mark"></span><span>Alert History</span><span class="badge">{{ global_critical_incidents }}</span></a>
+        
+        <div class="sb-section">System</div>
+        <a class="sb-item {% if '/settings/' in request.path %}active{% endif %}" href="{% url 'settings' %}"><span class="nav-mark"></span><span>Settings</span></a>
+        {% if user.is_authenticated %}
+        <form action="{% url 'logout' %}" method="post" style="margin:0;">
+            {% csrf_token %}
+            <button type="submit" class="sb-item" style="width: 100%; background: none; border: none; font: inherit; cursor: pointer; text-align: left;">
+                <span class="nav-mark"></span><span>Logout</span>
+            </button>
+        </form>
+        {% else %}
+        <a class="sb-item" href="{% url 'login' %}"><span class="nav-mark"></span><span>Access Portal</span></a>
+        {% endif %}
 
-    <meta name="description" content="" />
+        <div class="sb-section">Support</div>
+        <a class="sb-item {% if '/mqtt-docs/' in request.path %}active{% endif %}" href="{% url 'mqtt_docs' %}"><span class="nav-mark"></span><span>MQTT Documentation</span></a>
+      </nav>
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="{% static 'dashboard/img/favicon/favicon.ico' %}" />
+      <div class="sb-foot">
+        <div class="av">{% if user.is_authenticated %}{{ user.username|slice:":1"|upper }}{% else %}G{% endif %}</div>
+        <div class="who">
+          <b>{% if user.is_authenticated %}{{ user.username }}{% else %}Guest{% endif %}</b>
+          <span>{% if user.is_authenticated %}System Supervisor{% else %}Visitor{% endif %}</span>
+        </div>
+      </div>
+    </aside>
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
-      rel="stylesheet"
-    />
-
-    <!-- Icons. Uncomment required icon fonts -->
-    <link rel="stylesheet" href="{% static 'dashboard/vendor/fonts/boxicons.css' %}" />
-
-    <!-- Core CSS -->
-    <link rel="stylesheet" href="{% static 'dashboard/vendor/css/core.css' %}" class="template-customizer-core-css" />
-    <link rel="stylesheet" href="{% static 'dashboard/vendor/css/theme-default.css' %}" class="template-customizer-theme-css" />
-    <link rel="stylesheet" href="{% static 'dashboard/css/demo.css' %}" />
-
-    <!-- Vendors CSS -->
-    <link rel="stylesheet" href="{% static 'dashboard/vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
-
-    <link rel="stylesheet" href="{% static 'dashboard/vendor/libs/apex-charts/apex-charts.css' %}" />
-
-    <!-- Page CSS -->
-
-    <!-- Helpers -->
-    <script src="{% static 'dashboard/vendor/js/helpers.js' %}"></script>
-
-    <!--! Template customizer & Theme config files MUST be included after core stylesheets and helpers.js in the <head> section -->
-    <!--? Config:  Mandatory theme config file contain global vars & default theme options, Set your preferred theme option in this file.  -->
-    <script src="{% static 'dashboard/js/config.js' %}"></script>
-  </head>
-
-  <body class="{% if app_settings.ui_compact_mode %}compact-ui{% endif %}">
-    <div class="mobile-topbar d-xl-none">
-      <a href="javascript:void(0);" class="layout-menu-toggle mobile-topbar-toggle" aria-label="Open menu">
-        <i class="bx bx-menu bx-sm"></i>
-      </a>
-      <a href="{% url 'dashboard' %}" class="mobile-topbar-brand">
-        <span class="brand-mark brand-mark-sm" aria-hidden="true">
-          <span class="brand-mark-core"></span>
-          <span class="brand-mark-dot"></span>
-        </span>
-        <span class="brand-wordmark">
-          <strong>Smart Classroom</strong>
-          <small class="brand-sub">Control Center</small>
-        </span>
-      </a>
-    </div>
-
-    <!-- Layout wrapper -->
-    <div class="layout-wrapper layout-content-navbar">
-      <div class="layout-container">
-        <!-- Menu -->
-
-        <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
-          <div class="app-brand demo">
-            <a href="{% url 'dashboard' %}" class="app-brand-link">
-              <span class="brand-mark" aria-hidden="true">
-                <span class="brand-mark-core"></span>
-                <span class="brand-mark-dot"></span>
-              </span>
-              <span class="app-brand-text demo menu-text fw-bolder ms-2">
-                <span class="brand-wordmark">
-                  <strong>Smart Classroom</strong>
-                  <small class="brand-sub">Control Center</small>
-                </span>
-              </span>
-            </a>
-
-            <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto d-block d-xl-none">
-              <i class="bx bx-chevron-left bx-sm align-middle"></i>
+    <main class="static-main" style="flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100vh;">
+      <header class="tb" style="flex-shrink: 0; min-height: 72px;">
+        <div style="flex-shrink: 0; min-width: 200px;">
+          <div class="tb-title" style="white-space: nowrap;">
+            {% if '/riders/' in request.path and rider %}Rider Detail
+            {% elif '/riders/' in request.path %}Rider Management
+            {% elif '/incidents/' in request.path %}Safety Incidents
+            {% elif '/maintenance/' in request.path %}Maintenance Logs
+            {% elif '/settings/' in request.path %}System Settings
+            {% else %}{{ app_settings.platform_name|default:"HeisenHelmet" }} Control{% endif %}
+          </div>
+          <div class="tb-crumb">
+            {% if '/riders/' in request.path and rider %}Fleet / {{ rider.name }}
+            {% elif '/riders/' in request.path %}Fleet / Active Riders
+            {% elif '/incidents/' in request.path %}Safety / Security Logs
+            {% elif '/maintenance/' in request.path %}Fleet / Maintenance
+            {% elif '/settings/' in request.path %}System / Configurations
+            {% else %}Operations / Real-time Fleet Overview{% endif %}
+          </div>
+        </div>
+        <form class="tb-search" action="/riders/" method="get" style="flex-grow: 1; max-width: 600px;">
+          <span aria-hidden="true" style="opacity: 0.5;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;">
+                <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
+            </svg>
+          </span>
+          <input name="q" placeholder="Search riders, helmets, incidents..." style="width: 100%;">
+        </form>
+        <div class="tb-actions">
+          <div style="position: relative; margin-right: 15px;">
+            <a href="{% url 'incidents' %}" class="tb-icon-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px; height:20px;">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              {% if global_critical_incidents > 0 %}
+              <span class="dot"></span>
+              {% endif %}
             </a>
           </div>
-
-          <div class="menu-inner-shadow"></div>
-
-          <ul class="menu-inner py-1">
-            <!-- Dashboard -->
-            <li class="menu-item {% if request.path == '/' %}active{% endif %}">
-              <a href="/" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-home-circle"></i>
-                <div data-i18n="Analytics">Dashboard</div>
-              </a>
-            </li>
-
-            <li class="menu-header small text-uppercase"><span class="menu-header-text">Management</span></li>
-            <li class="menu-item {% if request.path == '/classes/' or request.path == '/classes' or request.path|slice:':10' == '/classes/' %}active{% endif %}">
-              <a href="{% url 'classes' %}" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-layout"></i>
-                <div class="d-flex align-items-center justify-content-between w-100">
-                  <span>Classes</span>
-                  {% if app_settings.show_kpi_badges %}
-                  <span class="badge bg-label-primary ms-2">{{ dashboard_counts.classrooms|default:0 }}</span>
-                  {% endif %}
-                </div>
-              </a>
-            </li>
-
-            <li class="menu-item {% if request.path == '/students/' or request.path == '/students' or request.path|slice:':10' == '/students/' %}active{% endif %}">
-              <a href="{% url 'students' %}" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-user"></i>
-                <div class="d-flex align-items-center justify-content-between w-100">
-                  <span>Students</span>
-                  {% if app_settings.show_kpi_badges %}
-                  <span class="badge bg-label-info ms-2">{{ dashboard_counts.students|default:0 }}</span>
-                  {% endif %}
-                </div>
-              </a>
-            </li>
-
-            <li class="menu-item {% if request.path == '/staff/' or request.path == '/staff' or request.path|slice:':7' == '/staff/' %}active{% endif %}">
-              <a href="{% url 'staff' %}" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-briefcase-alt-2"></i>
-                <div class="d-flex align-items-center justify-content-between w-100">
-                  <span>Staff</span>
-                  {% if app_settings.show_kpi_badges %}
-                  <span class="badge bg-label-success ms-2">{{ dashboard_counts.staff|default:0 }}</span>
-                  {% endif %}
-                </div>
-              </a>
-            </li>
-
-            <li class="menu-item {% if request.path == '/sessions/' or request.path|slice:':10' == '/sessions/' %}active{% endif %}">
-              <a href="{% url 'sessions' %}" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-time-five"></i>
-                <div class="d-flex align-items-center justify-content-between w-100">
-                  <span>Sessions</span>
-                  {% if app_settings.show_kpi_badges %}
-                  <span class="badge bg-label-dark ms-2">{{ dashboard_counts.sessions|default:0 }}</span>
-                  {% endif %}
-                </div>
-              </a>
-            </li>
-
-            <li class="menu-header small text-uppercase"><span class="menu-header-text">System</span></li>
-            <li class="menu-item {% if request.path == '/settings/' %}active{% endif %}">
-              <a href="{% url 'temperature_settings' %}" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-cog"></i>
-                <div>Settings</div>
-              </a>
-            </li>
-
-            <li class="menu-item {% if request.path == '/mqtt-docs/' %}active{% endif %}">
-              <a href="{% url 'mqtt_docs' %}" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-radio-circle-marked"></i>
-                <div>MQTT Docs</div>
-              </a>
-            </li>
-
-            <li class="menu-header small text-uppercase"><span class="menu-header-text">Account</span></li>
-            <li class="menu-item {% if request.path == '/personal-info/' %}active{% endif %}">
-              <a href="{% url 'personal_info' %}" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-id-card"></i>
-                <div>Personal Info</div>
-              </a>
-            </li>
-
-            <li class="menu-item">
-              <a href="{% url 'logout' %}" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-log-out"></i>
-                <div>Logout</div>
-              </a>
-            </li>
-          </ul>
-        </aside>
-        <!-- / Menu -->
+          <span class="live-ticker"><span class="pulse"></span>Online - {{ connected_helmets }} devices</span>
+          <span class="pill blue"><span class="d"></span>MQTT</span>
+          <span class="pill green"><span class="d"></span>GSM 4G</span>
+        </div>
+      </header>
+      <div class="content" style="padding: 2rem; max-width: 1600px; margin: 0 auto; width: 100%; flex: 1; overflow-y: auto;">
         {% block content %}
         {% endblock %}
-        
-      <!-- Overlay -->
-      <div class="layout-overlay layout-menu-toggle"></div>
-    </div>
-    <!-- / Layout wrapper -->
+      </div>
+    </main>
+  </div>
 
-    <!-- Core JS -->
-    <!-- build:js assets/vendor/js/core.js -->
-    <script src="{% static 'dashboard/vendor/libs/jquery/jquery.js' %}"></script>
-    <script src="{% static 'dashboard/vendor/libs/popper/popper.js' %}"></script>
-    <script src="{% static 'dashboard/vendor/js/bootstrap.js' %}"></script>
-    <script src="{% static 'dashboard/vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
-
-    <script src="{% static 'dashboard/vendor/js/menu.js' %}"></script>
-    <!-- endbuild -->
-
-    <!-- Vendors JS -->
-    <script src="{% static 'dashboard/vendor/libs/apex-charts/apexcharts.js' %}"></script>
-
-    <!-- Main JS -->
-    <script src="{% static 'dashboard/js/main.js' %}"></script>
-
-    <style>
-      html,
-      body {
-        overflow-x: hidden;
-      }
-
-      img,
-      svg,
-      video,
-      canvas {
-        max-width: 100%;
-        height: auto;
-      }
-
-      pre {
-        white-space: pre-wrap;
-        word-break: break-word;
-      }
-
-      .page-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-      }
-
-      .page-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        align-items: center;
-      }
-
-      .page-actions form {
-        margin: 0;
-      }
-
-      .page-actions .btn {
-        white-space: nowrap;
-      }
-
-      .filter-actions {
-        display: flex;
-        gap: 0.5rem;
+  <style>
+    /* Fixed Table Design */
+    .data-table {
         width: 100%;
-      }
-
-      .filter-actions .btn {
-        flex: 1 1 0;
-        min-width: 0;
-      }
-
-      .responsive-card-header {
-        gap: 0.75rem;
-      }
-
-      .responsive-card-header .btn {
-        white-space: nowrap;
-      }
-
-      .table-responsive.text-nowrap {
-        -webkit-overflow-scrolling: touch;
-      }
-
-      body.compact-ui .container-xxl {
-        max-width: 1320px;
-      }
-
-      body.compact-ui .card-header {
-        padding-top: 0.75rem;
-        padding-bottom: 0.75rem;
-      }
-
-      body.compact-ui .card-body {
-        padding-top: 0.85rem;
-        padding-bottom: 0.85rem;
-      }
-
-      body.compact-ui .table td,
-      body.compact-ui .table th {
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
-      }
-
-      .brand-mark {
-        position: relative;
-        width: 2.35rem;
-        height: 2.35rem;
-        border-radius: 0.75rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(150deg, #696cff 0%, #03c3ec 100%);
-        box-shadow: 0 0.55rem 1.35rem rgba(105, 108, 255, 0.32);
-        flex-shrink: 0;
-      }
-
-      .brand-mark.brand-mark-sm {
-        width: 2.1rem;
-        height: 2.1rem;
-      }
-
-      .brand-mark-core {
-        width: 1.12rem;
-        height: 1.12rem;
-        border: 2px solid rgba(255, 255, 255, 0.95);
-        border-radius: 0.35rem;
-        transform: rotate(45deg);
-      }
-
-      .brand-mark-dot {
-        position: absolute;
-        width: 0.42rem;
-        height: 0.42rem;
-        border-radius: 50%;
-        background: #fff;
-        top: 0.35rem;
-        right: 0.35rem;
-      }
-
-      .brand-wordmark {
-        display: inline-flex;
-        flex-direction: column;
-        line-height: 1.06;
-        letter-spacing: 0.01em;
-        color: #2d3b50;
-        font-weight: 700;
-      }
-
-      .brand-wordmark strong {
-        font-size: 1.02rem;
-      }
-
-      .brand-sub {
-        color: #7b8ca5;
-        font-size: 0.62rem;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13.5px;
+    }
+    .data-table thead th {
+        background: var(--section);
+        color: var(--ink-3);
         font-weight: 600;
-        letter-spacing: 0.11em;
         text-transform: uppercase;
-      }
+        font-size: 11px;
+        letter-spacing: 0.05em;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+    }
+    .data-table tbody td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        color: var(--ink-2);
+        vertical-align: middle;
+    }
+    .data-table tbody tr:hover td {
+        background: var(--hover);
+    }
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
 
-      .app-brand .app-brand-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.65rem;
-      }
+    /* Progress bar enhancements */
+    .bar {
+        height: 6px;
+        background: var(--section-2);
+        border-radius: 10px;
+        overflow: hidden;
+        width: 100%;
+        display: block;
+    }
+    .bar span {
+        display: block;
+        height: 100%;
+        background: var(--green);
+        transition: width 0.3s ease;
+    }
+    .bar.red span { background: var(--red); }
+    .bar.amber span { background: var(--amber); }
 
-      .app-brand .brand-wordmark strong {
-        font-size: 0.96rem;
-      }
-
-      .app-brand .brand-sub {
-        font-size: 0.56rem;
-      }
-
-      @media (max-width: 1199.98px) {
-        .container-xxl {
-          padding-left: 0.75rem;
-          padding-right: 0.75rem;
-        }
-      }
-
-      @media (max-width: 991.98px) {
-        #layout-navbar .navbar-nav-right {
-          width: 100%;
-        }
-
-        #layout-navbar .navbar-nav.align-items-center {
-          width: 100%;
-        }
-
-        #layout-navbar .nav-item.d-flex.align-items-center {
-          width: 100%;
-          gap: 0.5rem;
-        }
-
-        #layout-navbar .nav-item.d-flex.align-items-center .form-control {
-          width: 100%;
-          min-width: 0;
-        }
-      }
-
-      @media (max-width: 767.98px) {
-        body {
-          padding-top: 4.5rem;
-        }
-
-        .mobile-topbar {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          z-index: 1090;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 0.75rem;
-          padding: 0.85rem 1rem;
-          background: rgba(245, 245, 249, 0.94);
-          backdrop-filter: blur(14px);
-          border-bottom: 1px solid rgba(105, 108, 255, 0.12);
-        }
-
-        .mobile-topbar-toggle {
-          width: 2.5rem;
-          height: 2.5rem;
-          border-radius: 0.75rem;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          color: #697a8d;
-          background: #fff;
-          border: 1px solid rgba(105, 108, 255, 0.16);
-          box-shadow: 0 0.35rem 0.85rem rgba(161, 172, 184, 0.14);
-          flex-shrink: 0;
-        }
-
-        .mobile-topbar-brand {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.6rem;
-          color: #566a7f;
-          font-weight: 700;
-          min-width: 0;
-        }
-
-        .app-brand-text.demo.menu-text {
-          display: none !important;
-        }
-
-        .mobile-topbar .brand-wordmark {
-          font-size: 0.98rem;
-        }
-
-        .mobile-topbar .brand-sub {
-          font-size: 0.58rem;
-        }
-
-        .page-header {
-          flex-direction: column;
-          align-items: stretch;
-        }
-
-        .page-actions {
-          width: 100%;
-        }
-
-        .page-actions > * {
-          width: 100%;
-        }
-
-        .page-actions .btn {
-          width: 100%;
-          justify-content: center;
-        }
-
-        .filter-actions {
-          flex-direction: column;
-        }
-
-        .filter-actions .btn {
-          width: 100%;
-        }
-
-        .responsive-card-header {
-          flex-direction: column;
-          align-items: stretch !important;
-        }
-
-        .responsive-card-header > * {
-          width: 100%;
-        }
-
-        .responsive-card-header .btn {
-          width: 100%;
-        }
-
-        .table-responsive.text-nowrap th,
-        .table-responsive.text-nowrap td {
-          white-space: normal;
-        }
-
-        .table-responsive.text-nowrap .btn {
-          width: 100%;
-        }
-
-        .table-responsive .mobile-card-table {
-          width: 100%;
-          min-width: 0;
-          border-collapse: separate;
-          border-spacing: 0;
-          background: transparent;
-        }
-
-        .table-responsive .mobile-card-table thead {
-          display: none;
-        }
-
-        .table-responsive .mobile-card-table,
-        .table-responsive .mobile-card-table tbody,
-        .table-responsive .mobile-card-table tr,
-        .table-responsive .mobile-card-table td {
-          display: block;
-          width: 100%;
-        }
-
-        .table-responsive .mobile-card-table tbody tr {
-          margin: 0.6rem;
-          padding: 0.35rem 0.8rem;
-          border: 1px solid rgba(67, 89, 113, 0.14);
-          border-radius: 0.9rem;
-          background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
-          box-shadow: 0 0.3rem 0.9rem rgba(67, 89, 113, 0.1);
-        }
-
-        .table-responsive .mobile-card-table td {
-          border: 0;
-          border-top: 1px solid rgba(67, 89, 113, 0.1);
-          padding: 0.62rem 0;
-          white-space: normal !important;
-          overflow-wrap: anywhere;
-          display: grid;
-          grid-template-columns: minmax(5.6rem, 42%) minmax(0, 1fr);
-          align-items: center;
-          column-gap: 0.55rem;
-        }
-
-        .table-responsive .mobile-card-table td:first-child {
-          border-top: 0;
-        }
-
-        .table-responsive .mobile-card-table td::before {
-          content: attr(data-label);
-          font-size: 0.72rem;
-          font-weight: 700;
-          letter-spacing: 0.03em;
-          text-transform: uppercase;
-          color: #697a8d;
-          line-height: 1.2;
-        }
-
-        .table-responsive .mobile-card-table td[data-label="Select"] {
-          grid-template-columns: 1fr;
-          justify-items: end;
-          padding: 0.4rem 0 0.2rem;
-        }
-
-        .table-responsive .mobile-card-table td[data-label="Select"]::before {
-          display: none;
-        }
-
-        .table-responsive .mobile-card-table td[data-label="Action"],
-        .table-responsive .mobile-card-table td[data-label="Actions"] {
-          grid-template-columns: 1fr;
-          align-items: start;
-        }
-
-        .table-responsive .mobile-card-table td .d-flex {
-          gap: 0.45rem;
-        }
-
-        .table-responsive .mobile-card-table td .btn {
-          width: auto;
-          min-height: 2rem;
-        }
-
-        .content-wrapper .card-body {
-          padding: 1rem;
-        }
-
-        .content-wrapper .card-header {
-          padding: 1rem;
-        }
-      }
-    </style>
-
-    <!-- Page JS -->
-    <script src="{% static 'dashboard/js/dashboards-analytics.js' %}"></script>
-
-    <!-- Place this tag in your head or just before your close body tag. -->
-    <script async defer src="https://buttons.github.io/buttons.js"></script>
-  </body>
+    /* Fix for weird text at bottom */
+    html, body { height: 100%; margin: 0; padding: 0; overflow-x: hidden; }
+  </style>
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+</body>
 </html>

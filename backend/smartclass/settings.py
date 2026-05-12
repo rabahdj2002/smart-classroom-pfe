@@ -68,7 +68,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'dashboard.context_processors.dashboard_counts',
+                'dashboard.context_processors.app_settings',
             ],
         },
     },
@@ -147,3 +147,11 @@ DASHBOARD_MQTT_USERNAME = os.getenv('DASHBOARD_MQTT_USERNAME', '')
 DASHBOARD_MQTT_PASSWORD = os.getenv('DASHBOARD_MQTT_PASSWORD', '')
 DASHBOARD_MQTT_KEEPALIVE_SECONDS = int(os.getenv('DASHBOARD_MQTT_KEEPALIVE_SECONDS', '60'))
 DASHBOARD_MQTT_RECONNECT_DELAY_SECONDS = int(os.getenv('DASHBOARD_MQTT_RECONNECT_DELAY_SECONDS', '3'))
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'login'
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'login'

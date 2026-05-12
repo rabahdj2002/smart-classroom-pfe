@@ -1,191 +1,59 @@
-{% extends 'base.html' %}
-{% load static %}
+﻿{% extends 'base.html' %}
 {% block content %}
-<div class="layout-page">
-  <div class="content-wrapper">
-    <div class="container-xxl flex-grow-1 container-p-y">
-      <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">System /</span> MQTT Integration Guide</h4>
-
-      <div class="alert alert-primary mb-4" role="alert">
-        <h6 class="alert-heading mb-1">MQTT at a glance</h6>
-        <p class="mb-2">The dashboard listens on <code>{{ mqtt.topic_wildcard }}</code> and uses server time for every recorded event.</p>
-        <p class="mb-0">Devices send data to the dashboard, and the dashboard sends commands or responses back to the device.</p>
-      </div>
-
-      <div class="row g-4 mb-4">
-        <div class="col-lg-6">
-          <div class="card h-100">
-            <div class="card-header"><h5 class="mb-0">Broker</h5></div>
-            <div class="card-body pt-4">
-              <p class="mb-2"><strong>Host:</strong> {{ mqtt.broker_host }}</p>
-              <p class="mb-2"><strong>Port:</strong> {{ mqtt.broker_port }}</p>
-              <p class="mb-2"><strong>Wildcard:</strong> <code>{{ mqtt.topic_wildcard }}</code></p>
-              <p class="mb-2"><strong>Keepalive:</strong> {{ mqtt.keepalive }} sec</p>
-              <p class="mb-0"><strong>Reconnect delay:</strong> {{ mqtt.reconnect_delay }} sec</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-6">
-          <div class="card h-100">
-            <div class="card-header"><h5 class="mb-0">Core Topics</h5></div>
-            <div class="card-body pt-4">
-              <p class="mb-2"><strong>Device to dashboard:</strong></p>
-              <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/events</pre>
-              <p class="mb-2"><strong>Dashboard to device commands:</strong></p>
-              <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/commands</pre>
-              <p class="mb-2"><strong>Request / response topics:</strong></p>
-              <pre class="mb-0">smartclass/classrooms/&lt;classroom_name&gt;/access/request
-smartclass/classrooms/&lt;classroom_name&gt;/access/response
-smartclass/classrooms/&lt;classroom_name&gt;/door-delay/request
-smartclass/classrooms/&lt;classroom_name&gt;/door-delay/response
-smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card mb-4">
-        <div class="card-header"><h5 class="mb-0">1. Device to Dashboard</h5></div>
-        <div class="card-body pt-4">
-          <p class="mb-3">Send JSON to the dashboard. The server ignores any client timestamp and records its own time.</p>
-
-          <div class="mb-4">
-            <h6 class="mb-2">A. Classroom state / live events</h6>
-            <p class="mb-2">Use this for occupancy and room state changes.</p>
-            <pre class="mb-3">{
-  "classroom_name": "d3",
-  "occupied": true,
-  "lights_on": true,
-  "door": false,
-  "projector_on": true,
-  "smoke_detected": false,
-  "danger_indicator": false,
-  "teacher_rfid": "123456789123",
-  "new_session": false
-}</pre>
-            <p class="mb-1"><strong>Fields</strong></p>
-            <ul class="mb-0">
-              <li><strong>classroom_id</strong>, <strong>classroom_name</strong>, or <strong>classroom</strong>: classroom target.</li>
-              <li><strong>occupied</strong>, <strong>lights_on</strong>, <strong>door</strong>, <strong>projector_on</strong>, <strong>smoke_detected</strong>, <strong>danger_indicator</strong>: room state.</li>
-              <li><strong>teacher_rfid</strong> or <strong>staff_rfid</strong>: attaches a staff member to the active session if applicable.</li>
-              <li><strong>student_rfid</strong>, <strong>student_rfids</strong>, or <strong>students</strong>: attaches students to the active session if applicable.</li>
-              <li><strong>new_session</strong>, <strong>session_start</strong>, <strong>start_new_session</strong>, <strong>force_new_session</strong>: close the current session and start a new one.</li>
-            </ul>
-          </div>
-
-          <div class="mb-4">
-            <h6 class="mb-2">B. Teacher access request</h6>
-            <p class="mb-2">Use this before opening a class or inspection session.</p>
-            <pre class="mb-3">{
-  "teacher_rfid": "123456789123",
-  "request_id": "door-req-001"
-}</pre>
-            <p class="mb-1"><strong>Required field</strong></p>
-            <ul class="mb-0">
-              <li><strong>teacher_rfid</strong>, <strong>staff_rfid</strong>, or <strong>rfid_number</strong></li>
-            </ul>
-          </div>
-
-          <div class="mb-4">
-            <h6 class="mb-2">C. Student attendance request</h6>
-            <p class="mb-2">Send this after the teacher session is open to mark arrivals.</p>
-            <pre class="mb-3">{
-  "student_rfids": ["1234567891254", "STU-002"],
-  "event": "attendance_request"
-}</pre>
-            <p class="mb-1"><strong>Fields</strong></p>
-            <ul class="mb-0">
-              <li><strong>student_rfid</strong> for a single student, or <strong>student_rfids</strong> / <strong>students</strong> for multiple students.</li>
-              <li><strong>event</strong>, <strong>command</strong>, <strong>request</strong>, or <strong>type</strong> can be used as a marker, but the RFID list is what matters.</li>
-            </ul>
-          </div>
-
-          <div>
-            <h6 class="mb-2">D. Door delay request</h6>
-            <p class="mb-2">Use this to ask the server for the configured student door-close delay.</p>
-            <pre class="mb-3">{
-  "command": "door_delay_request",
-  "request_id": "delay-001"
-}</pre>
-          </div>
-        </div>
-      </div>
-
-      <div class="card mb-4">
-        <div class="card-header"><h5 class="mb-0">2. Dashboard to Device</h5></div>
-        <div class="card-body pt-4">
-          <div class="mb-4">
-            <h6 class="mb-2">A. Classroom commands</h6>
-            <p class="mb-2">The dashboard publishes control commands to the classroom command topic.</p>
-            <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/commands</pre>
-            <pre class="mb-3">{
-  "command": "lights",
-  "classroom_id": 3,
-  "classroom_name": "d3",
-  "value": true
-}</pre>
-            <p class="mb-1"><strong>Supported commands</strong></p>
-            <ul class="mb-0">
-              <li><strong>lights</strong>: switch the lights relay using <strong>value</strong>.</li>
-              <li><strong>projector</strong>: switch the projector relay using <strong>value</strong>.</li>
-              <li><strong>smoke_reset</strong>: clear the smoke alarm after local checks.</li>
-            </ul>
-          </div>
-
-          <div class="mb-4">
-            <h6 class="mb-2">B. Teacher access response</h6>
-            <p class="mb-2">The server responds to access requests on the response topic for that classroom.</p>
-            <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/access/response</pre>
-            <pre class="mb-3">{
-  "event": "teacher_access_response",
-  "request_id": "door-req-001",
-  "approved": true,
-  "reason": "authorized_in_time_window",
-  "classroom_id": 3,
-  "classroom_name": "d3",
-  "teacher_id": 12,
-  "teacher_name": "Prof. Ali",
-  "access_window_minutes": 10,
-  "slot_index": 0,
-  "slot_label": "08:00 - 09:30",
-  "slot_start": "2026-04-20T08:00:00+01:00",
-  "slot_end": "2026-04-20T09:30:00+01:00",
-  "checked_at": "2026-04-20T08:04:00+01:00"
-}</pre>
-            <p class="mb-0 text-muted">If the teacher is an administrator, the response reason is <code>authorized_admin_override</code> and the session becomes an inspection.</p>
-          </div>
-
-          <div>
-            <h6 class="mb-2">C. Door delay response</h6>
-            <p class="mb-2">The response is a plain number in minutes.</p>
-            <pre class="mb-0">10</pre>
-          </div>
-        </div>
-      </div>
-
-      <div class="card mb-4">
-        <div class="card-header"><h5 class="mb-0">3. Session Rules</h5></div>
-        <div class="card-body pt-4">
-          <ul class="mb-0">
-            <li><strong>Class</strong> sessions are opened for teachers and can collect student attendance.</li>
-            <li><strong>Inspection</strong> sessions are only for administrators, are closed immediately, and do not use duration, reports, or students.</li>
-            <li>Attendance records are timestamped by the server.</li>
-            <li>If no open class session exists, attendance requests are ignored with a warning.</li>
-            <li>Teacher access requests create the session first, then attendance requests fill that open session.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="card mb-4">
-        <div class="card-header"><h5 class="mb-0">4. Quick CLI Tests</h5></div>
-        <div class="card-body pt-4">
-          <pre class="mb-3">mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/access/request -m "{\"teacher_rfid\":\"123456789123\"}"
-mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/attendance/request -m "{\"student_rfids\":[\"STU-001\",\"STU-002\"]}"
-mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/door-delay/request -m "{\"command\":\"door_delay_request\"}"
-mosquitto_sub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/commands -v</pre>
-        </div>
-      </div>
+<div class="content">
+    <div class="page-h">
+        <h1>MQTT Protocol Specification</h1>
+        <p>Integration guide for Helmet firmware and external telemetry devices</p>
     </div>
-  </div>
+
+    <div class="grid g-2">
+        <!-- Inbound Data -->
+        <div class="card">
+            <div class="card-h" style="background: var(--blue-soft);">
+                <h3 style="color: var(--blue-ink);">📡 Inbound Telemetry</h3>
+                <span class="sub">Dynamic Topic: <code>{{ app_settings.mqtt_topic_helmet_status|default:"helmet/+/status" }}</span>
+            </div>
+            <div class="card-b" style="padding: 1.5rem;">
+                <p style="font-size: 13px; color: var(--ink-3); margin-bottom: 1rem;">The helmet should publish a JSON payload every 5-10 seconds to the status topic (replace + with Helmet ID).</p>
+                <pre style="background: var(--section); padding: 1rem; border-radius: 8px; font-size: 12px; border: 1px solid var(--line);">
+{
+  "speed": 42.5,
+  "lat": 36.7525,
+  "lon": 3.04197,
+  "alc": 0.02,
+  "worn": true,
+  "strapped": true,
+  "tilt": -5.2,
+  "bat": 88,
+  "rssi": 92,
+  "latency": 24
+}</pre>
+                <div style="margin-top: 1rem;">
+                    <span class="pill blue">QoS 1</span>
+                    <span class="pill">Retained: No</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Requests & Settings -->
+        <div class="card">
+            <div class="card-h" style="background: var(--amber-soft);">
+                <h3 style="color: var(--amber-ink);">⚙️ Configuration Request</h3>
+                <span class="sub">Dynamic Topic: <code>helmet/+/request</code></span>
+            </div>
+            <div class="card-b" style="padding: 1.5rem;">
+                <p style="font-size: 13px; color: var(--ink-3); margin-bottom: 1rem;">ESP can request current system limits and configurations.</p>
+                <p><strong>Request Body:</strong></p>
+                <pre style="background: var(--section); padding: 0.8rem; border-radius: 8px; font-size: 12px; border: 1px solid var(--line);">
+{ "type": "get_settings" }</pre>
+                <p style="margin-top: 0.5rem;"><strong>Response:</strong> (on <code>helmet/+/settings</code>)</p>
+                <pre style="background: var(--section); padding: 0.8rem; border-radius: 8px; font-size: 12px; border: 1px solid var(--line);">
+{
+  "allowed_alcohol_level": {{ app_settings.allowed_alcohol_level }},
+  "refresh_rate": {{ app_settings.map_refresh_rate_seconds }}
+}</pre>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

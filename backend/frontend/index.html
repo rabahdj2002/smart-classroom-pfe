@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HeisenHelmet - IoT Safety Platform</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sb">
+      <div class="sb-brand">
+        <div class="sb-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 14a8 8 0 0 1 16 0v3H4v-3z"></path>
+            <path d="M3 17h18"></path>
+            <circle cx="12" cy="11" r="1.5" fill="currentColor"></circle>
+          </svg>
+        </div>
+        <div class="sb-name">HeisenHelmet<small>IoT Safety</small></div>
+      </div>
+
+      <nav class="sb-nav">
+        <div class="sb-section">Operations</div>
+        <a class="sb-item active" href="#dashboard"><span class="nav-mark"></span><span>Dashboard</span></a>
+        <a class="sb-item" href="#live"><span class="nav-mark"></span><span>Live monitoring</span></a>
+        <a class="sb-item" href="#gps"><span class="nav-mark"></span><span>GPS tracking</span></a>
+        <a class="sb-item" href="#alerts"><span class="nav-mark"></span><span>Alerts</span><span class="badge">3</span></a>
+        <div class="sb-section">Fleet</div>
+        <a class="sb-item" href="#helmets"><span class="nav-mark"></span><span>Helmets</span></a>
+        <a class="sb-item" href="#riders"><span class="nav-mark"></span><span>Riders</span></a>
+        <div class="sb-section">Insight</div>
+        <a class="sb-item" href="#analytics"><span class="nav-mark"></span><span>Analytics</span></a>
+        <a class="sb-item" href="#reports"><span class="nav-mark"></span><span>Reports</span></a>
+        <div class="sb-section">System</div>
+        <a class="sb-item" href="#admin"><span class="nav-mark"></span><span>Admin panel</span></a>
+        <a class="sb-item" href="#settings"><span class="nav-mark"></span><span>Settings</span></a>
+      </nav>
+
+      <div class="sb-foot">
+        <div class="av lg">SP</div>
+        <div class="who">
+          <b>Sara Pereira</b>
+          <span>Supervisor - Depot 4</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="static-main">
+      <header class="tb">
+        <div>
+          <div class="tb-title">Dashboard</div>
+          <div class="tb-crumb">Operations / Static Django-ready frontend</div>
+        </div>
+        <form class="tb-search" action="#" method="get">
+          <span aria-hidden="true">Search</span>
+          <input name="q" placeholder="Search riders, helmets, incidents...">
+        </form>
+        <div class="tb-actions">
+          <span class="live-ticker"><span class="pulse"></span>Live - 7 devices</span>
+          <span class="pill blue"><span class="d"></span>MQTT</span>
+          <span class="pill green"><span class="d"></span>GSM 4G</span>
+        </div>
+      </header>
+
+      <div class="content">
+        <section id="dashboard" class="static-section">
+          <div class="page-h">
+            <div>
+              <h1>Operations dashboard</h1>
+              <p>Real-time fleet safety overview - Depot 4 - last sync 2 s ago</p>
+            </div>
+            <div class="right">
+              <a class="btn" href="#reports">Export</a>
+              <a class="btn primary" href="#helmets">Provision helmet</a>
+            </div>
+          </div>
+
+          <div class="grid g-4">
+            <div class="stat"><div class="top"><span class="lbl">Helmets online</span><span class="ic">HH</span></div><div class="num">7<small> / 8</small></div><div class="mini-line"></div><div class="delta"><span class="v">up 2 since 1h</span><span class="meta">vs yesterday</span></div></div>
+            <div class="stat"><div class="top"><span class="lbl">Avg fleet speed</span><span class="ic">KM</span></div><div class="num" style="color:var(--blue-ink)">34<small> km/h</small></div><div class="mini-line blue"></div><div class="delta"><span class="v">up 3.4%</span><span class="meta">last hour</span></div></div>
+            <div class="stat"><div class="top"><span class="lbl">Active alerts</span><span class="ic">AL</span></div><div class="num" style="color:var(--red-ink)">3</div><div class="mini-line red"></div><div class="delta"><span class="v down">down 1 new</span><span class="meta">last 15 m</span></div></div>
+            <div class="stat"><div class="top"><span class="lbl">Safety score</span><span class="ic">SC</span></div><div class="num" style="color:var(--green-ink)">92.4<small> / 100</small></div><div class="mini-line green"></div><div class="delta"><span class="v">up 0.6 pts</span><span class="meta">this week</span></div></div>
+          </div>
+
+          <div class="grid g-23">
+            <div class="card">
+              <div class="card-h">
+                <h3>Live fleet map</h3>
+                <span class="sub">8 helmets - 1 critical</span>
+                <div class="right">
+                  <span class="pill green"><span class="d"></span>Online 6</span>
+                  <span class="pill amber"><span class="d"></span>Warning 1</span>
+                  <span class="pill red"><span class="d"></span>Alert 1</span>
+                </div>
+              </div>
+              <div class="card-b tight">
+                <div class="map static-map">
+                  <div class="grid-lines"></div>
+                  <svg viewBox="0 0 800 360" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                    <path d="M20 300 C180 270 260 235 360 280 S560 330 760 290" class="road"></path>
+                    <path d="M0 160 L800 185" class="road"></path>
+                    <path d="M240 0 L280 360" class="road slim"></path>
+                    <path d="M520 0 L500 360" class="road slim"></path>
+                    <path d="M360 40 C455 28 520 80 510 140 C500 200 420 215 380 170 C350 130 350 70 360 40 Z" class="park"></path>
+                    <path d="M-20 320 C120 355 250 365 390 345 S620 320 820 350 L820 390 L-20 390 Z" class="water"></path>
+                  </svg>
+                  <span class="pin green" style="left:16%;top:62%">HMT-A21</span>
+                  <span class="pin green" style="left:43%;top:38%">HMT-A22</span>
+                  <span class="pin red alert" style="left:57%;top:70%">HMT-A23</span>
+                  <span class="pin green" style="left:72%;top:22%">HMT-A24</span>
+                  <span class="pin gray" style="left:13%;top:78%">HMT-A25</span>
+                  <span class="pin green" style="left:74%;top:54%">HMT-A26</span>
+                  <span class="pin amber" style="left:42%;top:66%">HMT-A27</span>
+                  <span class="pin green" style="left:58%;top:28%">HMT-A28</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><h3>Recent incidents</h3><div class="right"><a class="btn ghost sm" href="#alerts">View all</a></div></div>
+              <div class="card-b tight">
+                <div class="incident-row"><span class="pill red"><span class="d"></span>high</span><div><b>Over-speed</b><small>Owen Brennan - HMT-A23</small></div><span class="mono">14:32:08</span></div>
+                <div class="incident-row"><span class="pill amber"><span class="d"></span>medium</span><div><b>Helmet removed</b><small>Daniela Souza - HMT-A27</small></div><span class="mono">13:55:47</span></div>
+                <div class="incident-row"><span class="pill red"><span class="d"></span>high</span><div><b>Alcohol detected</b><small>Owen Brennan - HMT-A23</small></div><span class="mono">13:21:09</span></div>
+                <div class="incident-row"><span class="pill gray"><span class="d"></span>low</span><div><b>Device offline</b><small>Lukas Berger - HMT-A25</small></div><span class="mono">11:08:23</span></div>
+                <div class="incident-row"><span class="pill amber"><span class="d"></span>medium</span><div><b>Tilt anomaly</b><small>Aiko Tanaka - HMT-A22</small></div><span class="mono">09:47:11</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid g-3">
+            <div class="card"><div class="card-h"><h3>Speed history</h3><span class="sub">Fleet avg - last 24 h</span></div><div class="card-b"><svg class="chart" viewBox="0 0 600 180"><path class="chart-fill blue" d="M36 130 L90 122 L140 110 L190 118 L240 98 L300 78 L360 92 L420 86 L490 96 L560 90 L560 160 L36 160 Z"></path><path class="chart-line blue" d="M36 130 L90 122 L140 110 L190 118 L240 98 L300 78 L360 92 L420 86 L490 96 L560 90"></path></svg></div></div>
+            <div class="card"><div class="card-h"><h3>MPU6050 tilt angle</h3><span class="sub">Live - +/-90 deg</span></div><div class="card-b"><svg class="chart" viewBox="0 0 600 180"><path class="chart-fill violet" d="M36 142 L90 126 L150 136 L210 105 L270 120 L340 72 L420 96 L500 84 L560 110 L560 160 L36 160 Z"></path><path class="chart-line violet" d="M36 142 L90 126 L150 136 L210 105 L270 120 L340 72 L420 96 L500 84 L560 110"></path></svg></div></div>
+            <div class="card"><div class="card-h"><h3>Alcohol sensor</h3><span class="sub">MQ-3 - BAC equivalent</span></div><div class="card-b"><svg class="chart" viewBox="0 0 600 180"><path class="chart-fill amber" d="M36 150 L200 150 L260 65 L310 92 L360 150 L560 150 L560 160 L36 160 Z"></path><path class="chart-line amber" d="M36 150 L200 150 L260 65 L310 92 L360 150 L560 150"></path></svg></div></div>
+          </div>
+
+          <div class="grid g-23">
+            <div class="card">
+              <div class="card-h"><h3>Rider safety status</h3><span class="sub">8 riders</span></div>
+              <div class="card-b tight">
+                <table class="tbl">
+                  <thead><tr><th>Rider</th><th>Helmet</th><th>Status</th><th>Speed</th><th>Strap</th><th>Worn</th><th>Alcohol</th><th>Battery</th><th>Zone</th></tr></thead>
+                  <tbody>
+                    <tr><td class="name"><b>Mateo Reyes</b><span>HH-001</span></td><td class="id">HMT-A21</td><td><span class="pill green"><span class="d"></span>Online</span></td><td class="mono">42 km/h</td><td><span class="pill green"><span class="d"></span>OK</span></td><td><span class="pill green"><span class="d"></span>Yes</span></td><td class="mono">0.00</td><td><div class="bar"><span style="width:87%"></span></div></td><td>Brooklyn Loop</td></tr>
+                    <tr><td class="name"><b>Aiko Tanaka</b><span>HH-002</span></td><td class="id">HMT-A22</td><td><span class="pill green"><span class="d"></span>Online</span></td><td class="mono">28 km/h</td><td><span class="pill green"><span class="d"></span>OK</span></td><td><span class="pill green"><span class="d"></span>Yes</span></td><td class="mono">0.00</td><td><div class="bar"><span style="width:64%"></span></div></td><td>Midtown West</td></tr>
+                    <tr><td class="name"><b>Owen Brennan</b><span>HH-003</span></td><td class="id">HMT-A23</td><td><span class="pill red"><span class="d"></span>Alert</span></td><td class="mono">71 km/h</td><td><span class="pill green"><span class="d"></span>OK</span></td><td><span class="pill green"><span class="d"></span>Yes</span></td><td class="mono">0.04</td><td><div class="bar amber"><span style="width:41%"></span></div></td><td>East River</td></tr>
+                    <tr><td class="name"><b>Priya Iyer</b><span>HH-004</span></td><td class="id">HMT-A24</td><td><span class="pill green"><span class="d"></span>Online</span></td><td class="mono">0 km/h</td><td><span class="pill green"><span class="d"></span>OK</span></td><td><span class="pill green"><span class="d"></span>Yes</span></td><td class="mono">0.00</td><td><div class="bar"><span style="width:92%"></span></div></td><td>Depot 4</td></tr>
+                    <tr><td class="name"><b>Lukas Berger</b><span>HH-005</span></td><td class="id">HMT-A25</td><td><span class="pill gray"><span class="d"></span>Offline</span></td><td class="mono">0 km/h</td><td><span class="pill red"><span class="d"></span>Open</span></td><td><span class="pill amber"><span class="d"></span>No</span></td><td class="mono">0.00</td><td><div class="bar red"><span style="width:12%"></span></div></td><td>-</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><h3>Connectivity</h3><span class="sub">IoT links</span></div>
+              <div class="card-b">
+                <div class="conn-row"><span class="conn-icon"></span><div><b>ESP32 firmware</b><small>v2.4.1 - 8/8 healthy</small></div><span class="status-dot green"></span></div>
+                <div class="conn-row"><span class="conn-icon"></span><div><b>MQTT broker</b><small>mqtt.heisen.io:8883</small></div><span class="status-dot green"></span></div>
+                <div class="conn-row"><span class="conn-icon"></span><div><b>GSM network</b><small>4G - -74 dBm avg</small></div><span class="status-dot green"></span></div>
+                <div class="conn-row"><span class="conn-icon"></span><div><b>GPS fix</b><small>7/8 - 1 acquiring</small></div><span class="status-dot amber"></span></div>
+                <div class="conn-row"><span class="conn-icon"></span><div><b>Battery health</b><small>2 below 30%</small></div><span class="status-dot amber"></span></div>
+                <div class="divider"></div>
+                <div class="kv"><span class="k">broker uptime</span><span class="v">99.982%</span></div>
+                <div class="kv"><span class="k">msg/sec in</span><span class="v">312</span></div>
+                <div class="kv"><span class="k">p99 latency</span><span class="v">184 ms</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="live" class="static-section">
+          <div class="page-h"><div><h1>Live monitoring</h1><p>Streaming sensor telemetry over MQTT - static data rows ready for Django rendering</p></div><div class="right"><span class="pill blue"><span class="d"></span>topic: helmet/+/telemetry</span></div></div>
+          <div class="grid g-32">
+            <div class="card"><div class="card-h"><h3>Devices</h3><span class="sub">8</span></div><div class="card-b tight"><div class="device-row active"><b>Mateo Reyes</b><span>HMT-A21 - 42 km/h</span></div><div class="device-row"><b>Aiko Tanaka</b><span>HMT-A22 - 28 km/h</span></div><div class="device-row alert"><b>Owen Brennan</b><span>HMT-A23 - 71 km/h</span></div><div class="device-row"><b>Noor Hassan</b><span>HMT-A26 - 35 km/h</span></div></div></div>
+            <div class="card"><div class="card-h"><h3>MQTT stream</h3><span class="sub">helmet/+/telemetry</span></div><div class="card-b tight mono stream"><div>14:32:08 <span class="pill red">alert</span> HMT-A23 {"event":"OVER_SPEED","threshold":60,"actual":71}</div><div>14:32:05 <span class="pill blue">info</span> HMT-A21 {"speed":42,"tilt":3,"strap":1}</div><div>14:32:02 <span class="pill amber">warn</span> HMT-A27 {"event":"HELMET_OFF","duration_s":12}</div><div>14:31:59 <span class="pill blue">info</span> HMT-A26 {"speed":35,"sat":8,"hdop":0.8}</div></div></div>
+          </div>
+        </section>
+
+        <section id="gps" class="static-section">
+          <div class="page-h"><div><h1>GPS tracking</h1><p>Live coordinates updated every 3 s - NEO-6M - 8/8 satellites lock</p></div></div>
+          <div class="grid g-32">
+            <div class="card"><div class="card-h"><h3>Selected helmet</h3></div><div class="card-b"><div class="kv"><span class="k">Rider</span><span class="v">Owen Brennan</span></div><div class="kv"><span class="k">Helmet</span><span class="v">HMT-A23</span></div><div class="kv"><span class="k">Latitude</span><span class="v">40.705800</span></div><div class="kv"><span class="k">Longitude</span><span class="v">-73.992000</span></div><div class="kv"><span class="k">Speed</span><span class="v">71 km/h</span></div><div class="kv"><span class="k">Last fix</span><span class="v">2 s ago</span></div></div></div>
+            <div class="card"><div class="card-h"><h3>Fleet positions</h3><span class="sub">8 helmets</span></div><div class="card-b tight"><div class="map static-map tall"><div class="grid-lines"></div><span class="pin green" style="left:16%;top:62%">HMT-A21</span><span class="pin green" style="left:43%;top:38%">HMT-A22</span><span class="pin red alert" style="left:57%;top:70%">HMT-A23</span><span class="pin amber" style="left:42%;top:66%">HMT-A27</span><span class="scale">500 m</span></div></div></div>
+          </div>
+        </section>
+
+        <section id="alerts" class="static-section">
+          <div class="page-h"><div><h1>Alerts &amp; incidents</h1><p>Real-time SOS notifications and operator response queue</p></div><div class="right"><a class="btn" href="#reports">Export</a><a class="btn primary" href="#settings">New rule</a></div></div>
+          <div class="grid g-4">
+            <div class="stat"><div class="top"><span class="lbl">Open critical</span></div><div class="num" style="color:var(--red-ink)">2</div><div class="delta"><span class="meta">needs response</span></div></div>
+            <div class="stat"><div class="top"><span class="lbl">Acknowledged</span></div><div class="num" style="color:var(--amber-ink)">1</div><div class="delta"><span class="meta">being handled</span></div></div>
+            <div class="stat"><div class="top"><span class="lbl">Resolved 24h</span></div><div class="num" style="color:var(--green-ink)">14</div><div class="delta"><span class="meta">MTTR 6m 12s</span></div></div>
+            <div class="stat"><div class="top"><span class="lbl">Auto-dispatched</span></div><div class="num">3</div><div class="delta"><span class="meta">last 7 days</span></div></div>
+          </div>
+          <div class="card"><div class="card-h"><div class="tabs"><span class="tab active">Open - 3</span><span class="tab">Resolved - 4</span><span class="tab">All</span></div></div><div class="card-b tight"><table class="tbl"><thead><tr><th>ID</th><th>Time</th><th>Type</th><th>Severity</th><th>Rider</th><th>Helmet</th><th>Location</th><th>Status</th></tr></thead><tbody><tr><td class="id">INC-3041</td><td class="mono">14:32:08</td><td>Over-speed</td><td><span class="pill red"><span class="d"></span>high</span></td><td>Owen Brennan</td><td class="mono">HMT-A23</td><td>East River Dr</td><td><span class="pill red"><span class="d"></span>open</span></td></tr><tr><td class="id">INC-3040</td><td class="mono">13:55:47</td><td>Helmet removed</td><td><span class="pill amber"><span class="d"></span>medium</span></td><td>Daniela Souza</td><td class="mono">HMT-A27</td><td>Battery Park</td><td><span class="pill amber"><span class="d"></span>ack</span></td></tr><tr><td class="id">INC-3039</td><td class="mono">13:21:09</td><td>Alcohol detected</td><td><span class="pill red"><span class="d"></span>high</span></td><td>Owen Brennan</td><td class="mono">HMT-A23</td><td>East River Dr</td><td><span class="pill red"><span class="d"></span>open</span></td></tr></tbody></table></div></div>
+        </section>
+
+        <section id="helmets" class="static-section">
+          <div class="page-h"><div><h1>Helmets</h1><p>Provisioned ESP32 devices - firmware v2.4.1</p></div></div>
+          <div class="card"><div class="card-h"><h3>Device fleet</h3></div><div class="card-b tight"><table class="tbl"><thead><tr><th>Helmet</th><th>Assigned rider</th><th>Firmware</th><th>Status</th><th>Battery</th><th>GSM</th><th>MQTT</th><th>Last seen</th></tr></thead><tbody><tr><td class="id">HMT-A21</td><td>Mateo Reyes</td><td class="mono">v2.4.1</td><td><span class="pill green"><span class="d"></span>Online</span></td><td>87%</td><td><span class="pill green"><span class="d"></span>-74dB</span></td><td><span class="pill blue"><span class="d"></span>QoS 1</span></td><td class="mono">2 s ago</td></tr><tr><td class="id">HMT-A23</td><td>Owen Brennan</td><td class="mono">v2.4.1</td><td><span class="pill red"><span class="d"></span>Alert</span></td><td>41%</td><td><span class="pill green"><span class="d"></span>-72dB</span></td><td><span class="pill blue"><span class="d"></span>QoS 1</span></td><td class="mono">2 s ago</td></tr><tr><td class="id">HMT-A25</td><td>Lukas Berger</td><td class="mono">v2.4.1</td><td><span class="pill gray"><span class="d"></span>Offline</span></td><td>12%</td><td><span class="pill red"><span class="d"></span>lost</span></td><td><span class="pill gray"><span class="d"></span>idle</span></td><td class="mono">12 m ago</td></tr></tbody></table></div></div>
+        </section>
+
+        <section id="riders" class="static-section">
+          <div class="page-h"><div><h1>Rider management</h1><p>8 riders - 3 supervisors - 1 admin</p></div></div>
+          <div class="grid g-3"><div class="stat"><div class="top"><span class="lbl">Total riders</span></div><div class="num">8</div></div><div class="stat"><div class="top"><span class="lbl">Compliance</span></div><div class="num">94<small>%</small></div></div><div class="stat"><div class="top"><span class="lbl">Issued warnings</span></div><div class="num">12</div></div></div>
+        </section>
+
+        <section id="analytics" class="static-section">
+          <div class="page-h"><div><h1>Analytics</h1><p>Fleet safety trends - last 30 days</p></div></div>
+          <div class="grid g-2"><div class="card"><div class="card-h"><h3>Incidents by day</h3></div><div class="card-b"><div class="bars"><span style="height:70%">4</span><span style="height:52%">3</span><span style="height:100%">6</span><span style="height:35%">2</span><span style="height:82%">5</span><span style="height:35%">2</span><span style="height:18%">1</span></div></div></div><div class="card"><div class="card-h"><h3>Incident mix</h3></div><div class="card-b"><div class="donut" aria-label="38 incidents"><span>38<small>incidents</small></span></div></div></div></div>
+        </section>
+
+        <section id="reports" class="static-section">
+          <div class="page-h"><div><h1>Reports</h1><p>Generate, schedule, and download fleet safety reports</p></div></div>
+          <div class="grid g-3"><div class="card"><div class="card-h"><h3>Daily safety brief</h3><span class="sub">PDF</span></div><div class="card-b"><p>Overnight incidents and morning compliance check.</p><div class="kv"><span class="k">Schedule</span><span class="v">Daily 06:00</span></div></div></div><div class="card"><div class="card-h"><h3>Weekly fleet summary</h3><span class="sub">PDF + CSV</span></div><div class="card-b"><p>Distance, hours, compliance, and top incidents.</p><div class="kv"><span class="k">Schedule</span><span class="v">Mondays 09:00</span></div></div></div><div class="card"><div class="card-h"><h3>Device health</h3><span class="sub">CSV</span></div><div class="card-b"><p>Battery, firmware, MQTT uptime, and SIM usage.</p><div class="kv"><span class="k">Schedule</span><span class="v">Weekly</span></div></div></div></div>
+        </section>
+
+        <section id="admin" class="static-section">
+          <div class="page-h"><div><h1>Admin panel</h1><p>System administration and audit</p></div></div>
+          <div class="card"><div class="card-h"><div class="tabs"><span class="tab active">Users</span><span class="tab">Helmets</span><span class="tab">Riders</span><span class="tab">Logs</span></div></div><div class="card-b tight"><table class="tbl"><thead><tr><th>User</th><th>Role</th><th>Email</th><th>Last login</th><th>2FA</th><th>Status</th></tr></thead><tbody><tr><td>Sara Pereira</td><td><span class="pill blue"><span class="d"></span>Supervisor</span></td><td class="mono">sara@heisen.io</td><td class="mono">2 m ago</td><td><span class="pill green"><span class="d"></span>on</span></td><td><span class="pill green"><span class="d"></span>active</span></td></tr><tr><td>Marcus Webb</td><td><span class="pill red"><span class="d"></span>Admin</span></td><td class="mono">marcus@heisen.io</td><td class="mono">1 h ago</td><td><span class="pill green"><span class="d"></span>on</span></td><td><span class="pill green"><span class="d"></span>active</span></td></tr></tbody></table></div></div>
+        </section>
+
+        <section id="settings" class="static-section">
+          <div class="page-h"><div><h1>Settings</h1><p>Account - MQTT - thresholds - notifications</p></div></div>
+          <div class="grid g-2">
+            <div class="card"><div class="card-h"><h3>MQTT broker</h3><span class="sub">connection</span></div><div class="card-b form-grid"><div class="field"><label>Host</label><input value="mqtt.heisen.io"></div><div class="field"><label>Port</label><input value="8883"></div><div class="field"><label>Client ID</label><input value="ops-console-04"></div><div class="field"><label>QoS</label><select><option selected>1</option><option>0</option><option>2</option></select></div></div></div>
+            <div class="card"><div class="card-h"><h3>Alert thresholds</h3></div><div class="card-b"><div class="kv"><span class="k">Max speed</span><span class="v">60 km/h</span></div><div class="kv"><span class="k">Tilt angle</span><span class="v">45 deg</span></div><div class="kv"><span class="k">Alcohol BAC</span><span class="v">0.02</span></div><div class="kv"><span class="k">Offline timeout</span><span class="v">120 s</span></div></div></div>
+            <div class="card"><div class="card-h"><h3>Notifications</h3></div><div class="card-b"><div class="toggle-row"><span>Email on critical alerts<small>sara@heisen.io</small></span><b>on</b></div><div class="toggle-row"><span>SMS on SOS<small>+1 646 555 0044</small></span><b>on</b></div><div class="toggle-row"><span>Push to mobile app<small>all severities</small></span><b>off</b></div></div></div>
+            <div class="card"><div class="card-h"><h3>Account</h3></div><div class="card-b form-grid"><div class="field"><label>Display name</label><input value="Sara Pereira"></div><div class="field"><label>Email</label><input value="sara@heisen.io"></div><div class="field"><label>Role</label><input value="Supervisor"></div><div class="field"><label>Depot</label><select><option selected>4</option><option>1</option><option>2</option><option>3</option></select></div></div></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
