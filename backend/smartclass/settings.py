@@ -28,6 +28,13 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# CSRF & Security for Subdomains
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.cloudflare.com',
+    'https://*.pages.dev',
+]
+# If you know your final domain, add it here like: 'https://helmet.yourdomain.com'
+
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']

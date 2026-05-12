@@ -39,6 +39,9 @@ def handle_status_update(helmet_id, data):
     from .models import Helmet, Rider, Route, GPSPoint, Incident
     helmet, created = Helmet.objects.get_or_create(helmet_id=helmet_id)
     
+    # Priority status check
+    active_incident = Incident.objects.filter(helmet=helmet, resolved=False).exists()
+    
     helmet.is_connected = True
     helmet.speed = data.get('speed', helmet.speed)
     helmet.latitude = data.get('lat', helmet.latitude)
@@ -46,7 +49,20 @@ def handle_status_update(helmet_id, data):
     helmet.alcohol_level = data.get('alc', helmet.alcohol_level)
     helmet.is_worn = data.get('worn', helmet.is_worn)
     helmet.battery_level = data.get('bat', helmet.battery_level)
-    helmet.state = data.get('state', helmet.state)
+    
+    # Logic for 4 statuses: online/offline/drunk/accident
+    if active_incident:
+        helmet.state = 'Accident'
+    elif helmet.alcohol_level > (getattr(SystemSettings.objects.first(), 'allowed_alcohol_level', 0.5)):
+        helmet.state = 'Drunk'
+    elif helmet.is_connected:
+        helmet.state = 'Online'
+    else:
+        helmet.state = 'Offline'
+    
+    # Overwrite if explicit state sent from MQTT and no accident
+    if 'state' in data and not active_incident and helmet.state != 'Drunk':
+        helmet.state = data['state']
     
     # Network metrics from ESP if available
     helmet.latency_ms = data.get('latency', helmet.latency_ms)
@@ -96,6 +112,7 @@ def handle_request(helmet_id, data):
         
         response = {
             'allowed_alcohol_level': config.allowed_alcohol_level,
+            'speed_limit': config.speed_limit,
             'refresh_rate': config.map_refresh_rate_seconds
         }
         
@@ -104,25 +121,31 @@ def handle_request(helmet_id, data):
 
 def _mqtt_loop():
     from .models import SystemSettings
-    try:
-        config = SystemSettings.objects.first()
-        if not config:
-            config = SystemSettings.objects.create()
-        host = config.mqtt_broker_host or 'localhost'
-        port = config.mqtt_broker_port or 1883
-    except:
-        host = 'localhost'
-        port = 1883
+    import time
+    
+    while True: # Outer retry loop
+        try:
+            config = SystemSettings.objects.first()
+            if not config:
+                config = SystemSettings.objects.create()
+            host = config.mqtt_broker_host or 'localhost'
+            port = config.mqtt_broker_port or 1883
+        except Exception as e:
+            logger.error(f'Database access error in MQTT loop: {e}')
+            host = 'localhost'
+            port = 1883
 
-    client = mqtt.Client()
-    client.on_connect = on_connect
-    client.on_message = on_message
+        client = mqtt.Client(client_id="django-backend-listener", clean_session=False)
+        client.on_connect = on_connect
+        client.on_message = on_message
 
-    try:
-        client.connect(host, port, 60)
-        client.loop_forever()
-    except Exception as e:
-        logger.error(f'MQTT Loop Error: {e}')
+        try:
+            logger.info(f'Attempting to connect to MQTT at {host}:{port}...')
+            client.connect(host, port, 60)
+            client.loop_forever()
+        except Exception as e:
+            logger.error(f'MQTT Loop Connection Error: {e}. Retrying in 5s...')
+            time.sleep(5) # Wait before retry
 
 def start_mqtt_listener():
     global _mqtt_started

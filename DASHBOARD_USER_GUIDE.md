@@ -1,103 +1,54 @@
-# Smart Classroom Dashboard - Quick Reference Guide
+# HeisenHelmet Safety Cloud - Administrator Guide
 
 ## 🏠 Dashboard Overview
 
-Your new dashboard is a all-in-one monitoring center for classroom supervision. Here's what you see:
+Your HeisenHelmet dashboard is a centralized command center for monitoring the safety of your fleet. 
 
 ---
 
-## 📍 Dashboard Sections (Top to Bottom)
+## 🛡️ Safety Status System
 
-### 1. **Alerts & Warnings Section** (Top)
-This is your critical information area. You'll see:
+Helmets automatically report their status based on complex onboard sensor logic and background verification.
 
-#### 🔴 Danger Alert (if any classroom is flagged)
-```
-⚠️ DANGER ALERT - IMMEDIATE ACTION REQUIRED
-Critical Issue: [Classroom Name] is flagged with danger alerts
-Please review the status and take corrective measures immediately.
-```
-- Red banner with white text
-- Shows which classrooms need attention
-- Dismissible with X button
-
-#### 🟡 Warning Alert (if temperature out of range)
-```
-⚠️ WARNING - TEMPERATURE OUT OF RANGE
-Notice: [Classroom Name] (25°C) has temperature concerns
-Adjust HVAC settings to maintain comfortable working conditions (18-26°C recommended).
-```
-- Yellow banner with dark text
-- Shows temperature readings
-- Helps with HVAC management
-
-#### 🟢 Success Alert (when all normal)
-```
-✓ All Systems Operating Normally
-All classrooms are functioning properly. No warnings or alerts at this time.
-```
-- Green banner when everything is fine
+*   **🟢 Online**: The helmet is connected and transmitting data normally.
+*   **⚪ Offline**: No heartbeat received for over 60 seconds (device may be powered off or out of range).
+*   **🟡 Drunk**: Alcohol sensor detected levels exceeding your configured threshold. **Action Required.**
+*   **🔴 Accident**: Impact or crash detected. This status remains until the incident is manually resolved in the "Incidents" tab.
 
 ---
 
-### 2. **Welcome Section**
-- Personalized greeting: "Welcome back, Supervisor"
-- Shows total classrooms and students
-- Displays today's date and attendance count
-- Quick button to "View All Classrooms"
+## ⚙️ Platform Configuration (Settings)
+
+As an administrator, you can globally control the behavior of all helmets from the **Settings** menu.
+
+### Safety Thresholds
+*   **Max Allowed Alcohol**: Define the mg/L limit. If a rider exceeds this, an Incident is automatically logged.
+*   **Speed Limit**: Sets the global speed limit (km/h) sent to all devices for local enforcement/audits.
+*   **Inactivity Timeout**: How many minutes a rider can stay stationary before being flagged as idle.
+
+### MQTT & Hosting Infrastructure
+If you are hosting this on your own server with a domain (e.g., via Cloudflare):
+1.  **Public WebSocket Host**: Enter your subdomain (e.g., `mqtt.yourdomain.com`). This ensures the live map works in your browser.
+2.  **Enable WSS (SSL)**: Keep this enabled if your site is https (Cloudflare Standard).
+3.  **Broker Port**: Usually `443` for Cloudflare tunnels or `8883` for direct SSL.
 
 ---
 
-### 3. **Key Metrics Cards (Top Right)**
-Quick stats at a glance:
+## 🚨 Incident Management
 
-| Metric | Meaning |
-|--------|---------|
-| **Average Occupancy %** | How full classrooms are on average |
-| **Busy Classrooms** | How many rooms are over 70% full (X/Total) |
-| **Peak Hours** | What time has the most activity (e.g., "10:00-11:00 with 45 sessions") |
+When a critical event (Crash or Alcohol Trigger) occurs:
+1.  **Global Alert**: A notification badge appears in the sidebar next to "Incidents".
+2.  **Incident Log**: Detailed GPS coordinates, timestamp, and rider info are recorded.
+3.  **Resolution**: Click "Resolve Incident" after verifying the rider's safety. This will restore the helmet status from **Accident** back to **Online**.
 
 ---
 
-### 4. **Real-Time Classroom Status Cards**
-Each classroom has its own card showing:
+## 🗺️ Live Tracking Map
 
-```
-┌─────────────────────────────┐
-│ CLASSROOM NAME         🟢 NORMAL │
-├─────────────────────────────┤
-│ Occupancy: ████░░░░ 45/100 │
-│ 💡 Lights: ON               │
-│ 📹 Projector: OFF           │
-│ 🚪 Door: CLOSED             │
-│ 🌡️ Temperature: 22°C         │
-│                             │
-│ [View Details]              │
-└─────────────────────────────┘
-```
-
-**Color Meanings:**
-- 🟢 **Green Border** = Normal occupancy (<70%)
-- 🟡 **Yellow Border** = Medium occupancy (70-90%)
-- 🔴 **Red Border** = High occupancy (>90%) or danger alert
-
-**What Each Shows:**
-- Occupancy bar fills as classroom fills with people
-- Equipment status (on/off for lights and projector)
-- Door status (open/closed)
-- Current temperature
-- Status badge at top right
-
----
-
-### 5. **Today's Activity Chart (Hourly)**
-Line chart showing:
-- X-axis: Hours of the day (00:00 to 23:00)
-- Y-axis: Number of attendance sessions
-- Shows when classrooms are most used throughout the day
-- Helps identify peak hours and quiet periods
-
-**Example Reading:**
+The real-time map uses the **Map Refresh Rate** set in your settings. 
+- **Green Icons**: Safe riders.
+- **Red Pulsing Icons**: Active incidents.
+- **Path History**: Click any rider to view their breadcrumb trail for the current active route.
 - 08:00: 12 sessions (classes starting)
 - 14:00: 25 sessions (peak learning time)
 - 18:00: 3 sessions (evening winding down)

@@ -89,9 +89,18 @@ class GPSPoint(models.Model):
 class SystemSettings(models.Model):
     platform_name = models.CharField(max_length=100, default='HeisenHelmet')
     allowed_alcohol_level = models.FloatField(default=0.5)
+    speed_limit = models.FloatField(default=60.0)
     map_refresh_rate_seconds = models.PositiveIntegerField(default=5)
+    
+    # Internal MQTT (Service-to-Broker)
     mqtt_broker_host = models.CharField(max_length=255, default='localhost')
     mqtt_broker_port = models.PositiveIntegerField(default=1883)
+    
+    # External MQTT (Web/Browser access)
+    mqtt_websocket_host = models.CharField(max_length=255, default='', blank=True, help_text="Public address for Web MQTT (e.g. mqtt.yourdomain.com)")
+    mqtt_websocket_port = models.PositiveIntegerField(default=443, help_text="Usually 443 for WSS via Cloudflare")
+    mqtt_use_ssl = models.BooleanField(default=True)
+    
     mqtt_topic_helmet_status = models.CharField(max_length=255, default='helmet/+/status')
     mqtt_topic_helmet_command = models.CharField(max_length=255, default='helmet/+/command')
 

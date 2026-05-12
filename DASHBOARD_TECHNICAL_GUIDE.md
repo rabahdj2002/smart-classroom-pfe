@@ -1,4 +1,4 @@
-# Smart Classroom Dashboard - Technical Implementation Guide
+# HeisenHelmet Safety Cloud - Technical Implementation Guide
 
 ## System Architecture
 
@@ -6,42 +6,70 @@
 ┌─────────────────────────────────────────┐
 │         Django Backend (Python)         │
 │  ┌─────────────────────────────────────┐│
-│  │ views.py (dash function)            ││
-│  │ ├─ Classroom data aggregation       ││
-│  │ ├─ Danger/warning detection        ││
-│  │ ├─ Occupancy calculations          ││
-│  │ ├─ Hour/daily/weekly analytics     ││
-│  │ └─ JSON serialization              ││
+│  │ mqtt_listener.py (Background Service)││
+│  │ ├─ Heartbeat persistence            ││
+│  │ ├─ Priority Status Logic            ││
+│  │ ├─ Self-healing Retry (5s)          ││
+│  │ └─ Incident Triggering              ││
 │  └─────────────────────────────────────┘│
 └─────────────────────────────────────────┘
-         ↓ (Context Data)
+         ↓ (MQTT Broker / WebSocket Bridge)
 ┌─────────────────────────────────────────┐
-│       Django Template (HTML/CSS/JS)     │
+│       Cloudflare & Subdomain Layer      │
 │  ┌─────────────────────────────────────┐│
-│  │ dashboard.html                      ││
-│  │ ├─ Alert rendering (conditional)   ││
-│  │ ├─ Classroom status cards          ││
-│  │ ├─ ApexCharts initialization       ││
-│  │ └─ Bootstrap responsive grid       ││
-│  └─────────────────────────────────────┘│
-│                                         │
-│  ┌─────────────────────────────────────┐│
-│  │ demo.css (Enhanced styling)         ││
-│  │ ├─ Alert card styles               ││
-│  │ ├─ Progress bar gradients          ││
-│  │ ├─ Animation definitions           ││
-│  │ └─ Responsive media queries        ││
+│  │ mqtt.yourdomain.com                 ││
+│  │ ├─ WSS (Secure WebSockets)          ││
+│  │ ├─ Port 443 Mapping                 ││
+│  │ └─ Proxy Support                    ││
 │  └─────────────────────────────────────┘│
 └─────────────────────────────────────────┘
-         ↓ (HTTP Response)
+         ↓ (Browser / IoT Device)
 ┌─────────────────────────────────────────┐
-│        Browser (Client-Side)            │
-│  ├─ Bootstrap rendering                │
-│  ├─ ApexCharts rendering               │
-│  ├─ Real-time interaction              │
-│  └─ Responsive display                 │
+│        Integrated Dashboards            │
+│  ├─ Real-time Telemetry (Web)          │
+│  ├─ ESP32 Configuration Requests       │
+│  └─ Dynamic Branding Injection         │
 └─────────────────────────────────────────┘
 ```
+
+---
+
+## IoT Data Flow
+
+### 1. Telemetry Ingestion
+- **Source**: ESP32 over Paho MQTT (Standard Port 1883).
+- **Backend**: `mqtt_listener.py` runs a separate thread within the Django lifecycle.
+- **Priority Logic**: 
+    1. **Accident**: Triggers if search logic finds an unresolved `Incident` for the helmet.
+    2. **Drunk**: Triggers if telemetry `alc` > `SystemSettings.allowed_alcohol_level`.
+    3. **Connectivity**: Default `Online`/`Offline` based on heartbeat timestamps.
+
+### 2. Configuration & Settings Protocol
+Helmets request global safety parameters periodically to sync onboard enforcement (speed limiters, etc).
+- **Topic**: `helmet/+/request`
+- **Action**: Backend queries `SystemSettings` and responds on `helmet/+/settings` with JSON:
+  ```json
+  {
+    "allowed_alcohol_level": 0.5,
+    "speed_limit": 60.0,
+    "refresh_rate": 5
+  }
+  ```
+
+---
+
+## Deployment & Hosting
+
+### Hosting over Cloudflare
+The platform is designed for secure remote hosting:
+1. **CSRF Safety**: `smartclass/settings.py` includes `CSRF_TRUSTED_ORIGINS` for subdomain support.
+2. **WebSocket Bridge**: Web dashboards connect via `WSS` using the host/port defined in the Admin Settings.
+3. **Database Resilience**: Uses a persistent SQLite state with background migrations to ensure IoT settings are preserved across reboots.
+
+### Production Readiness
+- **Background Worker**: The MQTT listener starts on server boot (`apps.py`) and handles its own connection lifecycle.
+- **Error Handling**: Full try-except blocks in `mqtt_listener` prevent the entire fleet from disconnecting if one device sends malformed JSON.
+- **Retry Mechanism**: Implements a 5-second backoff loop for the MQTT broker connection.
 
 ---
 

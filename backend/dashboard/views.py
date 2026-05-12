@@ -94,15 +94,18 @@ def live_data(request):
         # Get history for graphs if specific rider
         history = []
         if rider_id:
-            points = GPSPoint.objects.filter(helmet=h).order_by('-timestamp')[:20]
-            for p in points:
-                history.append({
-                    'time': p.timestamp.strftime('%H:%M:%S'),
-                    'speed': p.speed,
-                    'alc': p.alcohol_level or 0,
-                    'tilt': p.tilt_angle or 0
-                })
-            history.reverse()
+            # Fix: GPSPoint filters by route, then route filters by rider
+            active_route = Route.objects.filter(rider=h.rider, is_active=True).first()
+            if active_route:
+                points = GPSPoint.objects.filter(route=active_route).order_by('-timestamp')[:20]
+                for p in points:
+                    history.append({
+                        'time': p.timestamp.strftime('%H:%M:%S'),
+                        'speed': p.speed,
+                        'alc': p.alcohol_level or 0,
+                        'tilt': p.tilt_angle or 0
+                    })
+                history.reverse()
 
         data.append({
             'id': h.helmet_id,
@@ -136,8 +139,12 @@ def system_settings(request):
         settings_obj.mqtt_broker_port = request.POST.get('mqtt_broker_port') or 1883
         settings_obj.mqtt_topic_helmet_status = request.POST.get('mqtt_topic_helmet_status')
         settings_obj.mqtt_topic_helmet_command = request.POST.get('mqtt_topic_helmet_command')
+        settings_obj.mqtt_websocket_host = request.POST.get('mqtt_websocket_host', '')
+        settings_obj.mqtt_websocket_port = request.POST.get('mqtt_websocket_port') or 443
+        settings_obj.mqtt_use_ssl = request.POST.get('mqtt_use_ssl') == 'on'
         settings_obj.map_refresh_rate_seconds = request.POST.get('map_refresh_rate_seconds')
         settings_obj.allowed_alcohol_level = request.POST.get('allowed_alcohol_level')
+        settings_obj.speed_limit = request.POST.get('speed_limit') or 60.0
         settings_obj.save()
         return redirect('settings')
     return render(request, 'dashboard/settings.html', {'settings': settings_obj})

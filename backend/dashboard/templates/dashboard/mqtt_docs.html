@@ -50,8 +50,48 @@
                 <pre style="background: var(--section); padding: 0.8rem; border-radius: 8px; font-size: 12px; border: 1px solid var(--line);">
 {
   "allowed_alcohol_level": {{ app_settings.allowed_alcohol_level }},
+  "speed_limit": {{ app_settings.speed_limit|default:60 }},
   "refresh_rate": {{ app_settings.map_refresh_rate_seconds }}
 }</pre>
+            </div>
+        </div>
+
+        <!-- Hosting & WebSocket Documentation -->
+        <div class="card" style="grid-column: 1 / -1; margin-top: 1rem;">
+            <div class="card-h" style="background: var(--violet-soft);">
+                <h3 style="color: var(--violet-ink);">🌐 Web Integration & Remote Hosting</h3>
+                <span class="sub">Cloudflare & WebSocket Secure (WSS) Configuration</span>
+            </div>
+            <div class="card-b" style="padding: 1.5rem;">
+                <div class="grid g-2">
+                    <div>
+                        <h4 style="font-size: 14px; margin-bottom: 0.5rem;">WebSocket Connectivity</h4>
+                        <p style="font-size: 12px; color: var(--ink-3); line-height: 1.5;">
+                            To view live telemetry on the dashboard over HTTPS, you must use a WebSocket Secure (WSS) bridge.
+                        </p>
+                        <ul style="font-size: 12px; color: var(--ink-3); margin-top: 0.5rem; padding-left: 1.2rem;">
+                            <li><strong>Host:</strong> <code>{{ app_settings.mqtt_websocket_host|default:"[Set in Settings]" }}</code></li>
+                            <li><strong>Port:</strong> <code>{{ app_settings.mqtt_websocket_port|default:443 }}</code></li>
+                            <li><strong>Protocol:</strong> <code>{% if app_settings.mqtt_use_ssl %}wss://{% else %}ws://{% endif %}</code></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 14px; margin-bottom: 0.5rem;">Cloudflare Setup</h4>
+                        <p style="font-size: 12px; color: var(--ink-3); line-height: 1.5;">
+                            When using Cloudflare, ensure your MQTT broker is accessible via a subdomain with <strong>WebSockets</strong> enabled in the Cloudflare dashboard.
+                        </p>
+                        <div style="background: var(--blue-soft); padding: 0.8rem; border-radius: 8px; margin-top: 0.5rem; font-size: 11px; color: var(--blue-ink);">
+                            <strong>Tip:</strong> Use port 443 for WSS traffic through Cloudflare proxies to ensure maximum compatibility with modern browsers.
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; border-top: 1px solid var(--line); padding-top: 1rem;">
+                    <h4 style="font-size: 14px; margin-bottom: 0.5rem;">Self-Healing Architecture</h4>
+                    <p style="font-size: 12px; color: var(--ink-3);">
+                        The backend listener implements an exponential backoff retry mechanism. If the broker is unreachable, the system will attempt to reconnect every 5 seconds without crashing the main Django service.
+                    </p>
+                </div>
             </div>
         </div>
     </div>
