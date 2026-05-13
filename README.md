@@ -21,7 +21,7 @@ HeisenHelmet is a high-end IoT safety platform designed for real-time fleet mana
 ## 📂 Project Structure
 
 - `backend/dashboard/`: Core logic, MQTT listener, and safety models.
-- `backend/smartclass/`: Project configuration and security settings.
+- `backend/smarthelmet/`: Project configuration and security settings.
 - `backend/static/`: Custom CSS and dashboard assets.
 - `DASHBOARD_TECHNICAL_GUIDE.md`: Deep dive into system architecture and IoT data flow.
 - `DASHBOARD_USER_GUIDE.md`: Administrator manual and safety protocol reference.

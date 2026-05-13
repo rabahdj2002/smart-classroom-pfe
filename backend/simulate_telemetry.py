@@ -3,7 +3,7 @@ import django
 import random
 import time
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'smartclass.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'smarthelmet.settings')
 django.setup()
 
 from dashboard.models import Helmet, Rider

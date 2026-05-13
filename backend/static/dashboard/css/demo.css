@@ -144,7 +144,7 @@
   color: #71dd5c;
 }
 
-/* Classroom Status Cards */
+/* Helmet Monitoring Cards */
 .card.border-danger {
   border-color: #ffe0dd !important;
   background: linear-gradient(135deg, rgba(255, 62, 30, 0.02) 0%, rgba(255, 62, 30, 0) 100%);
@@ -284,16 +284,16 @@
   }
 }
 
-/* Classroom Status Icons */
-.classroom-status-normal {
+/* Helmet Status Icons */
+.helmet-status-normal {
   animation: pulse 2s infinite;
 }
 
-.classroom-status-warning {
+.helmet-status-warning {
   animation: pulse-warning 2s infinite;
 }
 
-.classroom-status-danger {
+.helmet-status-danger {
   animation: pulse-danger 2s infinite;
 }
 
@@ -384,7 +384,7 @@
    POLISHED DASHBOARD STYLING
    ============================================ */
 
-/* Border-Left Classroom Status Cards */
+/* Border-Left Monitoring Status Cards */
 .card.border-left-danger {
   border-left: 4px solid #ff3e1e !important;
 }
@@ -556,8 +556,8 @@
   margin-bottom: 1.5rem;
 }
 
-/* Classroom Status Grid */
-.classroom-grid {
+/* Monitoring Status Grid */
+.monitoring-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1rem;
@@ -627,13 +627,13 @@
 
 /* Responsive Improvements */
 @media (max-width: 992px) {
-  .classroom-grid {
+  .monitoring-grid {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   }
 }
 
 @media (max-width: 576px) {
-  .classroom-grid {
+  .monitoring-grid {
     grid-template-columns: 1fr;
   }
 
