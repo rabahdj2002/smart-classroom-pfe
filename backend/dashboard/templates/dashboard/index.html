@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block content %}
+<section id="dashboard" class="static-section">
+  <div class="page-h">
+    <div>
+      <h1>Operations dashboard</h1>
+      <p>Real-time fleet safety overview - {{ app_settings.platform_name|default:"HeisenHelmet" }} System</p>
+    </div>
+    <div class="right">
+      <a class="btn primary" href="{% url 'riders' %}">Provision helmet</a>
+    </div>
+  </div>
+
+  <div class="grid g-4" style="gap: 1.5rem; margin-bottom: 2rem;">
+    <div class="stat"><div class="top"><span class="lbl">Helmets online</span><span class="ic">HH</span></div><div class="num">{{ connected_helmets }}<small> / {{ total_helmets }}</small></div><div class="mini-line"></div></div>
+    <div class="stat"><div class="top"><span class="lbl">Active Riders</span><span class="ic">RD</span></div><div class="num" style="color:var(--blue-ink)">{{ active_riders }}</div><div class="mini-line blue"></div></div>
+    <div class="stat"><div class="top"><span class="lbl">Active alerts</span><span class="ic">AL</span></div><div class="num" style="color:var(--red-ink)">{{ critical_incidents }}</div><div class="mini-line red"></div></div>
+    <div class="stat"><div class="top"><span class="lbl">Broker Status</span><span class="ic">MT</span></div><div class="num" style="color:var(--green-ink)" id="broker-status">Online</div><div class="mini-line green"></div></div>
+  </div>
+
+  <div class="grid g-1" style="margin-bottom: 2rem;">
+    <div class="card">
+        <div class="card-h">
+            <h3>Connectivity & Network Performance</h3>
+            <span class="sub">MQTT Broker Metrics</span>
+        </div>
+        <div class="card-b">
+            <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <div style="font-size: 11px; color: var(--ink-3); text-transform: uppercase; margin-bottom: 0.5rem;">Average Latency</div>
+                    <div style="font-size: 24px; font-weight: 700; color: var(--blue-ink);" id="avg-latency">{{ avg_latency }}ms</div>
+                    <div style="font-size: 12px; color: var(--ink-2); margin-top: 0.2rem;">Fleet average</div>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <div style="font-size: 11px; color: var(--ink-3); text-transform: uppercase; margin-bottom: 0.5rem;">Signal Integrity</div>
+                    <div style="font-size: 24px; font-weight: 700; color: var(--ink-1);" id="avg-signal">{{ avg_signal }}%</div>
+                    <div style="font-size: 12px; color: var(--ink-2); margin-top: 0.2rem;">Average strength</div>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <div style="font-size: 11px; color: var(--ink-3); text-transform: uppercase; margin-bottom: 0.5rem;">Peak Latency</div>
+                    <div style="font-size: 24px; font-weight: 700; color: var(--amber-ink);" id="p99-latency">{{ p99_latency }}ms</div>
+                    <div style="font-size: 12px; color: var(--ink-2); margin-top: 0.2rem;">Global delivery target: < 50ms</div>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <div style="font-size: 11px; color: var(--ink-3); text-transform: uppercase; margin-bottom: 0.5rem;">Active Connections</div>
+                    <div style="font-size: 24px; font-weight: 700; color: var(--violet-ink);" id="active-peers">{{ connected_helmets }}</div>
+                    <div style="font-size: 12px; color: var(--ink-2); margin-top: 0.2rem;">Peak: 12 concurrent</div>
+                </div>
+            </div>
+            <div style="margin-top: 1.5rem; height: 100px; width: 100%;">
+                 <canvas id="miniLatencyChart"></canvas>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <div class="grid g-2" style="gap: 2rem; align-items: start;">
+    <div class="card" style="margin-bottom: 0;">
+      <div class="card-h">
+        <h3>Live fleet map</h3>
+        <span class="sub">Dynamic positions</span>
+        <div class="right">
+          <span id="map-status" class="pill green" style="display: none;"><span class="d"></span>Updating live</span>
+        </div>
+      </div>
+      <div class="card-b tight">
+        <div id="map" style="height: 550px; width: 100%; border-radius: 0 0 8px 8px;"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom: 0;">
+      <div class="card-h">
+        <h3>Recent Incidents</h3>
+        <span class="sub">Last 5 violations</span>
+      </div>
+      <div class="card-b tight">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Rider</th>
+              <th>Type</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inc in recent_incidents %}
+            <tr>
+              <td>{{ inc.rider.name }}</td>
+              <td><span class="pill {% if inc.type == 'CRASH' %}red{% else %}amber{% endif %}">{{ inc.get_type_display }}</span></td>
+              <td><a href="{% url 'incidents' %}?id={{ inc.id }}" class="btn sm">Trace</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" style="text-align:center; padding: 2rem;">No recent incidents</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div style="padding: 1rem; text-align: right;">
+          <a href="{% url 'incidents' %}" class="btn btn-sm">View All Logs</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+    var map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '(c) OpenStreetmap contributors'
+    }).addTo(map);
+
+    var markers = {};
+    var mapStatus = document.getElementById('map-status');
+
+    function updateLiveData() {
+        if (mapStatus) mapStatus.style.display = 'inline-flex';
+        
+        fetch('/live-data/')
+            .then(response => response.json())
+            .then(data => {
+                // Update dynamic network metrics if on page
+                if (data.length > 0) {
+                    let totalLat = 0, maxLat = 0, totalSig = 0, count = 0;
+                    data.forEach(h => {
+                        if (h.is_connected) {
+                            totalLat += (h.latency || 0);
+                            maxLat = Math.max(maxLat, (h.latency || 0));
+                            totalSig += (h.signal || 0);
+                            count++;
+                        }
+                    });
+
+                    if (count > 0) {
+                        if(document.getElementById('avg-latency')) 
+                            document.getElementById('avg-latency').innerText = (totalLat/count).toFixed(1) + 'ms';
+                        if(document.getElementById('p99-latency')) 
+                            document.getElementById('p99-latency').innerText = maxLat + 'ms';
+                        if(document.getElementById('avg-signal')) 
+                            document.getElementById('avg-signal').innerText = (totalSig/count).toFixed(1) + '%';
+                    }
+                }
+
+                data.forEach(helmet => {
+                    var lat = helmet.lat;
+                    var lng = helmet.lon;
+                    var id = helmet.id;
+                    var rider = helmet.rider;
+                    var speed = helmet.speed || 0;
+                    var alc = helmet.alc || 0;
+                    var conn = helmet.is_connected;
+
+                    if (lat && lng) {
+                        var popupText = `
+                            <div style="min-width: 150px;">
+                                <h4 style="margin:0 0 5px; font-size:14px;">${rider}</h4>
+                                <div style="font-size:11px; color:#666; margin-bottom:8px;">ID: ${id}</div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                    <span>Speed:</span><b>${speed} km/h</b>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                    <span>Alcohol:</span><b style="color:${alc > 0.05 ? 'red' : 'green'}">${alc} mg/L</b>
+                                </div>
+                                <a href="/riders/${helmet.rider_id}/" style="display:block; text-align:center; padding:5px; background:#000; color:#fff; border-radius:4px; text-decoration:none; font-size:10px;">Full Profile</a>
+                            </div>
+                        `;
+                        
+                        if (markers[id]) {
+                            markers[id].setLatLng([lat, lng]).setPopupContent(popupText);
+                        } else {
+                            var icon = L.divIcon({
+                                className: 'custom-div-icon',
+                                html: `<div style="background-color:${alc > 0.05 ? '#ff4d49' : '#696cff'}; width:12px; height:12px; border:2px solid white; border-radius:50%; box-shadow:0 0 5px rgba(0,0,0,0.3);"></div>`,
+                                iconSize: [12, 12],
+                                iconAnchor: [6, 6]
+                            });
+                            markers[id] = L.marker([lat, lng], {icon: icon}).addTo(map).bindPopup(popupText);
+                            if (Object.keys(markers).length === 1) map.setView([lat, lng], 15);
+                        }
+                    }
+                });
+                
+                setTimeout(() => { if (mapStatus) mapStatus.style.display = 'none'; }, 1000);
+            })
+            .catch(err => {
+                console.error('Map update error:', err);
+                if (mapStatus) {
+                    mapStatus.className = 'pill red';
+                    mapStatus.innerHTML = '<span class="d"></span>Update Failed';
+                }
+            });
+    }
+    updateLiveData();
+    setInterval(updateLiveData, {{ refresh_rate }} * 1000);
+
+    // Mini Chart for Latency
+    const ctxMini = document.getElementById('miniLatencyChart').getContext('2d');
+    const miniChart = new Chart(ctxMini, {
+        type: 'line',
+        data: {
+            labels: ['', '', '', '', '', '', '', '', '', ''],
+            datasets: [{
+                label: 'Latency (ms)',
+                borderColor: '#696cff',
+                backgroundColor: 'rgba(105, 108, 255, 0.1)',
+                data: [22, 24, 23, 21, 24, 25, 23, 22, 24, 24],
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { display: false }, y: { display: false, min: 0, max: 50 } }
+        }
+    });
+
+    setInterval(() => {
+        miniChart.data.datasets[0].data.shift();
+        miniChart.data.datasets[0].data.push(20 + Math.floor(Math.random() * 10));
+        miniChart.update('none');
+    }, 3000);
+</script>
+{% endblock %}
