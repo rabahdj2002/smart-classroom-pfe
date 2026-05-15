@@ -717,6 +717,13 @@ def _mqtt_loop():
                 transport = 'websockets' if 'rabahdj.online' in broker_host else 'tcp'
             
             client = mqtt.Client(transport=transport)
+            if transport == 'websockets':
+                # Use /mqtt as the default path for websockets if not specified.
+                client.ws_set_options(path="/mqtt")
+            
+            if broker_port == 443:
+                client.tls_set() # Enable SSL/TLS for port 443
+
             if username:
                 client.username_pw_set(username=username, password=password or None)
             client.on_connect = on_connect
