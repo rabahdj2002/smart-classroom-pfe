@@ -696,9 +696,11 @@ def _mqtt_loop():
 
     while True:
         try:
+            # Force local loopback for the background listener to avoid external network issues
+            broker_host = '127.0.0.1'
+            broker_port = 1883
+            
             settings_obj = get_system_settings()
-            broker_host = settings_obj.mqtt_broker_host or getattr(settings, 'DASHBOARD_MQTT_BROKER_HOST', '127.0.0.1')
-            broker_port = int(settings_obj.mqtt_broker_port or getattr(settings, 'DASHBOARD_MQTT_BROKER_PORT', 1883))
             username = settings_obj.mqtt_username or getattr(settings, 'DASHBOARD_MQTT_USERNAME', '')
             password = settings_obj.mqtt_password or getattr(settings, 'DASHBOARD_MQTT_PASSWORD', '')
             keepalive = int(getattr(settings, 'DASHBOARD_MQTT_KEEPALIVE_SECONDS', 60))
@@ -711,19 +713,9 @@ def _mqtt_loop():
                 else:
                     logger.warning('MQTT connection failed with rc=%s', rc)
 
-            # Determine transport: manual override or auto-detect
-            transport = settings_obj.mqtt_transport
-            if transport == 'auto':
-                transport = 'websockets' if 'rabahdj.online' in broker_host else 'tcp'
+            # Local listener always uses standard TCP transport
+            client = mqtt.Client(transport='tcp')
             
-            client = mqtt.Client(transport=transport)
-            if transport == 'websockets':
-                # Use /mqtt as the default path for websockets if not specified.
-                client.ws_set_options(path="/mqtt")
-            
-            if broker_port == 443:
-                client.tls_set() # Enable SSL/TLS for port 443
-
             if username:
                 client.username_pw_set(username=username, password=password or None)
             client.on_connect = on_connect
