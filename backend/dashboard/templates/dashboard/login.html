@@ -1,0 +1,261 @@
+{% load static %}
+<!DOCTYPE html>
+<html
+  lang="en"
+  class="light-style customizer-hide"
+  dir="ltr"
+  data-theme="theme-default"
+  data-assets-path="../assets/"
+  data-template="vertical-menu-template-free"
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+    />
+
+    <title>Admin Login | Smart Classroom</title>
+
+    <link rel="icon" type="image/x-icon" href="{% static 'dashboard/img/favicon/favicon.ico' %}" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="{% static 'dashboard/vendor/fonts/boxicons.css' %}" />
+    <link rel="stylesheet" href="{% static 'dashboard/vendor/css/core.css' %}" class="template-customizer-core-css" />
+    <link rel="stylesheet" href="{% static 'dashboard/vendor/css/theme-default.css' %}" class="template-customizer-theme-css" />
+    <link rel="stylesheet" href="{% static 'dashboard/css/demo.css' %}" />
+    <link rel="stylesheet" href="{% static 'dashboard/vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
+
+    <script src="{% static 'dashboard/vendor/js/helpers.js' %}"></script>
+    <script src="{% static 'dashboard/js/config.js' %}"></script>
+
+    <style>
+      body {
+        background:
+          radial-gradient(circle at top left, rgba(105, 108, 255, 0.18), transparent 30%),
+          radial-gradient(circle at bottom right, rgba(3, 195, 236, 0.18), transparent 28%),
+          #f5f5f9;
+      }
+
+      .login-shell {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        padding: 1.5rem;
+      }
+
+      .login-card {
+        overflow: hidden;
+        border: 0;
+        box-shadow: 0 1rem 2.5rem rgba(161, 172, 184, 0.26);
+      }
+
+      .login-visual {
+        position: relative;
+        background:
+          linear-gradient(145deg, rgba(105, 108, 255, 0.98), rgba(3, 195, 236, 0.92)),
+          #696cff;
+        color: #fff;
+      }
+
+      .login-visual::before,
+      .login-visual::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        filter: blur(2px);
+      }
+
+      .login-visual::before {
+        width: 180px;
+        height: 180px;
+        top: -50px;
+        right: -50px;
+      }
+
+      .login-visual::after {
+        width: 120px;
+        height: 120px;
+        bottom: -30px;
+        left: -20px;
+      }
+
+      .login-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.15);
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+
+      .login-features li {
+        margin-bottom: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        opacity: 0.95;
+      }
+
+      .login-features i {
+        font-size: 1.1rem;
+      }
+
+      .brand-mark {
+        position: relative;
+        width: 2.35rem;
+        height: 2.35rem;
+        border-radius: 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(150deg, #696cff 0%, #03c3ec 100%);
+        box-shadow: 0 0.55rem 1.35rem rgba(105, 108, 255, 0.32);
+        flex-shrink: 0;
+      }
+
+      .brand-mark-core {
+        width: 1.12rem;
+        height: 1.12rem;
+        border: 2px solid rgba(255, 255, 255, 0.95);
+        border-radius: 0.35rem;
+        transform: rotate(45deg);
+      }
+
+      .brand-mark-dot {
+        position: absolute;
+        width: 0.42rem;
+        height: 0.42rem;
+        border-radius: 50%;
+        background: #fff;
+        top: 0.35rem;
+        right: 0.35rem;
+      }
+
+      .brand-wordmark {
+        display: inline-flex;
+        flex-direction: column;
+        line-height: 1.06;
+        letter-spacing: 0.01em;
+        color: #2d3b50;
+        font-weight: 700;
+      }
+
+      .brand-wordmark strong {
+        font-size: 1.02rem;
+      }
+
+      .brand-sub {
+        color: #7b8ca5;
+        font-size: 0.62rem;
+        font-weight: 600;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="login-shell">
+      <div class="container-xxl">
+        <div class="row justify-content-center align-items-stretch g-0">
+          <div class="col-12 col-xl-10">
+            <div class="card login-card">
+              <div class="row g-0">
+                <div class="col-lg-5 d-none d-lg-flex login-visual p-5">
+                  <div class="d-flex flex-column justify-content-between w-100 position-relative" style="z-index: 1;">
+                    <div>
+                      <div class="login-badge mb-4">
+                        <i class="bx bx-shield-quarter"></i>
+                        Secure Admin Portal
+                      </div>
+                      <h2 class="text-white fw-bold mb-3">Smart Classroom Management</h2>
+                      <p class="mb-4 text-white-75">
+                        Monitor classrooms, manage staff, and keep the whole system under one clear dashboard.
+                      </p>
+                    </div>
+
+                    <div>
+                      <ul class="list-unstyled login-features mb-0">
+                        <li><i class="bx bx-check-circle"></i> Admin-only access</li>
+                        <li><i class="bx bx-check-circle"></i> Staff and classroom control</li>
+                        <li><i class="bx bx-check-circle"></i> Personal info and password management</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-lg-7 p-4 p-md-5">
+                  <div class="d-flex align-items-center justify-content-between mb-4">
+                    <div>
+                      <div class="d-inline-flex align-items-center mb-2">
+                        <span class="brand-mark me-2" aria-hidden="true">
+                          <span class="brand-mark-core"></span>
+                          <span class="brand-mark-dot"></span>
+                        </span>
+                        <span class="brand-wordmark">
+                          <strong>Smart Classroom</strong>
+                          <small class="brand-sub">Control Center</small>
+                        </span>
+                      </div>
+                      <h4 class="mb-1">Welcome back</h4>
+                      <p class="text-muted mb-0">Sign in with an admin portal account.</p>
+                    </div>
+                  </div>
+
+                  {% if error %}
+                  <div class="alert alert-danger" role="alert">{{ error }}</div>
+                  {% endif %}
+
+                  {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-warning" role="alert">{{ message }}</div>
+                    {% endfor %}
+                  {% endif %}
+
+                  <form method="POST" class="mt-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ next }}" />
+
+                    <div class="mb-3">
+                      <label for="username" class="form-label">Username</label>
+                      <input type="text" class="form-control form-control-lg" id="username" name="username" placeholder="Enter your username" required autofocus />
+                    </div>
+
+                    <div class="mb-4 form-password-toggle">
+                      <label class="form-label" for="password">Password</label>
+                      <div class="input-group input-group-merge">
+                        <input type="password" id="password" class="form-control form-control-lg" name="password" placeholder="Enter your password" required />
+                      </div>
+                    </div>
+
+                    <div class="d-grid">
+                      <button class="btn btn-primary btn-lg" type="submit">Sign in</button>
+                    </div>
+                  </form>
+
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="{% static 'dashboard/vendor/libs/jquery/jquery.js' %}"></script>
+    <script src="{% static 'dashboard/vendor/libs/popper/popper.js' %}"></script>
+    <script src="{% static 'dashboard/vendor/js/bootstrap.js' %}"></script>
+    <script src="{% static 'dashboard/vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
+    <script src="{% static 'dashboard/vendor/js/menu.js' %}"></script>
+    <script src="{% static 'dashboard/js/main.js' %}"></script>
+  </body>
+</html>

@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="layout-page">
+  <div class="content-wrapper">
+    <div class="container-xxl flex-grow-1 container-p-y">
+      <div class="page-header mb-4">
+        <h4 class="fw-bold mb-0">{{ page_title|default:'Add Session' }}</h4>
+        <a href="{{ back_url|default:'/sessions/' }}" class="btn btn-outline-secondary btn-sm"><i class="bx bx-left-arrow-alt"></i> Back</a>
+      </div>
+
+      {% if errors %}
+      <div class="alert alert-danger">
+        <ul class="mb-0">
+          {% for err in errors %}
+          <li>{{ err }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <form method="POST" novalidate>
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label for="classroom_id" class="form-label">Classroom</label>
+                <select id="classroom_id" name="classroom_id" class="form-select" required>
+                  <option value="">Pick</option>
+                  {% for classroom in classrooms %}
+                  <option value="{{ classroom.id }}" {% if form.classroom_id == classroom.id|stringformat:"s" %}selected{% endif %}>{{ classroom.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-4">
+                <label for="teacher_id" class="form-label">Teacher (optional)</label>
+                <select id="teacher_id" name="teacher_id" class="form-select">
+                  <option value="">No teacher assigned</option>
+                  {% for teacher in teachers %}
+                  <option value="{{ teacher.id }}" {% if form.teacher_id == teacher.id|stringformat:"s" %}selected{% endif %}>{{ teacher.name }} ({{ teacher.email }})</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-4" id="inspection-staff-block">
+                <label for="staff_id" class="form-label">Staff for Inspection</label>
+                <select id="staff_id" name="staff_id" class="form-select">
+                  <option value="">No staff assigned</option>
+                  {% for staff in staff_members %}
+                  <option value="{{ staff.id }}" {% if form.staff_id == staff.id|stringformat:"s" %}selected{% endif %}>{{ staff.name }} ({{ staff.get_role_display }})</option>
+                  {% endfor %}
+                </select>
+                <small class="text-muted">Used only when the session type is Inspection.</small>
+              </div>
+
+              <div class="col-md-4">
+                <label for="session_type" class="form-label">Session Type</label>
+                <select id="session_type" name="session_type" class="form-select">
+                  {% for value, label in session_type_choices %}
+                  <option value="{{ value }}" {% if form.session_type == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <small class="text-muted">Inspection sessions are recorded only and do not include students or reports.</small>
+              </div>
+
+              <div class="col-md-4">
+                <label for="start_time" class="form-label">Session Start</label>
+                <input
+                  id="start_time"
+                  name="start_time"
+                  type="datetime-local"
+                  class="form-control"
+                  value="{{ form.start_time }}"
+                  required
+                />
+                <small class="text-muted">If this start time is already overdue, report generation will happen immediately.</small>
+              </div>
+
+              <div class="col-12" id="students-block">
+                <label for="student_ids" class="form-label">Students (optional)</label>
+                <select id="student_ids" name="student_ids" class="form-select" multiple size="8">
+                  {% for student in students %}
+                  <option value="{{ student.id }}" {% if student.id|stringformat:"s" in form.student_ids %}selected{% endif %}>{{ student.name }} ({{ student.email }})</option>
+                  {% endfor %}
+                </select>
+                <small class="text-muted">Use Ctrl (Windows) to select multiple students.</small>
+              </div>
+
+              <div class="col-12 text-end mt-2">
+                <button type="submit" class="btn btn-primary"><i class="bx bx-save me-1"></i>{{ submit_label|default:'Create Session' }}</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    const sessionType = document.getElementById('session_type');
+    const studentsBlock = document.getElementById('students-block');
+    const teacherField = document.getElementById('teacher_id');
+    const inspectionStaffBlock = document.getElementById('inspection-staff-block');
+
+    function refreshSessionFields() {
+      const inspection = sessionType && sessionType.value === 'inspection';
+      if (studentsBlock) {
+        studentsBlock.style.display = inspection ? 'none' : '';
+      }
+      if (teacherField) {
+        teacherField.closest('.col-md-4').style.display = inspection ? 'none' : '';
+      }
+      if (inspectionStaffBlock) {
+        inspectionStaffBlock.style.display = inspection ? '' : 'none';
+      }
+    }
+
+    if (sessionType) {
+      sessionType.addEventListener('change', refreshSessionFields);
+      refreshSessionFields();
+    }
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,461 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+  <style>
+    .classroom-vivid .card {
+      border: 0;
+      box-shadow: 0 0.25rem 1rem rgba(161, 172, 184, 0.45);
+    }
+
+    .classroom-vivid .metric-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .classroom-vivid .status-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(105, 108, 255, 0.12);
+      box-shadow: 0 0.25rem 0.6rem rgba(161, 172, 184, 0.16);
+    }
+
+    .classroom-vivid .status-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .classroom-vivid .smoke-status-icon {
+      background: linear-gradient(180deg, rgba(40, 167, 69, 0.12), rgba(40, 167, 69, 0.06));
+      border-color: rgba(40, 167, 69, 0.2);
+      width: 52px;
+      height: 52px;
+    }
+
+    .classroom-vivid .smoke-status-icon.warning {
+      background: linear-gradient(180deg, rgba(255, 193, 7, 0.18), rgba(255, 193, 7, 0.08));
+      border-color: rgba(255, 193, 7, 0.28);
+    }
+  </style>
+  <div class="layout-page">
+    <div class="content-wrapper">
+      <div class="container-xxl flex-grow-1 container-p-y classroom-vivid">
+        <div class="page-header mb-4">
+          <h4 class="fw-bold mb-0">Classroom details - {{ classroom.name|upper }}</h4>
+          <div class="page-actions justify-content-end">
+            <form method="post" action="{% url 'classroom_command' classroom.id %}" class="m-0">
+              {% csrf_token %}
+              {% if classroom.lights_on %}
+              <input type="hidden" name="action" value="lights_off">
+              <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <i class="bx bx-bulb me-1"></i>Lights Off
+              </button>
+              {% else %}
+              <input type="hidden" name="action" value="lights_on">
+              <button type="submit" class="btn btn-success btn-sm">
+                <i class="bx bx-bulb me-1"></i>Lights On
+              </button>
+              {% endif %}
+            </form>
+
+            <form method="post" action="{% url 'classroom_command' classroom.id %}" class="m-0">
+              {% csrf_token %}
+              {% if classroom.projector_on %}
+              <input type="hidden" name="action" value="projector_off">
+              <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <i class="bx bx-slideshow me-1"></i>Projector Off
+              </button>
+              {% else %}
+              <input type="hidden" name="action" value="projector_on">
+              <button type="submit" class="btn btn-info btn-sm">
+                <i class="bx bx-slideshow me-1"></i>Projector On
+              </button>
+              {% endif %}
+            </form>
+
+            <form method="post" action="{% url 'classroom_command' classroom.id %}" class="m-0">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="clear_smoke">
+              <button type="submit" class="btn btn-warning btn-sm">
+                <i class="bx bx-smoke-alarm me-1"></i>Reset Smoke Alarm
+              </button>
+            </form>
+
+            <a href="{% url 'classroom_timetable' classroom.id %}" class="btn btn-outline-dark btn-sm">
+              <i class="bx bx-calendar me-1"></i>Timetable
+            </a>
+
+            <a href="{% url 'classes' %}" class="btn btn-outline-primary btn-sm">
+              <i class="bx bx-left-arrow-alt"></i> Back
+            </a>
+          </div>
+        </div>
+
+        {% if has_smoke_alert %}
+        <div class="alert alert-warning d-flex align-items-start" role="alert">
+          <i class="bx bx-smoke-alarm me-2 mt-1"></i>
+          <div>
+            <strong>Smoke warning:</strong>
+            smoke has been detected in this classroom. Immediate check is recommended.
+          </div>
+        </div>
+        {% endif %}
+
+        {% if messages %}
+        <div class="mb-4">
+          {% for message in messages %}
+          <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %} mb-2" role="alert">{{ message }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="d-block mb-1 text-muted fw-normal small">Usage State</span>
+                    <h5 class="mb-0">{% if classroom.occupied %}Used{% else %}Unused{% endif %}</h5>
+                    <small class="text-muted">Based on classroom setting</small>
+                  </div>
+                  <span class="badge bg-label-primary p-2 metric-icon"><i class="bx bx-user-circle text-primary fs-4"></i></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="d-block mb-1 text-muted fw-normal small">Today Sessions</span>
+                    <h5 id="usageValue" class="mb-0">{{ today_sessions }}</h5>
+                    <small id="usageDetail" class="text-muted">Session records</small>
+                  </div>
+                  <span class="badge bg-label-success p-2 metric-icon"><i class="bx bx-time-five text-success fs-4"></i></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <span class="d-block mb-1 text-muted fw-normal small">Last 7 Days</span>
+                    <h5 class="mb-0">{{ weekly_sessions }}</h5>
+                    <small class="text-muted">Session records</small>
+                  </div>
+                  <span class="badge bg-label-info p-2 metric-icon"><i class="bx bx-line-chart text-info fs-4"></i></span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div>
+                    <span class="badge rounded-circle" style="width: 10px; height: 10px; display: inline-block; background-color: {% if classroom.lights_on %}#198754{% else %}#6c757d{% endif %};"></span>
+                    <span class="ms-2">Lights</span>
+                  </div>
+                  <div>{% if classroom.lights_on %}<span class="badge bg-success">ON</span>{% else %}<span class="badge bg-secondary">OFF</span>{% endif %}</div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div>
+                    <span class="badge rounded-circle" style="width: 10px; height: 10px; display: inline-block; background-color: {% if classroom.door %}#dc3545{% else %}#198754{% endif %};"></span>
+                    <span class="ms-2">Door</span>
+                  </div>
+                  <div>{% if classroom.door %}<span class="badge bg-danger">Open</span>{% else %}<span class="badge bg-success">Closed</span>{% endif %}</div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <span class="badge rounded-circle" style="width: 10px; height: 10px; display: inline-block; background-color: {% if classroom.projector_on %}#0dcaf0{% else %}#6c757d{% endif %};"></span>
+                    <span class="ms-2">Projector</span>
+                  </div>
+                  <div>{% if classroom.projector_on %}<span class="badge bg-info">ON</span>{% else %}<span class="badge bg-secondary">OFF</span>{% endif %}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <span class="d-block mb-1 text-muted fw-normal small">Smoke Detection</span>
+                    <div class="status-line">
+                      <span class="status-icon smoke-status-icon {% if has_smoke_alert %}warning{% endif %}">
+                        <i class="bx bx-traffic-cone {% if has_smoke_alert %}text-warning{% else %}text-success{% endif %} fs-4"></i>
+                      </span>
+                      <div>
+                        <h5 class="mb-0 {% if has_smoke_alert %}text-warning{% else %}text-success{% endif %}">
+                          {% if classroom.smoke_detected %}Detected{% else %}Clear{% endif %}
+                        </h5>
+                        <small class="text-muted">
+                          {% if classroom.smoke_detected %}Safety check needed{% else %}No smoke detected{% endif %}
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <hr class="my-3" />
+
+                <div class="d-flex justify-content-between align-items-start mb-0">
+                  <div>
+                    <span class="d-block mb-1 text-muted fw-normal small">Danger Indicator</span>
+                    <h5 class="mb-0 {% if classroom.danger_indicator %}text-danger{% else %}text-success{% endif %}">{% if classroom.danger_indicator %}Active{% else %}Safe{% endif %}</h5>
+                    <small class="text-muted">{% if classroom.danger_indicator %}Immediate attention required{% else %}No alert{% endif %}</small>
+                  </div>
+                  <span class="badge {% if classroom.danger_indicator %}bg-label-danger{% else %}bg-label-success{% endif %} p-2 metric-icon"><i class="bx bx-bell {% if classroom.danger_indicator %}text-danger{% else %}text-success{% endif %} fs-4"></i></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Card Section
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-body text-primary">
+                <h6 id="studentLabel" class="card-title">Last 7 Days Student Sessions</h6>
+                <p id="studentValue" class="h2 fw-bold">{{ weekly_student_sessions|default:0 }}</p>
+                <p id="studentHelp" class="text-muted mb-0">Sessions counted by distinct student attendance entries.</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-body text-success">
+                <h6 id="teacherLabel" class="card-title">Last 7 Days Teacher Sessions</h6>
+                <p id="teacherValue" class="h2 fw-bold">{{ weekly_teacher_sessions|default:0 }}</p>
+                <p id="teacherHelp" class="text-muted mb-0">Sessions counted by teacher attendance records (2 teachers = 2 sessions).</p>
+              </div>
+            </div>
+          </div>
+        </div>
+         -->
+
+        <div class="card mb-4 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="card-title mb-0">Usage trend</h5>
+              <div>
+                <button id="class-btn-today" class="btn btn-outline-secondary btn-sm me-1">Today</button>
+                <button id="class-btn-yesterday" class="btn btn-outline-secondary btn-sm me-1">Yesterday</button>
+                <button id="class-btn-all-week" class="btn btn-outline-secondary btn-sm me-1">Last 7 days</button>
+                <button id="class-btn-full-month" class="btn btn-outline-secondary btn-sm me-1">Last 30 days</button>
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-12 col-md-6">
+                <div class="border rounded p-2 bg-label-primary">
+                  <small class="text-muted d-block">Students Attended</small>
+                  <h6 id="studentsMetric" class="mb-0 text-primary">0</h6>
+                </div>
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="border rounded p-2 bg-label-success">
+                  <small class="text-muted d-block">Teachers Taught</small>
+                  <h6 id="teachersMetric" class="mb-0 text-success">0</h6>
+                </div>
+              </div>
+            </div>
+            <div id="classUsageChart" style="min-height: 320px;"></div>
+          </div>
+        </div>
+
+        <a href="{% url 'classes' %}" class="btn btn-outline-secondary">Back to classes</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (typeof ApexCharts !== 'undefined') {
+        var initialLabels = {{ usage_labels_json|safe }};
+        var initialDataStudents = {{ usage_values_json|safe }};
+        var initialDataTeachers = {{ usage_teacher_values_json|safe }};
+
+        var initialLabels7 = initialLabels.slice(-7);
+        var initialStudents7 = initialDataStudents.slice(-7);
+        var initialTeachers7 = initialDataTeachers.slice(-7);
+
+        var options = {
+          chart: {
+            height: 350,
+            type: 'bar',
+            toolbar: { show: true, tools: { download: true, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } }
+          },
+          colors: ['#0d6efd', '#20c997'],
+          plotOptions: {
+            bar: {
+              horizontal: false,
+              columnWidth: '45%',
+              borderRadius: 5
+            }
+          },
+          dataLabels: {
+            enabled: true,
+            style: { fontSize: '11px' }
+          },
+          stroke: { show: false },
+          series: [
+            { name: 'Students Attended', data: initialStudents7 },
+            { name: 'Teachers Taught', data: initialTeachers7 }
+          ],
+          xaxis: {
+            categories: initialLabels7,
+            labels: { rotate: -45 }
+          },
+          yaxis: {
+            title: { text: 'Count' },
+            min: 0,
+            forceNiceScale: true
+          },
+          tooltip: {
+            shared: true,
+            intersect: false,
+            y: {
+              formatter: function (val, opts) {
+                if (opts.seriesIndex === 0) {
+                  return val + ' students attended';
+                }
+                return val + ' teachers taught';
+              }
+            }
+          },
+          legend: {
+            position: 'top'
+          }
+        };
+        var chart = new ApexCharts(document.querySelector('#classUsageChart'), options);
+        chart.render();
+
+        function updateChart(duration) {
+          var labels = initialLabels;
+          var students = initialDataStudents;
+          var teachers = initialDataTeachers;
+
+          if (duration === 'today') {
+            labels = initialLabels.slice(-1);
+            students = initialDataStudents.slice(-1);
+            teachers = initialDataTeachers.slice(-1);
+          } else if (duration === 'yesterday') {
+            labels = initialLabels.slice(-2, -1);
+            students = initialDataStudents.slice(-2, -1);
+            teachers = initialDataTeachers.slice(-2, -1);
+          } else if (duration === 7) {
+            labels = initialLabels.slice(-7);
+            students = initialDataStudents.slice(-7);
+            teachers = initialDataTeachers.slice(-7);
+          } else if (duration === 30) {
+            labels = initialLabels.slice(-30);
+            students = initialDataStudents.slice(-30);
+            teachers = initialDataTeachers.slice(-30);
+          }
+
+          chart.updateOptions({
+            xaxis: { categories: labels }
+          });
+          chart.updateSeries([
+            { name: 'Students Attended', data: students },
+            { name: 'Teachers Taught', data: teachers }
+          ]);
+
+          setMetrics(duration, students, teachers);
+        }
+
+        function setMetrics(duration, students, teachers) {
+          var durationLabel = '';
+          var usageCount = 0;
+          var studentsTotal = students.reduce((a, b) => a + b, 0);
+          var teachersTotal = teachers.reduce((a, b) => a + b, 0);
+
+          if (duration === 'today') {
+            durationLabel = 'Today';
+            usageCount = {{ today_sessions }};
+          } else if (duration === 'yesterday') {
+            durationLabel = 'Yesterday';
+            usageCount = (students[0] || 0) + (teachers[0] || 0);
+          } else if (duration === 7) {
+            durationLabel = 'Last 7 Days';
+            usageCount = {{ weekly_sessions }};
+          } else if (duration === 30) {
+            durationLabel = 'Last 30 Days';
+            usageCount = {{ monthly_sessions }};
+          }
+
+          document.getElementById('usageValue').innerText = usageCount;
+          document.getElementById('usageDetail').innerText = durationLabel + ' session records';
+          document.getElementById('studentsMetric').innerText = studentsTotal;
+          document.getElementById('teachersMetric').innerText = teachersTotal;
+        }
+
+        function setActiveButton(activeId) {
+          ['class-btn-today', 'class-btn-yesterday', 'class-btn-all-week', 'class-btn-full-month'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            if (id === activeId) {
+              el.classList.remove('btn-outline-secondary');
+              el.classList.add('btn-primary');
+            } else {
+              el.classList.remove('btn-primary');
+              el.classList.add('btn-outline-secondary');
+            }
+          });
+        }
+
+        document.getElementById('class-btn-today').addEventListener('click', function () {
+          updateChart('today');
+          setActiveButton('class-btn-today');
+        });
+
+        document.getElementById('class-btn-yesterday').addEventListener('click', function () {
+          updateChart('yesterday');
+          setActiveButton('class-btn-yesterday');
+        });
+
+        document.getElementById('class-btn-all-week').addEventListener('click', function () {
+          updateChart(7);
+          setActiveButton('class-btn-all-week');
+        });
+
+        document.getElementById('class-btn-full-month').addEventListener('click', function () {
+          updateChart(30);
+          setActiveButton('class-btn-full-month');
+        });
+
+        updateChart(7);
+        
+        // Set initial active state for "Last 7 days" button
+        // Use multiple approaches to ensure it works
+        function initializeActiveButton() {
+          var weekButton = document.getElementById('class-btn-all-week');
+          if (weekButton) {
+            weekButton.classList.remove('btn-outline-secondary');
+            weekButton.classList.add('btn-primary');
+          }
+        }
+        
+        // Try immediate initialization
+        initializeActiveButton();
+        
+        // Also try after a short delay in case of timing issues
+        setTimeout(initializeActiveButton, 50);
+        setTimeout(initializeActiveButton, 200);
+      }
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,508 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+      <style>
+        .dashboard-vivid .card {
+          border: 0;
+          box-shadow: 0 0.25rem 1rem rgba(161, 172, 184, 0.45);
+        }
+
+        .dashboard-vivid .card-header {
+          background: transparent !important;
+          border-bottom: 0 !important;
+        }
+
+        .dashboard-vivid .metric-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 0.5rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .dashboard-vivid .stat-trend {
+          font-size: 0.8125rem;
+          font-weight: 600;
+        }
+
+        .dashboard-vivid .table thead th {
+          background: transparent !important;
+          color: #8592a3;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          font-size: 0.72rem;
+          border-bottom: 1px solid #d9dee3;
+        }
+
+        .dashboard-vivid .status-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+          font-weight: 600;
+          padding: 0.35rem 0.6rem;
+          border-radius: 0.375rem;
+          font-size: 0.75rem;
+        }
+
+        .dashboard-vivid .status-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          display: inline-block;
+        }
+
+        .dashboard-vivid .table-hover tbody tr:hover {
+          background-color: rgba(105, 108, 255, 0.06) !important;
+        }
+      </style>
+        <!-- Layout container -->
+        <div class="layout-page">
+          <!-- Content wrapper -->
+          <div class="content-wrapper">
+            <!-- Content -->
+            <div class="container-xxl flex-grow-1 container-p-y dashboard-vivid">
+              
+              <!-- Page header -->
+              <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Dashboard /</span> System Overview</h4>
+
+              <!-- ALERTS & WARNINGS SECTION -->
+              {% if danger_classrooms or smoke_alert_classrooms %}
+                {% if danger_classrooms %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                  <div class="d-flex align-items-start">
+                    <i class="bx bx-error me-3 mt-1"></i>
+                    <div class="flex-grow-1">
+                      <h6 class="alert-heading mb-1">CRITICAL ALERT - IMMEDIATE ACTION REQUIRED</h6>
+                      <p class="mb-0">
+                        <strong>{{ danger_classrooms|length }} classroom{% if danger_classrooms|length > 1 %}s have{% else %} has{% endif %} been flagged with danger alerts:</strong>
+                        <br/>
+                        {% for classroom in danger_classrooms %}
+                          <span class="badge bg-danger me-2">{{ classroom.name }}</span>
+                        {% endfor %}
+                      </p>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endif %}
+
+                {% if smoke_alert_classrooms %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                  <div class="d-flex align-items-start">
+                    <i class="bx bx-smoke me-3 mt-1"></i>
+                    <div class="flex-grow-1">
+                      <h6 class="alert-heading mb-1">SMOKE DETECTION WARNING</h6>
+                      <p class="mb-0">
+                        <strong>{{ smoke_alert_classrooms|length }} classroom{% if smoke_alert_classrooms|length > 1 %}s have{% else %} has{% endif %} smoke alerts:</strong>
+                        <br/>
+                        {% for classroom in smoke_alert_classrooms %}
+                          <span class="badge bg-warning me-2">{{ classroom.name }}</span>
+                        {% endfor %}
+                      </p>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endif %}
+              {% else %}
+              <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                  <i class="bx bx-check-circle me-3"></i>
+                  <div class="flex-grow-1">
+                    <h6 class="alert-heading mb-0">All Systems Operating Normally</h6>
+                  </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+              {% endif %}
+
+              <!-- KEY METRICS ROW -->
+              <div class="row g-3 mb-4">
+                <div class="col-12 col-sm-6 col-lg-3">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <span class="d-block mb-1 text-muted fw-normal small">Total Students</span>
+                          <h3 class="mb-0">{{ total_students }}</h3>
+                          <small class="stat-trend text-success"><i class="bx bx-up-arrow-alt"></i> Active enrollment</small>
+                        </div>
+                        <span class="badge bg-label-primary p-2 metric-icon"><i class="bx bx-user text-primary fs-4"></i></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-3">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <span class="d-block mb-1 text-muted fw-normal small">Active Classrooms</span>
+                          <h3 class="mb-0">{{ total_classrooms }}</h3>
+                          <small class="stat-trend text-info"><i class="bx bx-radio-circle-marked"></i> Monitored now</small>
+                        </div>
+                        <span class="badge bg-label-success p-2 metric-icon"><i class="bx bx-home-circle text-success fs-4"></i></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-3">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <span class="d-block mb-1 text-muted fw-normal small">Avg. Occupancy</span>
+                          <h3 class="mb-0">{{ avg_occupancy }}%</h3>
+                          <small class="stat-trend text-warning"><i class="bx bx-bar-chart-alt-2"></i> {{ used_classrooms }} used / {{ unused_classrooms }} unused</small>
+                        </div>
+                        <span class="badge bg-label-info p-2 metric-icon"><i class="bx bx-trending-up text-info fs-4"></i></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-3">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <span class="d-block mb-1 text-muted fw-normal small">Today's Sessions</span>
+                          <h3 class="mb-0">{{ total_attendance_today }}</h3>
+                          <small class="stat-trend text-primary"><i class="bx bx-time-five"></i> Updated today</small>
+                        </div>
+                        <span class="badge bg-label-warning p-2 metric-icon"><i class="bx bx-calendar text-warning fs-4"></i></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CHARTS ROW -->
+              <div class="row g-3 mb-4">
+                <!-- Today's Activity Chart -->
+                <div class="col-12 col-lg-8">
+                  <div class="card h-100">
+                    <div class="card-header pb-3 d-flex justify-content-between align-items-center">
+                      <h5 class="card-title mb-0">Today's Class Schedule & Activity</h5>
+                      <small class="text-muted">Hourly breakdown</small>
+                    </div>
+                    <div class="card-body" style="min-height: 380px;">
+                      <div id="hourlyActivityChart"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Weekly Overview -->
+                <div class="col-12 col-lg-4">
+                  <div class="card h-100">
+                    <div class="card-header pb-3">
+                      <h5 class="card-title mb-0">Weekly Overview</h5>
+                      <small class="text-muted">Past 7 days trend</small>
+                    </div>
+                    <div class="card-body" style="min-height: 380px;">
+                      <div id="weeklyTrendChart"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- REAL-TIME CLASSROOM STATUS -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header pb-3 d-flex justify-content-between align-items-center">
+                      <h5 class="card-title mb-0"><i class="bx bx-radar me-1 text-primary"></i>Real-Time Classroom Status</h5>
+                      <div class="d-flex align-items-center gap-2">
+                        <small class="text-muted">Last updated: <span id="last-update">just now</span></small>
+                        <button id="refresh-btn" class="btn btn-sm btn-primary">
+                          <i class="bx bx-refresh me-1"></i>Refresh
+                        </button>
+                      </div>
+                    </div>
+                    <div class="card-body">
+                      <div class="table-responsive text-nowrap">
+                        <table class="table table-hover">
+                          <thead>
+                            <tr>
+                              <th>Classroom</th>
+                              <th>Usage State</th>
+                              <th>Status</th>
+                              <th>Lights</th>
+                              <th>Projector</th>
+                              <th>Door</th>
+                              <th>Smoke</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody class="table-border-bottom-0" id="classroom-status-table">
+                            {% for classroom in classroom_status %}
+                            <tr>
+                              <td><strong>{{ classroom.name }}</strong></td>
+                              <td>
+                                {% if classroom.used_today %}
+                                  <span class="badge bg-label-success">Used</span>
+                                {% else %}
+                                  <span class="badge bg-label-secondary">Unused</span>
+                                {% endif %}
+                              </td>
+                              <td>
+                                {% if classroom.status == 'danger' %}
+                                  <span class="status-pill bg-label-danger"><span class="status-dot" style="background:#ff3e1e"></span>DANGER</span>
+                                {% elif classroom.status == 'smoke' %}
+                                  <span class="status-pill bg-label-warning"><span class="status-dot" style="background:#ffb800"></span>SMOKE</span>
+                                {% else %}
+                                  <span class="status-pill bg-label-success"><span class="status-dot" style="background:#71dd5c"></span>NORMAL</span>
+                                {% endif %}
+                              </td>
+                              <td>
+                                {% if classroom.lights_on %}
+                                  <span class="badge bg-label-warning"><i class="bx bx-bulb me-1"></i>ON</span>
+                                {% else %}
+                                  <span class="badge bg-label-secondary"><i class="bx bx-bulb me-1"></i>OFF</span>
+                                {% endif %}
+                              </td>
+                              <td>
+                                {% if classroom.projector_on %}
+                                  <span class="badge bg-label-info"><i class="bx bx-slideshow me-1"></i>ON</span>
+                                {% else %}
+                                  <span class="badge bg-label-secondary"><i class="bx bx-slideshow me-1"></i>OFF</span>
+                                {% endif %}
+                              </td>
+                              <td>
+                                {% if classroom.door %}
+                                  <span class="badge bg-label-danger"><i class="bx bx-door-open me-1"></i>OPEN</span>
+                                {% else %}
+                                  <span class="badge bg-label-success"><i class="bx bx-lock-alt me-1"></i>CLOSED</span>
+                                {% endif %}
+                              </td>
+                              <td>
+                                {% if classroom.smoke_detected %}
+                                  <span class="badge bg-label-warning"><i class="bx bx-smoke me-1"></i>Detected</span>
+                                {% else %}
+                                  <span class="badge bg-label-success"><i class="bx bx-check me-1"></i>Clear</span>
+                                {% endif %}
+                              </td>
+                              <td>
+                                <a href="{% url 'classroom_detail' id=classroom.id %}" class="btn btn-sm btn-icon btn-outline-primary" title="View classroom details">
+                                  <i class="bx bx-show"></i>
+                                </a>
+                              </td>
+                            </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            <!-- / Content -->
+
+            <!-- Footer -->
+            <footer class="content-footer footer bg-footer-theme">
+              <div class="container-xxl d-flex flex-wrap justify-content-between py-2 flex-md-row flex-column">
+                <div class="mb-2 mb-md-0">
+                  © <script>document.write(new Date().getFullYear());</script> Smart Classroom Management System
+                </div>
+              </div>
+            </footer>
+            <!-- / Footer -->
+
+            <div class="content-backdrop fade"></div>
+          </div>
+          <!-- Content wrapper -->
+        </div>
+        <!-- / Layout page -->
+      </div>
+      <!-- / Layout wrapper -->
+
+      <!-- ApexCharts -->
+      <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+      <script>
+        // Wait for DOM to fully load
+        document.addEventListener('DOMContentLoaded', function() {
+
+          // Color configuration matching Sneat theme
+          const chartColors = {
+            primary: '#696cff',
+            success: '#71dd5c',
+            warning: '#ffb800',
+            danger: '#ff3e1e',
+            info: '#03c3ec',
+            light: '#f8f7ff',
+            dark: '#21222e'
+          };
+
+          const gridConfig = {
+            borderColor: '#e7e7e7',
+            xaxis: { lines: { show: false } },
+            yaxis: { lines: { show: true } }
+          };
+
+          // ===== TODAY'S HOURLY ACTIVITY CHART =====
+          const hourlyLabels = {{ hourly_labels_json|safe }};
+          const hourlyData = {{ hourly_attendance_json|safe }};
+
+          const hourlyOptions = {
+            series: [{
+              name: 'Class Sessions',
+              data: hourlyData
+            }],
+            chart: {
+              type: 'area',
+              height: 350,
+              toolbar: { show: false },
+              animations: { enabled: true, speed: 800, easing: 'easeinout' },
+              sparkline: { enabled: false }
+            },
+            colors: [chartColors.primary],
+            dataLabels: { enabled: false },
+            stroke: {
+              curve: 'smooth',
+              width: 2,
+              lineCap: 'round',
+              lineJoin: 'round'
+            },
+            fill: {
+              type: 'gradient',
+              gradient: {
+                shadeIntensity: 0.5,
+                opacityFrom: 0.7,
+                opacityTo: 0.1
+              }
+            },
+            xaxis: {
+              categories: hourlyLabels,
+              axisBorder: { show: false },
+              axisTicks: { show: false },
+              labels: { 
+                style: { colors: chartColors.dark, fontSize: '12px' }
+              }
+            },
+            yaxis: {
+              labels: { style: { colors: chartColors.dark } }
+            },
+            grid: gridConfig,
+            tooltip: {
+              theme: 'light',
+              y: { 
+                formatter: function(val) { return val + ' sessions'; }
+              }
+            },
+            markers: { 
+              size: 4,
+              colors: [chartColors.primary],
+              strokeColors: '#fff',
+              strokeWidth: 2,
+              hover: { size: 6 }
+            }
+          };
+
+          const hourlyChart = new ApexCharts(document.querySelector('#hourlyActivityChart'), hourlyOptions);
+          hourlyChart.render();
+
+          // ===== WEEKLY TREND CHART =====
+          const weeklyLabels = {{ weekly_labels_json|safe }};
+          const weeklyData = {{ weekly_attendance_json|safe }};
+
+          const weeklyOptions = {
+            series: [{
+              name: 'Sessions',
+              data: weeklyData
+            }],
+            chart: {
+              type: 'line',
+              height: 350,
+              toolbar: { show: false },
+              animations: { enabled: true, speed: 800, easing: 'easeinout' }
+            },
+            colors: [chartColors.info],
+            dataLabels: { enabled: false },
+            stroke: {
+              curve: 'smooth',
+              width: 3,
+              lineCap: 'round',
+              lineJoin: 'round'
+            },
+            xaxis: {
+              categories: weeklyLabels,
+              axisBorder: { show: false },
+              axisTicks: { show: false },
+              labels: { 
+                style: { colors: chartColors.dark, fontSize: '12px' }
+              }
+            },
+            yaxis: {
+              labels: { style: { colors: chartColors.dark } }
+            },
+            grid: gridConfig,
+            tooltip: {
+              theme: 'light',
+              y: { 
+                formatter: function(val) { return val + ' sessions'; }
+              }
+            },
+            markers: { 
+              size: 5,
+              colors: [chartColors.info],
+              strokeColors: '#fff',
+              strokeWidth: 2,
+              hover: { size: 7 }
+            }
+          };
+
+          const weeklyChart = new ApexCharts(document.querySelector('#weeklyTrendChart'), weeklyOptions);
+          weeklyChart.render();
+
+          // ===== REAL-TIME CLASSROOM STATUS REFRESH =====
+          
+          // Function to update last update time
+          function updateLastUpdateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('last-update').textContent = timeString;
+          }
+
+          // Function to refresh classroom data
+          function refreshClassroomStatus() {
+            fetch(window.location.href)
+              .then(response => response.text())
+              .then(html => {
+                const parser = new DOMParser();
+                const newDoc = parser.parseFromString(html, 'text/html');
+                const newTable = newDoc.querySelector('#classroom-status-table');
+                
+                if (newTable) {
+                  document.getElementById('classroom-status-table').innerHTML = newTable.innerHTML;
+                  updateLastUpdateTime();
+                  console.log('Classroom status updated');
+                }
+              })
+              .catch(error => console.error('Error refreshing classroom data:', error));
+          }
+
+          // Manual refresh button
+          document.getElementById('refresh-btn').addEventListener('click', function() {
+            this.innerHTML = '<i class="bx bx-refresh me-1 bx-spin"></i>Refreshing...';
+            refreshClassroomStatus();
+            setTimeout(() => {
+              this.innerHTML = '<i class="bx bx-refresh me-1"></i>Refresh';
+            }, 1000);
+          });
+
+          // Auto-refresh every 10 seconds
+          setInterval(refreshClassroomStatus, 10000);
+          
+          // Set initial last update time
+          updateLastUpdateTime();
+
+        });
+      </script>
+
+{% endblock %}
