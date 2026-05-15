@@ -7,22 +7,23 @@ class MQTTProxyConsumer(WebsocketConsumer):
     def connect(self):
         self.accept()
         
-        # Initialize MQTT client
+        # Initialize MQTT client pointing to local Mosquitto
         self.mqtt_client = mqtt.Client()
         self.mqtt_client.on_message = self.on_mqtt_message
         self.mqtt_client.on_connect = self.on_mqtt_connect
         
-        # Connect to local broker
         try:
+            # Always connect to local loopback (127.0.0.1:1883)
             self.mqtt_client.connect("127.0.0.1", 1883, 60)
             
-            # Start loop in a background thread
+            # Lightweight background thread for the MQTT loop
             self.mqtt_thread = threading.Thread(target=self.mqtt_client.loop_forever)
             self.mqtt_thread.daemon = True
             self.mqtt_thread.start()
         except Exception as e:
             self.send(text_data=json.dumps({
-                'error': f'Could not connect to MQTT broker: {str(e)}'
+                'type': 'error',
+                'message': f'Failed to bridge to local MQTT: {str(e)}'
             }))
             self.close()
 
@@ -31,6 +32,7 @@ class MQTTProxyConsumer(WebsocketConsumer):
             self.mqtt_client.disconnect()
 
     def receive(self, text_data):
+        """Handle commands from Frontend -> WebSocket -> Local MQTT"""
         try:
             data = json.loads(text_data)
             topic = data.get('topic')
@@ -42,19 +44,16 @@ class MQTTProxyConsumer(WebsocketConsumer):
                     payload = json.dumps(payload)
                 
                 self.mqtt_client.publish(topic, payload)
-        except json.JSONDecodeError:
-            self.send(text_data=json.dumps({'error': 'Invalid JSON'}))
         except Exception as e:
             self.send(text_data=json.dumps({'error': str(e)}))
 
     def on_mqtt_connect(self, client, userdata, flags, rc):
         if rc == 0:
-            # Subscribe to all topics by default or a specific range
-            # For a proxy, we might want to subscribe to topics the client asks for
-            # For now, subscribing to smartclass/# as a default
+            # Listen to all smartclass events to proxy back to UI
             client.subscribe("smartclass/#")
 
     def on_mqtt_message(self, client, userdata, msg):
+        """Handle events from Local MQTT -> WebSocket -> Frontend"""
         try:
             payload = msg.payload.decode('utf-8')
         except UnicodeDecodeError:
