@@ -20,13 +20,17 @@ def _build_command_topic(classroom_name):
 
 def _publish_payload(topic, payload):
     settings_obj = _get_system_settings()
-    broker_host = settings_obj.mqtt_broker_host or getattr(settings, 'DASHBOARD_MQTT_BROKER_HOST', '127.0.0.1')
-    broker_port = int(settings_obj.mqtt_broker_port or getattr(settings, 'DASHBOARD_MQTT_BROKER_PORT', 1883))
-    username = getattr(settings, 'DASHBOARD_MQTT_USERNAME', '')
-    password = getattr(settings, 'DASHBOARD_MQTT_PASSWORD', '')
-    keepalive = int(getattr(settings, 'DASHBOARD_MQTT_KEEPALIVE_SECONDS', 60))
+    
+    # Simple HiveMQ Cloud publication
+    broker_host = settings_obj.mqtt_broker_host
+    broker_port = int(settings_obj.mqtt_broker_port)
+    username = settings_obj.mqtt_username
+    password = settings_obj.mqtt_password
+    keepalive = 60
 
-    client = mqtt.Client()
+    client = mqtt.Client(transport="tcp")
+    client.tls_set() # Always required for HiveMQ Cloud
+
     if username:
         client.username_pw_set(username=username, password=password or None)
 

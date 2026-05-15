@@ -172,51 +172,33 @@
 
             <div class="row g-4">
               <div class="col-12">
-                <h6 class="mb-3">MQTT Connectivity</h6>
+                <h6 class="mb-3">HiveMQ Cloud Configuration</h6>
+                <div class="alert alert-info py-2 small">HiveMQ Cloud requires TLS and Authentication. Standard port is usually 8883.</div>
               </div>
 
-              <div class="col-12 col-lg-6">
-                <div class="border rounded p-3 h-100">
-                  <div class="form-check form-switch mb-2">
-                    <input class="form-check-input" type="checkbox" id="mqtt_production_mode" name="mqtt_production_mode" {% if settings_obj.mqtt_mode == 'production' %}checked{% endif %} />
-                    <label class="form-check-label" for="mqtt_production_mode">Use Production MQTT mode</label>
-                  </div>
-                  <small class="text-muted">Switch OFF for Test mode and ON for Production mode.</small>
-                </div>
+              <div class="col-md-9">
+                <label for="mqtt_broker_host" class="form-label">Cluster URL</label>
+                <input id="mqtt_broker_host" name="mqtt_broker_host" type="text" class="form-control" value="{{ settings_obj.mqtt_broker_host }}" placeholder="xxxxxxxx.s1.eu.hivemq.cloud" required />
               </div>
 
-              <div class="col-md-6 col-lg-3">
-                <label for="mqtt_broker_host" class="form-label">MQTT Broker Address</label>
-                <input id="mqtt_broker_host" name="mqtt_broker_host" type="text" class="form-control" value="{{ settings_obj.mqtt_broker_host|default:mqtt_default_host }}" placeholder="mqtt.example.com or 192.168.1.10" required />
-              </div>
-
-              <div class="col-md-6 col-lg-3">
-                <label for="mqtt_broker_port" class="form-label">MQTT Broker Port</label>
-                <input id="mqtt_broker_port" name="mqtt_broker_port" type="number" min="1" class="form-control" value="{{ settings_obj.mqtt_broker_port|default:mqtt_default_port }}" required />
-              </div>
-
-              <div class="col-md-6 col-lg-3">
-                <label for="mqtt_username" class="form-label">MQTT Username</label>
-                <input id="mqtt_username" name="mqtt_username" type="text" class="form-control" value="{{ settings_obj.mqtt_username }}" placeholder="Leave empty for public" />
-              </div>
-
-              <div class="col-md-6 col-lg-3">
-                <label for="mqtt_password" class="form-label">MQTT Password</label>
-                <input id="mqtt_password" name="mqtt_password" type="password" class="form-control" placeholder="Leave empty to keep current" />
+              <div class="col-md-3">
+                <label for="mqtt_broker_port" class="form-label">Port</label>
+                <input id="mqtt_broker_port" name="mqtt_broker_port" type="number" class="form-control" value="{{ settings_obj.mqtt_broker_port }}" required />
               </div>
 
               <div class="col-md-6">
-                <label for="mqtt_transport" class="form-label">MQTT Transport</label>
-                <select id="mqtt_transport" name="mqtt_transport" class="form-select">
-                  <option value="auto" {% if settings_obj.mqtt_transport == 'auto' %}selected{% endif %}>Auto-detect (WebSockets for rabahdj.online, TCP otherwise)</option>
-                  <option value="tcp" {% if settings_obj.mqtt_transport == 'tcp' %}selected{% endif %}>Always TCP (Port 1883)</option>
-                  <option value="websockets" {% if settings_obj.mqtt_transport == 'websockets' %}selected{% endif %}>Always WebSockets (Cloudflare/Proxy)</option>
-                </select>
+                <label for="mqtt_username" class="form-label">MQTT Username</label>
+                <input id="mqtt_username" name="mqtt_username" type="text" class="form-control" value="{{ settings_obj.mqtt_username }}" required />
+              </div>
+
+              <div class="col-md-6">
+                <label for="mqtt_password" class="form-label">MQTT Password</label>
+                <input id="mqtt_password" name="mqtt_password" type="password" class="form-control" placeholder="Change password..." />
               </div>
 
               <div class="col-12">
-                <label for="mqtt_topic_wildcard" class="form-label">MQTT Topic Wildcard (Listener Subscription)</label>
-                <input id="mqtt_topic_wildcard" name="mqtt_topic_wildcard" type="text" class="form-control" value="{{ settings_obj.mqtt_topic_wildcard|default:mqtt_default_topic }}" placeholder="smartclass/#" required />
+                <label for="mqtt_topic_wildcard" class="form-label">Topic Wildcard</label>
+                <input id="mqtt_topic_wildcard" name="mqtt_topic_wildcard" type="text" class="form-control" value="{{ settings_obj.mqtt_topic_wildcard }}" required />
               </div>
             </div>
 

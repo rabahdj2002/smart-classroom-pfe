@@ -626,6 +626,7 @@ def _handle_attendance_request(topic, data, event_time):
 
 
 def process_mqtt_payload(topic, payload):
+    logger.info('Received MQTT message: topic=%s payload=%s', topic, payload)
     try:
         decoded = payload.decode('utf-8') if isinstance(payload, (bytes, bytearray)) else str(payload)
         data = json.loads(decoded) if decoded else {}
@@ -696,32 +697,37 @@ def _mqtt_loop():
 
     while True:
         try:
-            # Force local loopback for the background listener to avoid external network issues
-            broker_host = '127.0.0.1'
-            broker_port = 1883
-            
             settings_obj = get_system_settings()
-            username = settings_obj.mqtt_username or getattr(settings, 'DASHBOARD_MQTT_USERNAME', '')
-            password = settings_obj.mqtt_password or getattr(settings, 'DASHBOARD_MQTT_PASSWORD', '')
-            keepalive = int(getattr(settings, 'DASHBOARD_MQTT_KEEPALIVE_SECONDS', 60))
-            topic = settings_obj.mqtt_topic_wildcard or getattr(settings, 'DASHBOARD_MQTT_TOPIC', 'smartclass/#')
+            
+            # HiveMQ Cloud specific settings
+            broker_host = settings_obj.mqtt_broker_host
+            broker_port = int(settings_obj.mqtt_broker_port)
+            username = settings_obj.mqtt_username
+            password = settings_obj.mqtt_password
+            topic = settings_obj.mqtt_topic_wildcard
+            keepalive = 60
 
             def on_connect(client, _userdata, _flags, rc):
                 if rc == 0:
                     client.subscribe(topic)
-                    logger.info('MQTT connected. host=%s port=%s topic=%s', broker_host, broker_port, topic)
+                    logger.info('Connected to HiveMQ Cloud. host=%s port=%s', broker_host, broker_port)
                 else:
-                    logger.warning('MQTT connection failed with rc=%s', rc)
+                    logger.error('HiveMQ connection failed with rc=%s', rc)
 
-            # Local listener always uses standard TCP transport
+            # HiveMQ Cloud uses TCP with TLS by default on 8883
             client = mqtt.Client(transport='tcp')
+            client.tls_set() # Always enabled for HiveMQ Cloud
             
             if username:
-                client.username_pw_set(username=username, password=password or None)
+                client.username_pw_set(username=username, password=password)
+                
             client.on_connect = on_connect
             client.on_message = on_message
             client.connect(broker_host, broker_port, keepalive)
             client.loop_forever(retry_first_connection=True)
+        except Exception:
+            logger.exception('MQTT listener crashed; reconnecting in %ss.', reconnect_delay)
+            time.sleep(reconnect_delay)
         except Exception:
             logger.exception('MQTT listener crashed; reconnecting in %ss.', reconnect_delay)
             time.sleep(reconnect_delay)

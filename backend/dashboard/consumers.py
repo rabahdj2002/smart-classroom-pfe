@@ -7,14 +7,31 @@ class MQTTProxyConsumer(WebsocketConsumer):
     def connect(self):
         self.accept()
         
-        # Initialize MQTT client pointing to local Mosquitto
-        self.mqtt_client = mqtt.Client()
+        from .reporting import get_system_settings
+        from django.conf import settings
+        
+        settings_obj = get_system_settings()
+        
+        # HiveMQ Cloud settings (Simplification)
+        broker_host = settings_obj.mqtt_broker_host
+        broker_port = settings_obj.mqtt_broker_port
+        username = settings_obj.mqtt_username
+        password = settings_obj.mqtt_password
+        
+        # HiveMQ Cloud requires TLS and usually standard MQTT (tcp) or WebSockets
+        # For HiveMQ Cloud (port 8883), we use TCP with TLS.
+        self.mqtt_client = mqtt.Client(transport="tcp")
         self.mqtt_client.on_message = self.on_mqtt_message
         self.mqtt_client.on_connect = self.on_mqtt_connect
         
+        # Always use TLS for HiveMQ Cloud
+        self.mqtt_client.tls_set()
+
+        if username:
+            self.mqtt_client.username_pw_set(username=username, password=password or None)
+        
         try:
-            # Always connect to local loopback (127.0.0.1:1883)
-            self.mqtt_client.connect("127.0.0.1", 1883, 60)
+            self.mqtt_client.connect(broker_host, broker_port, 60)
             
             # Lightweight background thread for the MQTT loop
             self.mqtt_thread = threading.Thread(target=self.mqtt_client.loop_forever)
@@ -23,7 +40,7 @@ class MQTTProxyConsumer(WebsocketConsumer):
         except Exception as e:
             self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': f'Failed to bridge to local MQTT: {str(e)}'
+                'message': f'Failed to bridge to MQTT: {str(e)}'
             }))
             self.close()
 

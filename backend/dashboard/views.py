@@ -722,7 +722,6 @@ def temperature_settings(request):
         mqtt_broker_port_raw = request.POST.get('mqtt_broker_port', '').strip()
         mqtt_username = request.POST.get('mqtt_username', '').strip()
         mqtt_password = request.POST.get('mqtt_password', '').strip()
-        mqtt_transport = request.POST.get('mqtt_transport', 'auto').strip()
         mqtt_topic_wildcard = request.POST.get('mqtt_topic_wildcard', '').strip()
         smtp_host = request.POST.get('smtp_host', '').strip()
         smtp_port_raw = request.POST.get('smtp_port', '').strip()
@@ -791,18 +790,13 @@ def temperature_settings(request):
             mqtt_broker_port = settings_obj.mqtt_broker_port
 
         if not mqtt_broker_host:
-            errors.append('MQTT broker address is required.')
+            errors.append('HiveMQ cluster URL is required.')
 
         if not mqtt_topic_wildcard:
             errors.append('MQTT topic wildcard is required.')
 
         if mqtt_topic_wildcard and '#' in mqtt_topic_wildcard and not mqtt_topic_wildcard.endswith('/#') and mqtt_topic_wildcard != '#':
             errors.append('MQTT topic wildcard using # must end with /# (example: smartclass/#).')
-
-        if mqtt_production_mode:
-            mqtt_mode = 'production'
-        else:
-            mqtt_mode = 'test'
 
         if email_reports_enabled and not smtp_from_email:
             errors.append('From email is required when automatic report emails are enabled.')
@@ -830,13 +824,11 @@ def temperature_settings(request):
             settings_obj.allow_bulk_actions = allow_bulk_actions
             settings_obj.show_kpi_badges = show_kpi_badges
             settings_obj.ui_compact_mode = ui_compact_mode
-            settings_obj.mqtt_mode = mqtt_mode
             settings_obj.mqtt_broker_host = mqtt_broker_host
             settings_obj.mqtt_broker_port = mqtt_broker_port
             settings_obj.mqtt_username = mqtt_username
             if mqtt_password:
                 settings_obj.mqtt_password = mqtt_password
-            settings_obj.mqtt_transport = mqtt_transport
             settings_obj.mqtt_topic_wildcard = mqtt_topic_wildcard
             settings_obj.email_reports_enabled = email_reports_enabled
             settings_obj.smtp_host = smtp_host
