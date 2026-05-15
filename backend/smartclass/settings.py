@@ -128,7 +128,7 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 
 # Runtime mode: set SMARTCLASS_MODE=test|production
-SMARTCLASS_MODE = os.getenv('SMARTCLASS_MODE', 'test').strip().lower()
+SMARTCLASS_MODE = os.getenv('SMARTCLASS_MODE', 'production').strip().lower()
 IS_TEST_MODE = SMARTCLASS_MODE == 'test'
 
 # Internal auto-finish scheduler runs inside Django process (no external cron required).
@@ -139,7 +139,7 @@ DASHBOARD_INTERNAL_SCHEDULER_POLL_SECONDS = 20
 DASHBOARD_MQTT_ENABLED = True
 DASHBOARD_MQTT_BROKER_HOST = os.getenv(
     'DASHBOARD_MQTT_BROKER_HOST',
-    '127.0.0.1' if IS_TEST_MODE else '192.168.70.25',
+    'mqtt.rabahdj.online',
 )
 DASHBOARD_MQTT_BROKER_PORT = int(os.getenv('DASHBOARD_MQTT_BROKER_PORT', '1883'))
 DASHBOARD_MQTT_TOPIC = os.getenv('DASHBOARD_MQTT_TOPIC', 'smartclass/#')

@@ -195,6 +195,25 @@
                 <input id="mqtt_broker_port" name="mqtt_broker_port" type="number" min="1" class="form-control" value="{{ settings_obj.mqtt_broker_port|default:mqtt_default_port }}" required />
               </div>
 
+              <div class="col-md-6 col-lg-3">
+                <label for="mqtt_username" class="form-label">MQTT Username</label>
+                <input id="mqtt_username" name="mqtt_username" type="text" class="form-control" value="{{ settings_obj.mqtt_username }}" placeholder="Leave empty for public" />
+              </div>
+
+              <div class="col-md-6 col-lg-3">
+                <label for="mqtt_password" class="form-label">MQTT Password</label>
+                <input id="mqtt_password" name="mqtt_password" type="password" class="form-control" placeholder="Leave empty to keep current" />
+              </div>
+
+              <div class="col-md-6">
+                <label for="mqtt_transport" class="form-label">MQTT Transport</label>
+                <select id="mqtt_transport" name="mqtt_transport" class="form-select">
+                  <option value="auto" {% if settings_obj.mqtt_transport == 'auto' %}selected{% endif %}>Auto-detect (WebSockets for rabahdj.online, TCP otherwise)</option>
+                  <option value="tcp" {% if settings_obj.mqtt_transport == 'tcp' %}selected{% endif %}>Always TCP (Port 1883)</option>
+                  <option value="websockets" {% if settings_obj.mqtt_transport == 'websockets' %}selected{% endif %}>Always WebSockets (Cloudflare/Proxy)</option>
+                </select>
+              </div>
+
               <div class="col-12">
                 <label for="mqtt_topic_wildcard" class="form-label">MQTT Topic Wildcard (Listener Subscription)</label>
                 <input id="mqtt_topic_wildcard" name="mqtt_topic_wildcard" type="text" class="form-control" value="{{ settings_obj.mqtt_topic_wildcard|default:mqtt_default_topic }}" placeholder="smartclass/#" required />

@@ -720,6 +720,9 @@ def temperature_settings(request):
         default_sessions_order = request.POST.get('default_sessions_order', '').strip()
         mqtt_broker_host = request.POST.get('mqtt_broker_host', '').strip()
         mqtt_broker_port_raw = request.POST.get('mqtt_broker_port', '').strip()
+        mqtt_username = request.POST.get('mqtt_username', '').strip()
+        mqtt_password = request.POST.get('mqtt_password', '').strip()
+        mqtt_transport = request.POST.get('mqtt_transport', 'auto').strip()
         mqtt_topic_wildcard = request.POST.get('mqtt_topic_wildcard', '').strip()
         smtp_host = request.POST.get('smtp_host', '').strip()
         smtp_port_raw = request.POST.get('smtp_port', '').strip()
@@ -830,6 +833,10 @@ def temperature_settings(request):
             settings_obj.mqtt_mode = mqtt_mode
             settings_obj.mqtt_broker_host = mqtt_broker_host
             settings_obj.mqtt_broker_port = mqtt_broker_port
+            settings_obj.mqtt_username = mqtt_username
+            if mqtt_password:
+                settings_obj.mqtt_password = mqtt_password
+            settings_obj.mqtt_transport = mqtt_transport
             settings_obj.mqtt_topic_wildcard = mqtt_topic_wildcard
             settings_obj.email_reports_enabled = email_reports_enabled
             settings_obj.smtp_host = smtp_host

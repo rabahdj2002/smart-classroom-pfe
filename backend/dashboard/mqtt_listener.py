@@ -689,8 +689,6 @@ def _should_start_mqtt_listener():
 
 
 def _mqtt_loop():
-    username = getattr(settings, 'DASHBOARD_MQTT_USERNAME', '')
-    password = getattr(settings, 'DASHBOARD_MQTT_PASSWORD', '')
     reconnect_delay = int(getattr(settings, 'DASHBOARD_MQTT_RECONNECT_DELAY_SECONDS', 3))
 
     def on_message(_client, _userdata, msg):
@@ -701,6 +699,8 @@ def _mqtt_loop():
             settings_obj = get_system_settings()
             broker_host = settings_obj.mqtt_broker_host or getattr(settings, 'DASHBOARD_MQTT_BROKER_HOST', '127.0.0.1')
             broker_port = int(settings_obj.mqtt_broker_port or getattr(settings, 'DASHBOARD_MQTT_BROKER_PORT', 1883))
+            username = settings_obj.mqtt_username or getattr(settings, 'DASHBOARD_MQTT_USERNAME', '')
+            password = settings_obj.mqtt_password or getattr(settings, 'DASHBOARD_MQTT_PASSWORD', '')
             keepalive = int(getattr(settings, 'DASHBOARD_MQTT_KEEPALIVE_SECONDS', 60))
             topic = settings_obj.mqtt_topic_wildcard or getattr(settings, 'DASHBOARD_MQTT_TOPIC', 'smartclass/#')
 
@@ -711,7 +711,12 @@ def _mqtt_loop():
                 else:
                     logger.warning('MQTT connection failed with rc=%s', rc)
 
-            client = mqtt.Client()
+            # Determine transport: manual override or auto-detect
+            transport = settings_obj.mqtt_transport
+            if transport == 'auto':
+                transport = 'websockets' if 'rabahdj.online' in broker_host else 'tcp'
+            
+            client = mqtt.Client(transport=transport)
             if username:
                 client.username_pw_set(username=username, password=password or None)
             client.on_connect = on_connect
