@@ -36,14 +36,18 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'dashboard',
 ]
+
+ASGI_APPLICATION = 'smartclass.asgi.application'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
