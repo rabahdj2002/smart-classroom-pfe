@@ -33,22 +33,7 @@
                 </select>
               </div>
               <div class="col-12 col-md-6 col-lg-2">
-                <label for="lights" class="form-label">Lights</label>
-                <select id="lights" name="lights" class="form-select">
-                  <option value="">All</option>
-                  <option value="on" {% if filters.lights == 'on' %}selected{% endif %}>On</option>
-                  <option value="off" {% if filters.lights == 'off' %}selected{% endif %}>Off</option>
-                </select>
-              </div>
-              <div class="col-12 col-md-6 col-lg-2">
-                <label for="projector" class="form-label">Projector</label>
-                <select id="projector" name="projector" class="form-select">
-                  <option value="">All</option>
-                  <option value="on" {% if filters.projector == 'on' %}selected{% endif %}>On</option>
-                  <option value="off" {% if filters.projector == 'off' %}selected{% endif %}>Off</option>
-                </select>
-              </div>
-              <div class="col-12 col-md-6 col-lg-2">
+
                 <label for="door" class="form-label">Door</label>
                 <select id="door" name="door" class="form-select">
                   <option value="">All</option>
@@ -115,8 +100,6 @@
                   <th>Room</th>
                   <th>Usage State</th>
                   <th>Status</th>
-                  <th>Lights</th>
-                  <th>Projector</th>
                   <th>Door</th>
                 </tr>
               </thead>
@@ -147,20 +130,8 @@
                         <span class="badge bg-success">Idle</span>
                       {% endif %}
                     </td>
-                    <td data-label="Lights">
-                      {% if room.lights_on %}
-                        <span class="badge bg-danger">ON</span>
-                      {% else %}
-                        <span class="badge bg-success">OFF</span>
-                      {% endif %}
-                    </td>
-                    <td data-label="Projector">
-                      {% if room.projector_on %}
-                        <span class="badge bg-danger">ON</span>
-                      {% else %}
-                        <span class="badge bg-success">OFF</span>
-                      {% endif %}
-                    </td>
+
+
                     <td data-label="Door">
                       {% if room.door %}
                         <span class="badge bg-danger">Open</span>
@@ -171,7 +142,7 @@
                   </tr>
                 {% empty %}
                   <tr>
-                    <td colspan="{% if settings_obj.allow_bulk_actions %}7{% else %}6{% endif %}" class="text-center">No classrooms found.</td>
+                    <td colspan=\"{% if settings_obj.allow_bulk_actions %}5{% else %}4{% endif %}\" class=\"text-center\">No classrooms found.</td>
                   </tr>
                 {% endfor %}
               </tbody>

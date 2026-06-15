@@ -15,7 +15,7 @@ class StaffAdmin(admin.ModelAdmin):
 
 @admin.register(Classroom)
 class ClassroomAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'occupied', 'door', 'lights_on', 'projector_on', 'smoke_detected', 'danger_indicator')
+    list_display = ('id', 'name', 'occupied', 'door')
     list_filter = ('occupied', 'smoke_detected', 'danger_indicator')
 
 

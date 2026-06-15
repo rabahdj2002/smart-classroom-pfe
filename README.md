@@ -6,7 +6,7 @@ to monitor rooms, manage sessions, and generate attendance reports.
 
 ## Core Features
 
-- Real-time classroom status via MQTT (occupancy, lights, projector, door, smoke, danger)
+- Real-time classroom status via MQTT (occupancy, door)
 - Session lifecycle management (start, split, close, auto-finish)
 - Attendance capture from RFID payloads (teacher + students)
 - PDF attendance reports with session summary and student roster
@@ -97,39 +97,39 @@ Typical payload:
 	"teacher_rfid": "123456789123",
 	"student_rfids": ["1234567891254", "STU-002"],
 	"occupied": true,
-	"lights_on": true,
 	"door": false,
-	"projector_on": true,
-	"smoke_detected": false,
-	"danger_indicator": false,
 	"new_session": false
 }
 ```
 
-### Device receives commands from platform
+### Device receives responses from platform
 
 Subscribe to:
 
 ```text
 smartclass/classrooms/<classroom_name>/commands
+smartclass/classrooms/<classroom_name>/access/response
+smartclass/classrooms/<classroom_name>/door-delay/response
 ```
 
-Command payload shape:
+Access response payload shape:
 
 ```json
 {
-	"command": "lights",
+	"event": "teacher_access_response",
+	"request_id": "door-req-001",
+	"approved": true,
+	"reason": "authorized_in_time_window",
 	"classroom_id": 3,
 	"classroom_name": "d3",
-	"value": true
+	"checked_at": "2026-04-20T08:04:00+01:00"
 }
 ```
 
-Supported commands:
+Current command topic behavior:
 
-- lights
-- projector
-- smoke_reset
+- The `.../commands` topic is reserved for future automation.
+- The dashboard does not emit manual relay commands from the current UI.
 
 ## Useful Management Commands
 

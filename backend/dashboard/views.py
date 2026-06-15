@@ -25,7 +25,6 @@ from .reporting import (
     get_system_settings,
     maybe_email_report,
 )
-from .mqtt_commands import publish_classroom_command
 
 
 def _is_portal_admin(user):
@@ -79,6 +78,9 @@ def login_view(request):
 
 @portal_admin_required
 def logout_view(request):
+    if request.method != 'POST':
+        return redirect('dashboard')
+
     logout(request)
     return redirect('login')
 
@@ -211,10 +213,6 @@ def dash(request):
     
     # Classroom status and warnings
     all_classrooms = Classroom.objects.all()
-    danger_classrooms = list(all_classrooms.filter(danger_indicator=True))
-    smoke_alert_classrooms = list(all_classrooms.filter(smoke_detected=True)) if system_settings.smoke_alert_enabled else []
-
-    smoke_alert_classrooms = [c for c in smoke_alert_classrooms if c not in danger_classrooms]
     
     # Current usage
     classroom_status = []
@@ -226,7 +224,7 @@ def dash(request):
 
         used_today = classroom.occupied
         
-        status = "danger" if classroom in danger_classrooms else ("smoke" if classroom in smoke_alert_classrooms else "normal")
+        status = "normal"
         
         classroom_status.append({
             'id': classroom.id,
@@ -234,10 +232,7 @@ def dash(request):
             'today_sessions': today_sessions,
             'used_today': used_today,
             'occupied': classroom.occupied,
-            'lights_on': classroom.lights_on,
-            'projector_on': classroom.projector_on,
             'door': classroom.door,
-            'smoke_detected': classroom.smoke_detected,
             'status': status,
         })
     
@@ -287,9 +282,6 @@ def dash(request):
         'total_attendance_today': total_attendance_today,
         'classrooms': all_classrooms,
         'classroom_status': classroom_status,
-        'danger_classrooms': danger_classrooms,
-        'smoke_alert_classrooms': smoke_alert_classrooms,
-        'has_warnings': len(danger_classrooms) > 0 or len(smoke_alert_classrooms) > 0,
         'used_classrooms': used_classrooms,
         'unused_classrooms': unused_classrooms,
         'avg_occupancy': round(avg_occupancy, 1),
@@ -312,8 +304,6 @@ def classes(request):
     settings_obj = get_system_settings()
     query = request.GET.get('q', '').strip()
     usage = request.GET.get('usage', '').strip()
-    lights = request.GET.get('lights', '').strip()
-    projector = request.GET.get('projector', '').strip()
     door = request.GET.get('door', '').strip()
     page_number = request.GET.get('page', '1').strip()
 
@@ -324,16 +314,6 @@ def classes(request):
         classrooms = classrooms.filter(occupied=True)
     elif usage == 'unused':
         classrooms = classrooms.filter(occupied=False)
-
-    if lights == 'on':
-        classrooms = classrooms.filter(lights_on=True)
-    elif lights == 'off':
-        classrooms = classrooms.filter(lights_on=False)
-
-    if projector == 'on':
-        classrooms = classrooms.filter(projector_on=True)
-    elif projector == 'off':
-        classrooms = classrooms.filter(projector_on=False)
 
     if door == 'open':
         classrooms = classrooms.filter(door=True)
@@ -354,8 +334,6 @@ def classes(request):
         classroom_list.append({
             'id': room.id,
             'name': room.name,
-            'lights_on': room.lights_on,
-            'projector_on': room.projector_on,
             'door': room.door,
             'today_sessions': today_sessions,
             'used_today': room.occupied,
@@ -365,8 +343,6 @@ def classes(request):
     filters = {
         'q': query,
         'usage': usage,
-        'lights': lights,
-        'projector': projector,
         'door': door,
     }
     pagination_query = urlencode({key: value for key, value in filters.items() if value})
@@ -470,8 +446,6 @@ def classroom_detail(request, id):
         start_time__date__lte=today
     ).count()
 
-    has_smoke_alert = system_settings.smoke_alert_enabled and classroom.smoke_detected
-
     context = {
         'classroom': classroom,
         'today_sessions': today_sessions,
@@ -482,7 +456,6 @@ def classroom_detail(request, id):
         'usage_teacher_values_json': json.dumps(usage_teacher_values),
         'weekly_student_sessions': weekly_student_sessions,
         'weekly_teacher_sessions': weekly_teacher_sessions,
-        'has_smoke_alert': has_smoke_alert,
     }
     return render(request, 'dashboard/classroom_detail.html', context)
 
@@ -593,40 +566,7 @@ def classroom_command(request, id):
     if not classroom:
         return render(request, '404.html', status=404)
 
-    action = request.POST.get('action', '').strip()
-
-    command_map = {
-        'lights_on': ('lights', True),
-        'lights_off': ('lights', False),
-        'projector_on': ('projector', True),
-        'projector_off': ('projector', False),
-        'clear_smoke': ('smoke_reset', True),
-    }
-
-    if action not in command_map:
-        messages.error(request, 'Unknown classroom command.')
-        return redirect('classroom_detail', id=id)
-
-    command, value = command_map[action]
-
-    try:
-        publish_classroom_command(classroom, command, value)
-
-        if action in {'lights_on', 'lights_off'}:
-            classroom.lights_on = bool(value)
-            classroom.save(update_fields=['lights_on'])
-        elif action in {'projector_on', 'projector_off'}:
-            classroom.projector_on = bool(value)
-            classroom.save(update_fields=['projector_on'])
-        elif action == 'clear_smoke':
-            classroom.smoke_detected = False
-            classroom.danger_indicator = False
-            classroom.save(update_fields=['smoke_detected', 'danger_indicator'])
-
-        messages.success(request, f'Command sent successfully: {action.replace("_", " ")}')
-    except Exception as exc:
-        messages.error(request, f'Failed to send command: {exc}')
-
+    messages.error(request, 'No active commands available.')
     return redirect('classroom_detail', id=id)
 
 
@@ -866,11 +806,7 @@ def add_class(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         occupied = bool(request.POST.get('occupied'))
-        lights_on = bool(request.POST.get('lights_on'))
-        projector_on = bool(request.POST.get('projector_on'))
         door = bool(request.POST.get('door'))
-        smoke_detected = bool(request.POST.get('smoke_detected'))
-        danger_indicator = bool(request.POST.get('danger_indicator'))
 
         if not name:
             errors.append('Name is required.')
@@ -879,11 +815,7 @@ def add_class(request):
             Classroom.objects.create(
                 name=name,
                 occupied=occupied,
-                lights_on=lights_on,
-                projector_on=projector_on,
                 door=door,
-                smoke_detected=smoke_detected,
-                danger_indicator=danger_indicator,
             )
             return redirect('classes')
 
@@ -892,11 +824,7 @@ def add_class(request):
             'form': {
                 'name': name,
                 'occupied': occupied,
-                'lights_on': lights_on,
-                'projector_on': projector_on,
                 'door': door,
-                'smoke_detected': smoke_detected,
-                'danger_indicator': danger_indicator,
             },
         }
 
@@ -1063,8 +991,6 @@ def export_classes(request, export_format):
     settings_obj = get_system_settings()
     query = request.GET.get('q', '').strip()
     usage = request.GET.get('usage', '').strip()
-    lights = request.GET.get('lights', '').strip()
-    projector = request.GET.get('projector', '').strip()
     door = request.GET.get('door', '').strip()
 
     classroom_list = Classroom.objects.all()
@@ -1074,16 +1000,6 @@ def export_classes(request, export_format):
         classroom_list = classroom_list.filter(occupied=True)
     elif usage == 'unused':
         classroom_list = classroom_list.filter(occupied=False)
-
-    if lights == 'on':
-        classroom_list = classroom_list.filter(lights_on=True)
-    elif lights == 'off':
-        classroom_list = classroom_list.filter(lights_on=False)
-
-    if projector == 'on':
-        classroom_list = classroom_list.filter(projector_on=True)
-    elif projector == 'off':
-        classroom_list = classroom_list.filter(projector_on=False)
 
     if door == 'open':
         classroom_list = classroom_list.filter(door=True)
@@ -1763,8 +1679,6 @@ def staff(request):
 
     privilege_map = {
         'door': 'can_open_door',
-        'lights': 'can_control_lights',
-        'projector': 'can_control_projector',
         'classrooms': 'can_manage_classrooms',
         'staff': 'can_manage_staff',
     }
@@ -1814,8 +1728,6 @@ def export_staff(request, export_format):
 
     privilege_map = {
         'door': 'can_open_door',
-        'lights': 'can_control_lights',
-        'projector': 'can_control_projector',
         'classrooms': 'can_manage_classrooms',
         'staff': 'can_manage_staff',
     }

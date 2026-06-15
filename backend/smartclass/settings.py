@@ -131,6 +131,14 @@ ALLOWED_HOSTS = ['*', '192.168.70.25']
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 
+# Session stability defaults for local multi-app development.
+# Use a unique cookie name to avoid collisions with other Django apps on 127.0.0.1.
+SESSION_COOKIE_NAME = 'smartclass_sessionid'
+CSRF_COOKIE_NAME = 'smartclass_csrftoken'
+SESSION_COOKIE_AGE = 60 * 60 * 12  # 12 hours
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True
+
 # Runtime mode: set SMARTCLASS_MODE=test|production
 SMARTCLASS_MODE = os.getenv('SMARTCLASS_MODE', 'production').strip().lower()
 IS_TEST_MODE = SMARTCLASS_MODE == 'test'

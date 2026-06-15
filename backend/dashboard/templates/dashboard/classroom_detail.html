@@ -29,23 +29,7 @@
       box-shadow: 0 0.25rem 0.6rem rgba(161, 172, 184, 0.16);
     }
 
-    .classroom-vivid .status-line {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-    }
 
-    .classroom-vivid .smoke-status-icon {
-      background: linear-gradient(180deg, rgba(40, 167, 69, 0.12), rgba(40, 167, 69, 0.06));
-      border-color: rgba(40, 167, 69, 0.2);
-      width: 52px;
-      height: 52px;
-    }
-
-    .classroom-vivid .smoke-status-icon.warning {
-      background: linear-gradient(180deg, rgba(255, 193, 7, 0.18), rgba(255, 193, 7, 0.08));
-      border-color: rgba(255, 193, 7, 0.28);
-    }
   </style>
   <div class="layout-page">
     <div class="content-wrapper">
@@ -53,44 +37,6 @@
         <div class="page-header mb-4">
           <h4 class="fw-bold mb-0">Classroom details - {{ classroom.name|upper }}</h4>
           <div class="page-actions justify-content-end">
-            <form method="post" action="{% url 'classroom_command' classroom.id %}" class="m-0">
-              {% csrf_token %}
-              {% if classroom.lights_on %}
-              <input type="hidden" name="action" value="lights_off">
-              <button type="submit" class="btn btn-outline-secondary btn-sm">
-                <i class="bx bx-bulb me-1"></i>Lights Off
-              </button>
-              {% else %}
-              <input type="hidden" name="action" value="lights_on">
-              <button type="submit" class="btn btn-success btn-sm">
-                <i class="bx bx-bulb me-1"></i>Lights On
-              </button>
-              {% endif %}
-            </form>
-
-            <form method="post" action="{% url 'classroom_command' classroom.id %}" class="m-0">
-              {% csrf_token %}
-              {% if classroom.projector_on %}
-              <input type="hidden" name="action" value="projector_off">
-              <button type="submit" class="btn btn-outline-secondary btn-sm">
-                <i class="bx bx-slideshow me-1"></i>Projector Off
-              </button>
-              {% else %}
-              <input type="hidden" name="action" value="projector_on">
-              <button type="submit" class="btn btn-info btn-sm">
-                <i class="bx bx-slideshow me-1"></i>Projector On
-              </button>
-              {% endif %}
-            </form>
-
-            <form method="post" action="{% url 'classroom_command' classroom.id %}" class="m-0">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="clear_smoke">
-              <button type="submit" class="btn btn-warning btn-sm">
-                <i class="bx bx-smoke-alarm me-1"></i>Reset Smoke Alarm
-              </button>
-            </form>
-
             <a href="{% url 'classroom_timetable' classroom.id %}" class="btn btn-outline-dark btn-sm">
               <i class="bx bx-calendar me-1"></i>Timetable
             </a>
@@ -101,15 +47,7 @@
           </div>
         </div>
 
-        {% if has_smoke_alert %}
-        <div class="alert alert-warning d-flex align-items-start" role="alert">
-          <i class="bx bx-smoke-alarm me-2 mt-1"></i>
-          <div>
-            <strong>Smoke warning:</strong>
-            smoke has been detected in this classroom. Immediate check is recommended.
-          </div>
-        </div>
-        {% endif %}
+
 
         {% if messages %}
         <div class="mb-4">
@@ -120,7 +58,7 @@
         {% endif %}
 
         <div class="row g-3 mb-4">
-          <div class="col-12 col-md-6 col-lg-3">
+          <div class="col-12 col-md-6 col-lg-4">
             <div class="card h-100">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -135,7 +73,7 @@
             </div>
           </div>
 
-          <div class="col-12 col-md-6 col-lg-3">
+          <div class="col-12 col-md-6 col-lg-4">
             <div class="card h-100">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -150,7 +88,7 @@
             </div>
           </div>
 
-          <div class="col-12 col-md-6 col-lg-3">
+          <div class="col-12 col-md-6 col-lg-4">
             <div class="card h-100">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-3">
@@ -161,13 +99,7 @@
                   </div>
                   <span class="badge bg-label-info p-2 metric-icon"><i class="bx bx-line-chart text-info fs-4"></i></span>
                 </div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div>
-                    <span class="badge rounded-circle" style="width: 10px; height: 10px; display: inline-block; background-color: {% if classroom.lights_on %}#198754{% else %}#6c757d{% endif %};"></span>
-                    <span class="ms-2">Lights</span>
-                  </div>
-                  <div>{% if classroom.lights_on %}<span class="badge bg-success">ON</span>{% else %}<span class="badge bg-secondary">OFF</span>{% endif %}</div>
-                </div>
+
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <div>
                     <span class="badge rounded-circle" style="width: 10px; height: 10px; display: inline-block; background-color: {% if classroom.door %}#dc3545{% else %}#198754{% endif %};"></span>
@@ -175,52 +107,11 @@
                   </div>
                   <div>{% if classroom.door %}<span class="badge bg-danger">Open</span>{% else %}<span class="badge bg-success">Closed</span>{% endif %}</div>
                 </div>
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <span class="badge rounded-circle" style="width: 10px; height: 10px; display: inline-block; background-color: {% if classroom.projector_on %}#0dcaf0{% else %}#6c757d{% endif %};"></span>
-                    <span class="ms-2">Projector</span>
-                  </div>
-                  <div>{% if classroom.projector_on %}<span class="badge bg-info">ON</span>{% else %}<span class="badge bg-secondary">OFF</span>{% endif %}</div>
-                </div>
               </div>
             </div>
           </div>
 
-          <div class="col-12 col-md-6 col-lg-3">
-            <div class="card h-100">
-              <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                  <div>
-                    <span class="d-block mb-1 text-muted fw-normal small">Smoke Detection</span>
-                    <div class="status-line">
-                      <span class="status-icon smoke-status-icon {% if has_smoke_alert %}warning{% endif %}">
-                        <i class="bx bx-traffic-cone {% if has_smoke_alert %}text-warning{% else %}text-success{% endif %} fs-4"></i>
-                      </span>
-                      <div>
-                        <h5 class="mb-0 {% if has_smoke_alert %}text-warning{% else %}text-success{% endif %}">
-                          {% if classroom.smoke_detected %}Detected{% else %}Clear{% endif %}
-                        </h5>
-                        <small class="text-muted">
-                          {% if classroom.smoke_detected %}Safety check needed{% else %}No smoke detected{% endif %}
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
-                <hr class="my-3" />
-
-                <div class="d-flex justify-content-between align-items-start mb-0">
-                  <div>
-                    <span class="d-block mb-1 text-muted fw-normal small">Danger Indicator</span>
-                    <h5 class="mb-0 {% if classroom.danger_indicator %}text-danger{% else %}text-success{% endif %}">{% if classroom.danger_indicator %}Active{% else %}Safe{% endif %}</h5>
-                    <small class="text-muted">{% if classroom.danger_indicator %}Immediate attention required{% else %}No alert{% endif %}</small>
-                  </div>
-                  <span class="badge {% if classroom.danger_indicator %}bg-label-danger{% else %}bg-label-success{% endif %} p-2 metric-icon"><i class="bx bx-bell {% if classroom.danger_indicator %}text-danger{% else %}text-success{% endif %} fs-4"></i></span>
-                </div>
-              </div>
-            </div>
-          </div>
 
         </div>
 

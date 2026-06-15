@@ -29,11 +29,7 @@ Use this when the room state changes.
 {
   "classroom_name": "d3",
   "occupied": true,
-  "lights_on": true,
   "door": false,
-  "projector_on": true,
-  "smoke_detected": false,
-  "danger_indicator": false,
   "teacher_rfid": "123456789123",
   "new_session": false
 }
@@ -44,7 +40,7 @@ Supported keys:
 - `classroom_id`, `classroom_name`, `classroom`
 - `teacher_rfid`, `staff_rfid`
 - `student_rfid`, `student_rfids`, `students`
-- `occupied`, `lights_on`, `door`, `projector_on`, `smoke_detected`, `danger_indicator`
+- `occupied`, `door`
 - `new_session`, `session_start`, `start_new_session`, `force_new_session`
 
 ### B. Teacher access request
@@ -96,28 +92,16 @@ The response is the delay in minutes as a plain number.
 
 ### A. Classroom commands
 
-The dashboard publishes control commands to:
+The classroom command topic remains reserved for future use:
 
 ```text
 smartclass/classrooms/<classroom_name>/commands
 ```
 
-Payload format:
+Current behavior:
 
-```json
-{
-  "command": "lights",
-  "classroom_id": 3,
-  "classroom_name": "d3",
-  "value": true
-}
-```
-
-Supported commands:
-
-- `lights`
-- `projector`
-- `smoke_reset`
+- No manual classroom relay commands are emitted by the dashboard UI.
+- Devices should continue using `access/request`, `attendance/request`, and `door-delay/request` flows.
 
 ### B. Teacher access response
 

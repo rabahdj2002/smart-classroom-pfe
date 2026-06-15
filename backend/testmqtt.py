@@ -28,11 +28,7 @@ def build_dummy_payload(classroom_name):
         "teacher_rfid": random.choice(teacher_rfids),
         "student_rfids": selected_students,
         "occupied": True,
-        "lights_on": random.choice([True, False]),
         "door": random.choice([True, False]),
-        "projector_on": random.choice([True, False]),
-        "smoke_detected": random.choice([False, False, False, True]),
-        "danger_indicator": random.choice([False, False, True]),
     }
     return payload
 

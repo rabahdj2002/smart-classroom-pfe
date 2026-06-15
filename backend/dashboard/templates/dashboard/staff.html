@@ -30,8 +30,6 @@
                 <select id="privilege" name="privilege" class="form-select">
                   <option value="">All privileges</option>
                   <option value="door" {% if filters.privilege == 'door' %}selected{% endif %}>Can Open Door</option>
-                  <option value="lights" {% if filters.privilege == 'lights' %}selected{% endif %}>Can Control Lights</option>
-                  <option value="projector" {% if filters.privilege == 'projector' %}selected{% endif %}>Can Control Projector</option>
                   <option value="classrooms" {% if filters.privilege == 'classrooms' %}selected{% endif %}>Can Manage Classrooms</option>
                   <option value="staff" {% if filters.privilege == 'staff' %}selected{% endif %}>Can Manage Staff</option>
                 </select>
@@ -114,11 +112,9 @@
                     <td data-label="RFID Card Serial">{{ member.rfid_number }}</td>
                     <td data-label="Privileges">
                       {% if member.can_open_door %}<span class="badge bg-label-success me-1 mb-1">Door</span>{% endif %}
-                      {% if member.can_control_lights %}<span class="badge bg-label-info me-1 mb-1">Lights</span>{% endif %}
-                      {% if member.can_control_projector %}<span class="badge bg-label-warning me-1 mb-1">Projector</span>{% endif %}
-                      {% if member.can_manage_classrooms %}<span class="badge bg-label-primary me-1 mb-1">Classrooms</span>{% endif %}
-                      {% if member.can_manage_staff %}<span class="badge bg-label-dark me-1 mb-1">Staff</span>{% endif %}
-                      {% if not member.can_open_door and not member.can_control_lights and not member.can_control_projector and not member.can_manage_classrooms and not member.can_manage_staff %}
+                      {% if member.can_manage_classrooms %}<span class=\"badge bg-label-primary me-1 mb-1\">Classrooms</span>{% endif %}
+                      {% if member.can_manage_staff %}<span class=\"badge bg-label-dark me-1 mb-1\">Staff</span>{% endif %}
+                      {% if not member.can_open_door and not member.can_manage_classrooms and not member.can_manage_staff %}
                         <span class="badge bg-label-secondary">No special privileges</span>
                       {% endif %}
                     </td>

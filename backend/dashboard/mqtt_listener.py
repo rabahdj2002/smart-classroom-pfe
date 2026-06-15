@@ -137,11 +137,7 @@ def _update_classroom_status(classroom, data, event_time):
 
     field_map = {
         'occupied': 'occupied',
-        'lights_on': 'lights_on',
         'door': 'door',
-        'projector_on': 'projector_on',
-        'smoke_detected': 'smoke_detected',
-        'danger_indicator': 'danger_indicator',
     }
 
     for payload_key, model_field in field_map.items():

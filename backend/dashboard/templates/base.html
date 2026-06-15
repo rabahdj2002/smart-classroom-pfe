@@ -180,10 +180,13 @@
             </li>
 
             <li class="menu-item">
-              <a href="{% url 'logout' %}" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-log-out"></i>
-                <div>Logout</div>
-              </a>
+              <form method="post" action="{% url 'logout' %}" class="w-100 m-0 p-0">
+                {% csrf_token %}
+                <button type="submit" class="menu-link border-0 bg-transparent w-100 text-start">
+                  <i class="menu-icon tf-icons bx bx-log-out"></i>
+                  <div>Logout</div>
+                </button>
+              </form>
             </li>
           </ul>
         </aside>

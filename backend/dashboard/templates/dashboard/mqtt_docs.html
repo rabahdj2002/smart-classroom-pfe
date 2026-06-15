@@ -55,18 +55,14 @@ smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
             <pre class="mb-3">{
   "classroom_name": "d3",
   "occupied": true,
-  "lights_on": true,
   "door": false,
-  "projector_on": true,
-  "smoke_detected": false,
-  "danger_indicator": false,
   "teacher_rfid": "123456789123",
   "new_session": false
 }</pre>
             <p class="mb-1"><strong>Fields</strong></p>
             <ul class="mb-0">
               <li><strong>classroom_id</strong>, <strong>classroom_name</strong>, or <strong>classroom</strong>: classroom target.</li>
-              <li><strong>occupied</strong>, <strong>lights_on</strong>, <strong>door</strong>, <strong>projector_on</strong>, <strong>smoke_detected</strong>, <strong>danger_indicator</strong>: room state.</li>
+              <li><strong>occupied</strong> and <strong>door</strong>: room state.</li>
               <li><strong>teacher_rfid</strong> or <strong>staff_rfid</strong>: attaches a staff member to the active session if applicable.</li>
               <li><strong>student_rfid</strong>, <strong>student_rfids</strong>, or <strong>students</strong>: attaches students to the active session if applicable.</li>
               <li><strong>new_session</strong>, <strong>session_start</strong>, <strong>start_new_session</strong>, <strong>force_new_session</strong>: close the current session and start a new one.</li>
@@ -116,19 +112,12 @@ smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
         <div class="card-body pt-4">
           <div class="mb-4">
             <h6 class="mb-2">A. Classroom commands</h6>
-            <p class="mb-2">The dashboard publishes control commands to the classroom command topic.</p>
+            <p class="mb-2">The classroom command topic is reserved for future automation.</p>
             <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/commands</pre>
-            <pre class="mb-3">{
-  "command": "lights",
-  "classroom_id": 3,
-  "classroom_name": "d3",
-  "value": true
-}</pre>
-            <p class="mb-1"><strong>Supported commands</strong></p>
+            <p class="mb-1"><strong>Current behavior</strong></p>
             <ul class="mb-0">
-              <li><strong>lights</strong>: switch the lights relay using <strong>value</strong>.</li>
-              <li><strong>projector</strong>: switch the projector relay using <strong>value</strong>.</li>
-              <li><strong>smoke_reset</strong>: clear the smoke alarm after local checks.</li>
+              <li>No manual classroom relay commands are emitted by the dashboard UI.</li>
+              <li>Use access, attendance, and door-delay request/response topics for active integrations.</li>
             </ul>
           </div>
 
