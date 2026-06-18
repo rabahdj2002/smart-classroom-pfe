@@ -2,39 +2,26 @@ import json
 import logging
 
 import paho.mqtt.client as mqtt
-from django.conf import settings
 
-from .models import SystemSettings
+from .mqtt_runtime import configure_mqtt_client, get_mqtt_runtime_config
 
 logger = logging.getLogger(__name__)
-
-
-def _get_system_settings():
-    settings_obj, _ = SystemSettings.objects.get_or_create(pk=1)
-    return settings_obj
-
 
 def _build_command_topic(classroom_name):
     return f"smartclass/classrooms/{classroom_name}/commands"
 
 
 def _publish_payload(topic, payload):
-    settings_obj = _get_system_settings()
-    
-    # Simple HiveMQ Cloud publication
-    broker_host = settings_obj.mqtt_broker_host
-    broker_port = int(settings_obj.mqtt_broker_port)
-    username = settings_obj.mqtt_username
-    password = settings_obj.mqtt_password
-    keepalive = 60
+    runtime_config = get_mqtt_runtime_config()
 
     client = mqtt.Client(transport="tcp")
-    client.tls_set() # Always required for HiveMQ Cloud
+    configure_mqtt_client(client, runtime_config)
 
-    if username:
-        client.username_pw_set(username=username, password=password or None)
-
-    client.connect(broker_host, broker_port, keepalive)
+    client.connect(
+        runtime_config['broker_host'],
+        runtime_config['broker_port'],
+        runtime_config['keepalive'],
+    )
     client.loop_start()
     try:
         result = client.publish(topic, json.dumps(payload), qos=1, retain=False)

@@ -172,13 +172,13 @@
 
             <div class="row g-4">
               <div class="col-12">
-                <h6 class="mb-3">HiveMQ Cloud Configuration</h6>
-                <div class="alert alert-info py-2 small">HiveMQ Cloud requires TLS and Authentication. Standard port is usually 8883.</div>
+                <h6 class="mb-3">MQTT Broker Configuration</h6>
+                <div class="alert alert-info py-2 small">Use localhost and port 1883 for local Mosquitto, or provide your cloud broker host/port.</div>
               </div>
 
               <div class="col-md-9">
-                <label for="mqtt_broker_host" class="form-label">Cluster URL</label>
-                <input id="mqtt_broker_host" name="mqtt_broker_host" type="text" class="form-control" value="{{ settings_obj.mqtt_broker_host }}" placeholder="xxxxxxxx.s1.eu.hivemq.cloud" required />
+                <label for="mqtt_broker_host" class="form-label">Broker Host</label>
+                <input id="mqtt_broker_host" name="mqtt_broker_host" type="text" class="form-control" value="{{ settings_obj.mqtt_broker_host }}" placeholder="127.0.0.1" required />
               </div>
 
               <div class="col-md-3">

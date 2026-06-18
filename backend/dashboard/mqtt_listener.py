@@ -11,6 +11,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from .mqtt_runtime import configure_mqtt_client, get_mqtt_runtime_config
 from .models import AttendanceReport, ClassTimetableSlot, Classroom, ImmediateTeacherAccessGrant, Session, Staff, Student, StudentSessionAttendance
 from .mqtt_commands import publish_custom_topic
 from .reporting import auto_finish_active_classrooms, generate_attendance_report_for_session, get_system_settings
@@ -45,9 +46,27 @@ def _bool_or_none(value):
     return None
 
 
+def _data_block(payload):
+    nested = payload.get('data') if isinstance(payload, dict) else None
+    return nested if isinstance(nested, dict) else {}
+
+
+def _payload_get(payload, *keys):
+    for key in keys:
+        if key in payload:
+            return payload.get(key)
+
+    nested = _data_block(payload)
+    for key in keys:
+        if key in nested:
+            return nested.get(key)
+
+    return None
+
+
 def _resolve_classroom(data, topic):
-    classroom_id = data.get('classroom_id')
-    classroom_name = data.get('classroom_name') or data.get('classroom')
+    classroom_id = _payload_get(data, 'classroom_id')
+    classroom_name = _payload_get(data, 'classroom_name', 'classroom')
 
     if classroom_id:
         classroom = Classroom.objects.filter(id=classroom_id).first()
@@ -75,12 +94,11 @@ def _resolve_classroom(data, topic):
 
 def _normalize_student_rfids(data):
     # Accept student_rfid, student_rfids, or students as a list/string.
-    if data.get('student_rfid'):
-        return [str(data.get('student_rfid')).strip()]
+    single = _payload_get(data, 'student_rfid')
+    if single:
+        return [str(single).strip()]
 
-    candidates = data.get('student_rfids')
-    if candidates is None:
-        candidates = data.get('students')
+    candidates = _payload_get(data, 'student_rfids', 'students')
 
     if candidates is None:
         return []
@@ -99,7 +117,7 @@ def _normalize_student_rfids(data):
 
 def _is_new_session_request(data):
     return any(
-        _bool_or_none(data.get(key)) is True
+        _bool_or_none(_payload_get(data, key)) is True
         for key in ('new_session', 'session_start', 'start_new_session', 'force_new_session')
     )
 
@@ -138,10 +156,12 @@ def _update_classroom_status(classroom, data, event_time):
     field_map = {
         'occupied': 'occupied',
         'door': 'door',
+        'door_unlocked': 'door',
+        'danger_indicator': 'danger_indicator',
     }
 
     for payload_key, model_field in field_map.items():
-        parsed = _bool_or_none(data.get(payload_key))
+        parsed = _bool_or_none(_payload_get(data, payload_key))
         if parsed is not None and getattr(classroom, model_field) != parsed:
             setattr(classroom, model_field, parsed)
             updated_fields.append(model_field)
@@ -179,7 +199,7 @@ def _get_or_create_open_session(classroom, event_time, teacher=None, force_new=F
 
 
 def _sync_session_from_rfids(classroom, data, event_time):
-    teacher_rfid = data.get('teacher_rfid') or data.get('staff_rfid')
+    teacher_rfid = _payload_get(data, 'teacher_rfid', 'staff_rfid')
     student_rfids = _normalize_student_rfids(data)
     force_new_session = _is_new_session_request(data)
     activity_detected = False
@@ -251,6 +271,7 @@ def _is_teacher_access_request(topic, data):
 
     return (
         topic.endswith('/access/request')
+        or event == 'access_request'
         or command in {'teacher_access_check', 'teacher_authorization_check'}
         or event in {'teacher_access_request', 'teacher_authorization_request'}
         or request in {'teacher_access', 'teacher_authorization'}
@@ -341,7 +362,7 @@ def _slot_bounds(reference_date, slot_index):
 def _evaluate_teacher_access(classroom, teacher_rfid, event_time, request_id=None):
     checked_at = timezone.localtime(event_time)
     payload = {
-        'event': 'teacher_access_response',
+        'event': 'access_response',
         'request_id': request_id,
         'approved': False,
         'classroom_id': classroom.id,
@@ -530,19 +551,19 @@ def _handle_teacher_access_request(topic, data, event_time):
 
     if not classroom:
         response_payload = {
-            'event': 'teacher_access_response',
-            'request_id': data.get('request_id'),
+            'event': 'access_response',
+            'request_id': _payload_get(data, 'request_id'),
             'approved': False,
             'reason': 'classroom_not_found',
             'checked_at': timezone.localtime(event_time).isoformat(),
         }
     else:
-        teacher_rfid = data.get('teacher_rfid') or data.get('staff_rfid') or data.get('rfid_number')
+        teacher_rfid = _payload_get(data, 'teacher_rfid', 'staff_rfid', 'rfid_number')
         response_payload = _evaluate_teacher_access(
             classroom=classroom,
             teacher_rfid=teacher_rfid,
             event_time=event_time,
-            request_id=data.get('request_id'),
+            request_id=_payload_get(data, 'request_id'),
         )
 
         if response_payload.get('approved'):
@@ -686,45 +707,38 @@ def _should_start_mqtt_listener():
 
 
 def _mqtt_loop():
-    reconnect_delay = int(getattr(settings, 'DASHBOARD_MQTT_RECONNECT_DELAY_SECONDS', 3))
-
     def on_message(_client, _userdata, msg):
         process_mqtt_payload(msg.topic, msg.payload)
 
     while True:
         try:
-            settings_obj = get_system_settings()
-            
-            # HiveMQ Cloud specific settings
-            broker_host = settings_obj.mqtt_broker_host
-            broker_port = int(settings_obj.mqtt_broker_port)
-            username = settings_obj.mqtt_username
-            password = settings_obj.mqtt_password
-            topic = settings_obj.mqtt_topic_wildcard
-            keepalive = 60
+            runtime_config = get_mqtt_runtime_config()
 
             def on_connect(client, _userdata, _flags, rc):
                 if rc == 0:
-                    client.subscribe(topic)
-                    logger.info('Connected to HiveMQ Cloud. host=%s port=%s', broker_host, broker_port)
+                    client.subscribe(runtime_config['topic_wildcard'])
+                    logger.info(
+                        'Connected to MQTT broker. host=%s port=%s tls=%s',
+                        runtime_config['broker_host'],
+                        runtime_config['broker_port'],
+                        runtime_config['tls_enabled'],
+                    )
                 else:
-                    logger.error('HiveMQ connection failed with rc=%s', rc)
+                    logger.error('MQTT connection failed with rc=%s', rc)
 
-            # HiveMQ Cloud uses TCP with TLS by default on 8883
             client = mqtt.Client(transport='tcp')
-            client.tls_set() # Always enabled for HiveMQ Cloud
-            
-            if username:
-                client.username_pw_set(username=username, password=password)
-                
+            configure_mqtt_client(client, runtime_config)
+
             client.on_connect = on_connect
             client.on_message = on_message
-            client.connect(broker_host, broker_port, keepalive)
+            client.connect(
+                runtime_config['broker_host'],
+                runtime_config['broker_port'],
+                runtime_config['keepalive'],
+            )
             client.loop_forever(retry_first_connection=True)
         except Exception:
-            logger.exception('MQTT listener crashed; reconnecting in %ss.', reconnect_delay)
-            time.sleep(reconnect_delay)
-        except Exception:
+            reconnect_delay = get_mqtt_runtime_config()['reconnect_delay']
             logger.exception('MQTT listener crashed; reconnecting in %ss.', reconnect_delay)
             time.sleep(reconnect_delay)
 

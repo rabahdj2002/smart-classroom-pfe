@@ -9,7 +9,7 @@
       <div class="alert alert-primary mb-4" role="alert">
         <h6 class="alert-heading mb-1">MQTT at a glance</h6>
         <p class="mb-2">The dashboard listens on <code>{{ mqtt.topic_wildcard }}</code> and uses server time for every recorded event.</p>
-        <p class="mb-0">Devices send data to the dashboard, and the dashboard sends commands or responses back to the device.</p>
+        <p class="mb-0">Devices send data to the dashboard, and the dashboard sends responses back to the device.</p>
       </div>
 
       <div class="row g-4 mb-4">
@@ -31,8 +31,6 @@
             <div class="card-body pt-4">
               <p class="mb-2"><strong>Device to dashboard:</strong></p>
               <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/events</pre>
-              <p class="mb-2"><strong>Dashboard to device commands:</strong></p>
-              <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/commands</pre>
               <p class="mb-2"><strong>Request / response topics:</strong></p>
               <pre class="mb-0">smartclass/classrooms/&lt;classroom_name&gt;/access/request
 smartclass/classrooms/&lt;classroom_name&gt;/access/response
@@ -53,11 +51,14 @@ smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
             <h6 class="mb-2">A. Classroom state / live events</h6>
             <p class="mb-2">Use this for occupancy and room state changes.</p>
             <pre class="mb-3">{
+  "event": "room_state",
   "classroom_name": "d3",
-  "occupied": true,
-  "door": false,
-  "teacher_rfid": "123456789123",
-  "new_session": false
+  "data": {
+    "occupied": true,
+    "door_unlocked": false,
+    "danger_indicator": false,
+    "teacher_rfid": "123456789123"
+  }
 }</pre>
             <p class="mb-1"><strong>Fields</strong></p>
             <ul class="mb-0">
@@ -73,8 +74,12 @@ smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
             <h6 class="mb-2">B. Teacher access request</h6>
             <p class="mb-2">Use this before opening a class or inspection session.</p>
             <pre class="mb-3">{
-  "teacher_rfid": "123456789123",
-  "request_id": "door-req-001"
+  "event": "access_request",
+  "classroom_name": "d3",
+  "data": {
+    "teacher_rfid": "123456789123",
+    "request_id": "door-req-001"
+  }
 }</pre>
             <p class="mb-1"><strong>Required field</strong></p>
             <ul class="mb-0">
@@ -86,8 +91,11 @@ smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
             <h6 class="mb-2">C. Student attendance request</h6>
             <p class="mb-2">Send this after the teacher session is open to mark arrivals.</p>
             <pre class="mb-3">{
-  "student_rfids": ["1234567891254", "STU-002"],
-  "event": "attendance_request"
+  "event": "attendance_request",
+  "classroom_name": "d3",
+  "data": {
+    "student_rfids": ["1234567891254", "STU-002"]
+  }
 }</pre>
             <p class="mb-1"><strong>Fields</strong></p>
             <ul class="mb-0">
@@ -111,41 +119,20 @@ smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
         <div class="card-header"><h5 class="mb-0">2. Dashboard to Device</h5></div>
         <div class="card-body pt-4">
           <div class="mb-4">
-            <h6 class="mb-2">A. Classroom commands</h6>
-            <p class="mb-2">The classroom command topic is reserved for future automation.</p>
-            <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/commands</pre>
-            <p class="mb-1"><strong>Current behavior</strong></p>
-            <ul class="mb-0">
-              <li>No manual classroom relay commands are emitted by the dashboard UI.</li>
-              <li>Use access, attendance, and door-delay request/response topics for active integrations.</li>
-            </ul>
-          </div>
-
-          <div class="mb-4">
-            <h6 class="mb-2">B. Teacher access response</h6>
+            <h6 class="mb-2">A. Teacher access response</h6>
             <p class="mb-2">The server responds to access requests on the response topic for that classroom.</p>
             <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/access/response</pre>
             <pre class="mb-3">{
-  "event": "teacher_access_response",
+  "event": "access_response",
   "request_id": "door-req-001",
   "approved": true,
-  "reason": "authorized_in_time_window",
-  "classroom_id": 3,
-  "classroom_name": "d3",
-  "teacher_id": 12,
-  "teacher_name": "Prof. Ali",
-  "access_window_minutes": 10,
-  "slot_index": 0,
-  "slot_label": "08:00 - 09:30",
-  "slot_start": "2026-04-20T08:00:00+01:00",
-  "slot_end": "2026-04-20T09:30:00+01:00",
-  "checked_at": "2026-04-20T08:04:00+01:00"
+  "reason": "authorized_in_time_window"
 }</pre>
             <p class="mb-0 text-muted">If the teacher is an administrator, the response reason is <code>authorized_admin_override</code> and the session becomes an inspection.</p>
           </div>
 
           <div>
-            <h6 class="mb-2">C. Door delay response</h6>
+            <h6 class="mb-2">B. Door delay response</h6>
             <p class="mb-2">The response is a plain number in minutes.</p>
             <pre class="mb-0">10</pre>
           </div>
@@ -168,10 +155,9 @@ smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
       <div class="card mb-4">
         <div class="card-header"><h5 class="mb-0">4. Quick CLI Tests</h5></div>
         <div class="card-body pt-4">
-          <pre class="mb-3">mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/access/request -m "{\"teacher_rfid\":\"123456789123\"}"
-mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/attendance/request -m "{\"student_rfids\":[\"STU-001\",\"STU-002\"]}"
-mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/door-delay/request -m "{\"command\":\"door_delay_request\"}"
-mosquitto_sub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/commands -v</pre>
+          <pre class="mb-3">mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/access/request -m "{\"event\":\"access_request\",\"classroom_name\":\"d3\",\"data\":{\"teacher_rfid\":\"123456789123\",\"request_id\":\"door-req-001\"}}"
+mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/attendance/request -m "{\"event\":\"attendance_request\",\"classroom_name\":\"d3\",\"data\":{\"student_rfids\":[\"STU-001\",\"STU-002\"]}}"
+mosquitto_pub -h {{ mqtt.broker_host }} -p {{ mqtt.broker_port }} -t smartclass/classrooms/d3/door-delay/request -m "{\"command\":\"door_delay_request\"}"</pre>
         </div>
       </div>
     </div>

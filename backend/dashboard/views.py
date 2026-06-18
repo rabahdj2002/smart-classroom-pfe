@@ -150,7 +150,7 @@ def mqtt_docs(request):
             'broker_port': broker_port,
             'topic_wildcard': topic_wildcard,
             'default_events_topic': default_events_topic,
-            'username_set': bool(getattr(settings, 'DASHBOARD_MQTT_USERNAME', '')),
+            'username_set': bool(settings_obj.mqtt_username),
             'keepalive': getattr(settings, 'DASHBOARD_MQTT_KEEPALIVE_SECONDS', 60),
             'reconnect_delay': getattr(settings, 'DASHBOARD_MQTT_RECONNECT_DELAY_SECONDS', 3),
         }
@@ -730,7 +730,7 @@ def temperature_settings(request):
             mqtt_broker_port = settings_obj.mqtt_broker_port
 
         if not mqtt_broker_host:
-            errors.append('HiveMQ cluster URL is required.')
+            errors.append('MQTT broker host is required.')
 
         if not mqtt_topic_wildcard:
             errors.append('MQTT topic wildcard is required.')

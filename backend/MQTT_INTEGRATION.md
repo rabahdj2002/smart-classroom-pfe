@@ -15,7 +15,6 @@ The server listens on `smartclass/#` and uses its own timestamp for every stored
 
 ### Dashboard to device
 
-- `smartclass/classrooms/<classroom_name>/commands`
 - `smartclass/classrooms/<classroom_name>/access/response`
 - `smartclass/classrooms/<classroom_name>/door-delay/response`
 
@@ -90,20 +89,7 @@ The response is the delay in minutes as a plain number.
 
 ## 3. Dashboard to device payloads
 
-### A. Classroom commands
-
-The classroom command topic remains reserved for future use:
-
-```text
-smartclass/classrooms/<classroom_name>/commands
-```
-
-Current behavior:
-
-- No manual classroom relay commands are emitted by the dashboard UI.
-- Devices should continue using `access/request`, `attendance/request`, and `door-delay/request` flows.
-
-### B. Teacher access response
+### A. Teacher access response
 
 Response topic:
 
@@ -115,7 +101,7 @@ Example response:
 
 ```json
 {
-  "event": "teacher_access_response",
+  "event": "access_response",
   "request_id": "door-req-001",
   "approved": true,
   "reason": "authorized_in_time_window",
@@ -138,7 +124,7 @@ Important reasons:
 - `authorized_immediate_override` = class session opened by manual override
 - `authorized_admin_override` = inspection created immediately
 
-### C. Door delay response
+### B. Door delay response
 
 Response topic:
 
@@ -176,5 +162,4 @@ Response example:
 mosquitto_pub -h 127.0.0.1 -p 1883 -t smartclass/classrooms/d3/access/request -m "{\"teacher_rfid\":\"123456789123\"}"
 mosquitto_pub -h 127.0.0.1 -p 1883 -t smartclass/classrooms/d3/attendance/request -m "{\"student_rfids\":[\"STU-001\",\"STU-002\"]}"
 mosquitto_pub -h 127.0.0.1 -p 1883 -t smartclass/classrooms/d3/door-delay/request -m "{\"command\":\"door_delay_request\"}"
-mosquitto_sub -h 127.0.0.1 -p 1883 -t smartclass/classrooms/d3/commands -v
 ```
