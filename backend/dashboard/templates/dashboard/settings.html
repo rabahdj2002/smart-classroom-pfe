@@ -3,7 +3,7 @@
 {% block content %}
 <div class="layout-page">
   <div class="content-wrapper">
-    <div class="container-xxl flex-grow-1 container-p-y">
+    <div class="container-fluid flex-grow-1 container-p-y px-3 px-xl-4">
       <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">System /</span> Settings</h4>
 
       {% if success_message %}
@@ -42,7 +42,7 @@
             {% csrf_token %}
 
             <div class="row g-4">
-              <div class="col-12 col-lg-12">
+              <div class="col-12 col-xl-6">
                 <div class="border rounded p-3 h-100">
                   <h6 class="mb-3">Auto-finish sessions</h6>
                   <div class="form-check form-switch mb-3">
@@ -69,6 +69,12 @@
                     value="{{ settings_obj.cron_interval_minutes }}"
                     required
                   />
+                  <small class="text-muted d-block mt-3">Default 90 minutes = automatic report generation after 1h30 from session start when not ended manually.</small>
+                </div>
+              </div>
+
+              <div class="col-12 col-xl-6">
+                <div class="border rounded p-3 h-100">
                   <label for="teacher_access_window_minutes" class="form-label mt-3">Teacher class-start access window (minutes)</label>
                   <input
                     id="teacher_access_window_minutes"
@@ -106,8 +112,6 @@
                     value="{{ settings_obj.ramadan_start_time|time:'H:i' }}"
                   />
                   <small class="text-muted d-block">When active, slots are calculated as 1 hour 15-minute blocks starting from this time.</small>
-
-                  <small class="text-muted">Default 90 minutes = 1h30 from session start, no manual end required.</small>
                 </div>
               </div>
             </div>
@@ -171,81 +175,83 @@
             <hr class="my-4" />
 
             <div class="row g-4">
-              <div class="col-12">
-                <h6 class="mb-3">MQTT Broker Configuration</h6>
-                <div class="alert alert-info py-2 small">Use localhost and port 1883 for local Mosquitto, or provide your cloud broker host/port.</div>
-              </div>
+              <div class="col-12 col-xxl-6">
+                <div class="border rounded p-3 h-100">
+                  <h6 class="mb-3">MQTT Broker Configuration</h6>
+                  <div class="alert alert-info py-2 small">Use localhost and port 1883 for local Mosquitto, or provide your cloud broker host/port.</div>
 
-              <div class="col-md-9">
-                <label for="mqtt_broker_host" class="form-label">Broker Host</label>
-                <input id="mqtt_broker_host" name="mqtt_broker_host" type="text" class="form-control" value="{{ settings_obj.mqtt_broker_host }}" placeholder="127.0.0.1" required />
-              </div>
+                  <div class="row g-3">
+                    <div class="col-md-9">
+                      <label for="mqtt_broker_host" class="form-label">Broker Host</label>
+                      <input id="mqtt_broker_host" name="mqtt_broker_host" type="text" class="form-control" value="{{ settings_obj.mqtt_broker_host }}" placeholder="127.0.0.1" required />
+                    </div>
 
-              <div class="col-md-3">
-                <label for="mqtt_broker_port" class="form-label">Port</label>
-                <input id="mqtt_broker_port" name="mqtt_broker_port" type="number" class="form-control" value="{{ settings_obj.mqtt_broker_port }}" required />
-              </div>
+                    <div class="col-md-3">
+                      <label for="mqtt_broker_port" class="form-label">Port</label>
+                      <input id="mqtt_broker_port" name="mqtt_broker_port" type="number" class="form-control" value="{{ settings_obj.mqtt_broker_port }}" required />
+                    </div>
 
-              <div class="col-md-6">
-                <label for="mqtt_username" class="form-label">MQTT Username</label>
-                <input id="mqtt_username" name="mqtt_username" type="text" class="form-control" value="{{ settings_obj.mqtt_username }}" required />
-              </div>
+                    <div class="col-md-6">
+                      <label for="mqtt_username" class="form-label">MQTT Username</label>
+                      <input id="mqtt_username" name="mqtt_username" type="text" class="form-control" value="{{ settings_obj.mqtt_username }}" required />
+                    </div>
 
-              <div class="col-md-6">
-                <label for="mqtt_password" class="form-label">MQTT Password</label>
-                <input id="mqtt_password" name="mqtt_password" type="password" class="form-control" placeholder="Change password..." />
-              </div>
+                    <div class="col-md-6">
+                      <label for="mqtt_password" class="form-label">MQTT Password</label>
+                      <input id="mqtt_password" name="mqtt_password" type="password" class="form-control" placeholder="Change password..." />
+                    </div>
 
-              <div class="col-12">
-                <label for="mqtt_topic_wildcard" class="form-label">Topic Wildcard</label>
-                <input id="mqtt_topic_wildcard" name="mqtt_topic_wildcard" type="text" class="form-control" value="{{ settings_obj.mqtt_topic_wildcard }}" required />
-              </div>
-            </div>
-
-            <hr class="my-4" />
-
-            <div class="row g-4">
-              <div class="col-12">
-                <h6 class="mb-3">Attendance report email delivery</h6>
-              </div>
-
-              <div class="col-12">
-                <div class="form-check form-switch mb-2">
-                  <input class="form-check-input" type="checkbox" id="email_reports_enabled" name="email_reports_enabled" {% if settings_obj.email_reports_enabled %}checked{% endif %} />
-                  <label class="form-check-label" for="email_reports_enabled">Send generated attendance reports as PDF by email to the teacher</label>
+                    <div class="col-12">
+                      <label for="mqtt_topic_wildcard" class="form-label">Topic Wildcard</label>
+                      <input id="mqtt_topic_wildcard" name="mqtt_topic_wildcard" type="text" class="form-control" value="{{ settings_obj.mqtt_topic_wildcard }}" required />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div class="col-md-6">
-                <label for="smtp_host" class="form-label">SMTP Host</label>
-                <input id="smtp_host" name="smtp_host" type="text" class="form-control" value="{{ settings_obj.smtp_host }}" placeholder="smtp.example.com" />
-              </div>
+              <div class="col-12 col-xxl-6">
+                <div class="border rounded p-3 h-100">
+                  <h6 class="mb-3">Attendance report email delivery</h6>
 
-              <div class="col-md-3">
-                <label for="smtp_port" class="form-label">SMTP Port</label>
-                <input id="smtp_port" name="smtp_port" type="number" min="1" class="form-control" value="{{ settings_obj.smtp_port }}" />
-              </div>
+                  <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="email_reports_enabled" name="email_reports_enabled" {% if settings_obj.email_reports_enabled %}checked{% endif %} />
+                    <label class="form-check-label" for="email_reports_enabled">Send generated attendance reports as PDF by email to the teacher</label>
+                  </div>
 
-              <div class="col-md-3 d-flex align-items-end">
-                <div class="form-check form-switch mb-2">
-                  <input class="form-check-input" type="checkbox" id="smtp_use_tls" name="smtp_use_tls" {% if settings_obj.smtp_use_tls %}checked{% endif %} />
-                  <label class="form-check-label" for="smtp_use_tls">Use TLS</label>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label for="smtp_host" class="form-label">SMTP Host</label>
+                      <input id="smtp_host" name="smtp_host" type="text" class="form-control" value="{{ settings_obj.smtp_host }}" placeholder="smtp.example.com" />
+                    </div>
+
+                    <div class="col-md-3">
+                      <label for="smtp_port" class="form-label">SMTP Port</label>
+                      <input id="smtp_port" name="smtp_port" type="number" min="1" class="form-control" value="{{ settings_obj.smtp_port }}" />
+                    </div>
+
+                    <div class="col-md-3 d-flex align-items-end">
+                      <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="smtp_use_tls" name="smtp_use_tls" {% if settings_obj.smtp_use_tls %}checked{% endif %} />
+                        <label class="form-check-label" for="smtp_use_tls">Use TLS</label>
+                      </div>
+                    </div>
+
+                    <div class="col-md-6">
+                      <label for="smtp_username" class="form-label">SMTP Username</label>
+                      <input id="smtp_username" name="smtp_username" type="text" class="form-control" value="{{ settings_obj.smtp_username }}" />
+                    </div>
+
+                    <div class="col-md-6">
+                      <label for="smtp_password" class="form-label">SMTP Password</label>
+                      <input id="smtp_password" name="smtp_password" type="password" class="form-control" placeholder="Leave empty to keep current password" />
+                    </div>
+
+                    <div class="col-md-6">
+                      <label for="smtp_from_email" class="form-label">From Email</label>
+                      <input id="smtp_from_email" name="smtp_from_email" type="email" class="form-control" value="{{ settings_obj.smtp_from_email }}" placeholder="noreply@smartclassroom.local" />
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div class="col-md-6">
-                <label for="smtp_username" class="form-label">SMTP Username</label>
-                <input id="smtp_username" name="smtp_username" type="text" class="form-control" value="{{ settings_obj.smtp_username }}" />
-              </div>
-
-              <div class="col-md-6">
-                <label for="smtp_password" class="form-label">SMTP Password</label>
-                <input id="smtp_password" name="smtp_password" type="password" class="form-control" placeholder="Leave empty to keep current password" />
-              </div>
-
-              <div class="col-md-6">
-                <label for="smtp_from_email" class="form-label">From Email</label>
-                <input id="smtp_from_email" name="smtp_from_email" type="email" class="form-control" value="{{ settings_obj.smtp_from_email }}" placeholder="noreply@smartclassroom.local" />
               </div>
             </div>
 

@@ -1,13 +1,13 @@
 from django.shortcuts import render, redirect
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.db import IntegrityError
 from django.http import HttpResponse
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from .models import AttendanceReport, ClassTimetableSlot, Classroom, ImmediateTeacherAccessGrant, Session, Staff, Student, SystemSettings
+from .models import AttendanceReport, ClassTimetableSlot, Classroom, ImmediateTeacherAccessGrant, Session, Specialization, Staff, Student, SystemSettings
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.dateparse import parse_datetime
@@ -25,6 +25,7 @@ from .reporting import (
     get_system_settings,
     maybe_email_report,
 )
+from .session_access import resolve_session_access_type
 
 
 def _is_portal_admin(user):
@@ -303,6 +304,10 @@ def dash(request):
 def classes(request):
     settings_obj = get_system_settings()
     query = request.GET.get('q', '').strip()
+    building = request.GET.get('building', '').strip()
+    floor = request.GET.get('floor', '').strip()
+    capacity_min_raw = request.GET.get('capacity_min', '').strip()
+    capacity_max_raw = request.GET.get('capacity_max', '').strip()
     usage = request.GET.get('usage', '').strip()
     door = request.GET.get('door', '').strip()
     page_number = request.GET.get('page', '1').strip()
@@ -310,6 +315,25 @@ def classes(request):
     classrooms = Classroom.objects.all()
     if query:
         classrooms = classrooms.filter(name__icontains=query)
+    if building:
+        classrooms = classrooms.filter(building__icontains=building)
+    if floor:
+        classrooms = classrooms.filter(floor__icontains=floor)
+
+    try:
+        capacity_min = int(capacity_min_raw) if capacity_min_raw else None
+    except ValueError:
+        capacity_min = None
+    try:
+        capacity_max = int(capacity_max_raw) if capacity_max_raw else None
+    except ValueError:
+        capacity_max = None
+
+    if capacity_min is not None:
+        classrooms = classrooms.filter(capacity__gte=capacity_min)
+    if capacity_max is not None:
+        classrooms = classrooms.filter(capacity__lte=capacity_max)
+
     if usage == 'used':
         classrooms = classrooms.filter(occupied=True)
     elif usage == 'unused':
@@ -334,6 +358,9 @@ def classes(request):
         classroom_list.append({
             'id': room.id,
             'name': room.name,
+            'building': room.building,
+            'floor': room.floor,
+            'capacity': room.capacity,
             'door': room.door,
             'today_sessions': today_sessions,
             'used_today': room.occupied,
@@ -342,6 +369,10 @@ def classes(request):
 
     filters = {
         'q': query,
+        'building': building,
+        'floor': floor,
+        'capacity_min': capacity_min_raw,
+        'capacity_max': capacity_max_raw,
         'usage': usage,
         'door': door,
     }
@@ -805,15 +836,29 @@ def add_class(request):
     errors = []
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
+        building = request.POST.get('building', '').strip()
+        floor = request.POST.get('floor', '').strip()
+        capacity_raw = request.POST.get('capacity', '').strip()
         occupied = bool(request.POST.get('occupied'))
         door = bool(request.POST.get('door'))
 
         if not name:
             errors.append('Name is required.')
 
+        try:
+            capacity = int(capacity_raw) if capacity_raw else 30
+            if capacity <= 0:
+                errors.append('Capacity must be a positive number.')
+        except ValueError:
+            errors.append('Capacity must be a valid number.')
+            capacity = 30
+
         if not errors:
             Classroom.objects.create(
                 name=name,
+                building=building,
+                floor=floor,
+                capacity=capacity,
                 occupied=occupied,
                 door=door,
             )
@@ -823,9 +868,14 @@ def add_class(request):
             'errors': errors,
             'form': {
                 'name': name,
+                'building': building,
+                'floor': floor,
+                'capacity': capacity_raw,
                 'occupied': occupied,
                 'door': door,
             },
+            'page_title': 'Add Classroom',
+            'submit_label': 'Save Classroom',
         }
 
         return render(request, 'dashboard/classroom_add.html', context)
@@ -833,6 +883,77 @@ def add_class(request):
     context = {
         'errors': [],
         'form': {},
+        'page_title': 'Add Classroom',
+        'submit_label': 'Save Classroom',
+    }
+    return render(request, 'dashboard/classroom_add.html', context)
+
+
+@portal_admin_required
+def edit_class(request, id):
+    classroom = Classroom.objects.filter(id=id).first()
+    if not classroom:
+        return render(request, '404.html', status=404)
+
+    errors = []
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        building = request.POST.get('building', '').strip()
+        floor = request.POST.get('floor', '').strip()
+        capacity_raw = request.POST.get('capacity', '').strip()
+        occupied = bool(request.POST.get('occupied'))
+        door = bool(request.POST.get('door'))
+
+        if not name:
+            errors.append('Name is required.')
+
+        try:
+            capacity = int(capacity_raw) if capacity_raw else 30
+            if capacity <= 0:
+                errors.append('Capacity must be a positive number.')
+        except ValueError:
+            errors.append('Capacity must be a valid number.')
+            capacity = classroom.capacity
+
+        if not errors:
+            classroom.name = name
+            classroom.building = building
+            classroom.floor = floor
+            classroom.capacity = capacity
+            classroom.occupied = occupied
+            classroom.door = door
+            classroom.save(update_fields=['name', 'building', 'floor', 'capacity', 'occupied', 'door'])
+            messages.success(request, 'Classroom updated successfully.')
+            return redirect('classes')
+
+        context = {
+            'errors': errors,
+            'form': {
+                'name': name,
+                'building': building,
+                'floor': floor,
+                'capacity': capacity_raw,
+                'occupied': occupied,
+                'door': door,
+            },
+            'page_title': f'Edit Classroom - {classroom.name}',
+            'submit_label': 'Save Changes',
+        }
+        return render(request, 'dashboard/classroom_add.html', context)
+
+    context = {
+        'errors': [],
+        'form': {
+            'name': classroom.name,
+            'building': classroom.building,
+            'floor': classroom.floor,
+            'capacity': classroom.capacity,
+            'occupied': classroom.occupied,
+            'door': classroom.door,
+        },
+        'page_title': f'Edit Classroom - {classroom.name}',
+        'submit_label': 'Save Changes',
     }
     return render(request, 'dashboard/classroom_add.html', context)
 
@@ -845,6 +966,8 @@ def add_student(request):
         email = request.POST.get('email', '').strip()
         specialization = request.POST.get('specialization', '').strip()
         year_raw = request.POST.get('year', '').strip()
+        phone_number = request.POST.get('phone_number', '').strip()
+        is_active = bool(request.POST.get('is_active'))
         student_card_id = request.POST.get('student_card_id', '').strip()
         rfid_number = request.POST.get('rfid_number', '').strip()
 
@@ -854,14 +977,15 @@ def add_student(request):
             errors.append('Email is required.')
         if not specialization:
             errors.append('Specialization is required.')
+        elif not Specialization.objects.filter(code=specialization).exists():
+            errors.append('Selected specialization is invalid.')
 
-        try:
-            year = int(year_raw)
-            if year <= 0:
-                errors.append('Year must be a positive number.')
-        except ValueError:
-            errors.append('Year must be a number.')
-            year = None
+        year = year_raw
+        valid_year_codes = {value for value, _ in Student.YEAR_LEVEL_CHOICES}
+        if not year:
+            errors.append('Level is required.')
+        elif year not in valid_year_codes:
+            errors.append('Selected level is invalid.')
 
         if not student_card_id:
             errors.append('Student card ID is required.')
@@ -874,6 +998,8 @@ def add_student(request):
                 email=email,
                 specialization=specialization,
                 year=year,
+                phone_number=phone_number,
+                is_active=is_active,
                 student_card_id=student_card_id,
                 rfid_number=rfid_number,
             )
@@ -886,15 +1012,124 @@ def add_student(request):
                 'email': email,
                 'specialization': specialization,
                 'year': year_raw,
+                'phone_number': phone_number,
+                'is_active': is_active,
                 'student_card_id': student_card_id,
                 'rfid_number': rfid_number,
             },
+            'page_title': 'Add Student',
+            'submit_label': 'Create Student',
+            'specialization_options': _student_specialization_options(),
+            'year_options': _student_year_options(),
         }
         return render(request, 'dashboard/student_add.html', context)
 
     context = {
         'errors': [],
-        'form': {},
+        'form': {'is_active': True},
+        'page_title': 'Add Student',
+        'submit_label': 'Create Student',
+        'specialization_options': _student_specialization_options(),
+        'year_options': _student_year_options(),
+    }
+    return render(request, 'dashboard/student_add.html', context)
+
+
+@portal_admin_required
+def edit_student(request, id):
+    student = Student.objects.filter(id=id).first()
+    if not student:
+        return render(request, '404.html', status=404)
+
+    errors = []
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        email = request.POST.get('email', '').strip()
+        specialization = request.POST.get('specialization', '').strip()
+        year_raw = request.POST.get('year', '').strip()
+        phone_number = request.POST.get('phone_number', '').strip()
+        is_active = bool(request.POST.get('is_active'))
+        student_card_id = request.POST.get('student_card_id', '').strip()
+        rfid_number = request.POST.get('rfid_number', '').strip()
+
+        if not name:
+            errors.append('Name is required.')
+        if not email:
+            errors.append('Email is required.')
+        if not specialization:
+            errors.append('Specialization is required.')
+        elif not Specialization.objects.filter(code=specialization).exists():
+            errors.append('Selected specialization is invalid.')
+
+        year = year_raw
+        valid_year_codes = {value for value, _ in Student.YEAR_LEVEL_CHOICES}
+        if not year:
+            errors.append('Level is required.')
+        elif year not in valid_year_codes:
+            errors.append('Selected level is invalid.')
+
+        if not student_card_id:
+            errors.append('Student card ID is required.')
+        if not rfid_number:
+            errors.append('RFID number is required.')
+
+        duplicate_scope = Student.objects.exclude(id=student.id)
+        if email and duplicate_scope.filter(email=email).exists():
+            errors.append('Email is already used by another student.')
+        if student_card_id and duplicate_scope.filter(student_card_id=student_card_id).exists():
+            errors.append('Student card ID is already used by another student.')
+        if rfid_number and duplicate_scope.filter(rfid_number=rfid_number).exists():
+            errors.append('RFID number is already used by another student.')
+
+        if not errors:
+            student.name = name
+            student.email = email
+            student.specialization = specialization
+            student.year = year
+            student.phone_number = phone_number
+            student.is_active = is_active
+            student.student_card_id = student_card_id
+            student.rfid_number = rfid_number
+            student.save(update_fields=['name', 'email', 'specialization', 'year', 'phone_number', 'is_active', 'student_card_id', 'rfid_number'])
+            messages.success(request, 'Student updated successfully.')
+            return redirect('student_detail', id=student.id)
+
+        context = {
+            'errors': errors,
+            'form': {
+                'name': name,
+                'email': email,
+                'specialization': specialization,
+                'year': year_raw,
+                'phone_number': phone_number,
+                'is_active': is_active,
+                'student_card_id': student_card_id,
+                'rfid_number': rfid_number,
+            },
+            'page_title': f'Edit Student - {student.name}',
+            'submit_label': 'Save Changes',
+            'specialization_options': _student_specialization_options(include_code=specialization),
+            'year_options': _student_year_options(),
+        }
+        return render(request, 'dashboard/student_add.html', context)
+
+    context = {
+        'errors': [],
+        'form': {
+            'name': student.name,
+            'email': student.email,
+            'specialization': student.specialization,
+            'year': student.year,
+            'phone_number': student.phone_number,
+            'is_active': student.is_active,
+            'student_card_id': student.student_card_id,
+            'rfid_number': student.rfid_number,
+        },
+        'page_title': f'Edit Student - {student.name}',
+        'submit_label': 'Save Changes',
+        'specialization_options': _student_specialization_options(include_code=student.specialization),
+        'year_options': _student_year_options(),
     }
     return render(request, 'dashboard/student_add.html', context)
 
@@ -919,6 +1154,7 @@ def student_detail(request, id):
 
     weekly_student_sessions = sum(attendance_values[-7:])
     recent_sessions = Session.objects.filter(students=student).select_related('classroom').order_by('-start_time')[:7]
+    total_sessions = Session.objects.filter(students=student).count()
 
     context = {
         'student': student,
@@ -926,6 +1162,7 @@ def student_detail(request, id):
         'attendance_values_json': json.dumps(attendance_values),
         'weekly_student_sessions': weekly_student_sessions,
         'recent_sessions': recent_sessions,
+        'total_sessions': total_sessions,
     }
     return render(request, 'dashboard/student_detail.html', context)
 
@@ -934,25 +1171,181 @@ def _build_query_string(filters):
     return urlencode({key: value for key, value in filters.items() if value})
 
 
+def _student_specialization_options(include_code=None):
+    queryset = Specialization.objects.filter(is_active=True).order_by('name')
+    if include_code:
+        queryset = Specialization.objects.filter(Q(is_active=True) | Q(code=include_code)).order_by('name')
+    return list(queryset.values_list('code', 'name'))
+
+
+def _student_year_options():
+    return list(Student.YEAR_LEVEL_CHOICES)
+
+
+@portal_admin_required
+def specializations(request):
+    specializations_qs = Specialization.objects.order_by('name')
+    usage_counts = {
+        item['specialization']: item['count']
+        for item in Student.objects.values('specialization').annotate(count=Count('id'))
+    }
+
+    specialization_rows = []
+    for specialization in specializations_qs:
+        specialization_rows.append(
+            {
+                'id': specialization.id,
+                'code': specialization.code,
+                'name': specialization.name,
+                'is_active': specialization.is_active,
+                'student_count': usage_counts.get(specialization.code, 0),
+            }
+        )
+
+    context = {
+        'specializations': specialization_rows,
+    }
+    return render(request, 'dashboard/specializations.html', context)
+
+
+@portal_admin_required
+def add_specialization(request):
+    errors = []
+
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip().upper()
+        name = request.POST.get('name', '').strip()
+        is_active = bool(request.POST.get('is_active'))
+
+        if not code:
+            errors.append('Code is required.')
+        if not name:
+            errors.append('Name is required.')
+        if code and Specialization.objects.filter(code=code).exists():
+            errors.append('Code is already used.')
+        if name and Specialization.objects.filter(name__iexact=name).exists():
+            errors.append('Name is already used.')
+
+        if not errors:
+            Specialization.objects.create(code=code, name=name, is_active=is_active)
+            messages.success(request, 'Specialization created successfully.')
+            return redirect('specializations')
+
+        context = {
+            'errors': errors,
+            'form': {'code': code, 'name': name, 'is_active': is_active},
+            'page_title': 'Add Specialization',
+            'submit_label': 'Create Specialization',
+        }
+        return render(request, 'dashboard/specialization_form.html', context)
+
+    context = {
+        'errors': [],
+        'form': {'is_active': True},
+        'page_title': 'Add Specialization',
+        'submit_label': 'Create Specialization',
+    }
+    return render(request, 'dashboard/specialization_form.html', context)
+
+
+@portal_admin_required
+def edit_specialization(request, id):
+    specialization = Specialization.objects.filter(id=id).first()
+    if not specialization:
+        return render(request, '404.html', status=404)
+
+    errors = []
+
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip().upper()
+        name = request.POST.get('name', '').strip()
+        is_active = bool(request.POST.get('is_active'))
+
+        if not code:
+            errors.append('Code is required.')
+        if not name:
+            errors.append('Name is required.')
+
+        duplicate_scope = Specialization.objects.exclude(id=specialization.id)
+        if code and duplicate_scope.filter(code=code).exists():
+            errors.append('Code is already used.')
+        if name and duplicate_scope.filter(name__iexact=name).exists():
+            errors.append('Name is already used.')
+
+        if not errors:
+            old_code = specialization.code
+            specialization.code = code
+            specialization.name = name
+            specialization.is_active = is_active
+            specialization.save(update_fields=['code', 'name', 'is_active'])
+
+            if old_code != code:
+                Student.objects.filter(specialization=old_code).update(specialization=code)
+
+            messages.success(request, 'Specialization updated successfully.')
+            return redirect('specializations')
+
+        context = {
+            'errors': errors,
+            'form': {'code': code, 'name': name, 'is_active': is_active},
+            'page_title': f'Edit Specialization - {specialization.name}',
+            'submit_label': 'Save Changes',
+        }
+        return render(request, 'dashboard/specialization_form.html', context)
+
+    context = {
+        'errors': [],
+        'form': {
+            'code': specialization.code,
+            'name': specialization.name,
+            'is_active': specialization.is_active,
+        },
+        'page_title': f'Edit Specialization - {specialization.name}',
+        'submit_label': 'Save Changes',
+    }
+    return render(request, 'dashboard/specialization_form.html', context)
+
+
+@portal_admin_required
+def delete_specialization(request, id):
+    if request.method != 'POST':
+        return redirect('specializations')
+
+    specialization = Specialization.objects.filter(id=id).first()
+    if not specialization:
+        return render(request, '404.html', status=404)
+
+    specialization.delete()
+    messages.success(request, 'Specialization deleted successfully.')
+    return redirect('specializations')
+
+
 @portal_admin_required
 def export_students(request, export_format):
     settings_obj = get_system_settings()
     query = request.GET.get('q', '').strip()
     specialization = request.GET.get('specialization', '').strip()
     year = request.GET.get('year', '').strip()
+    status = request.GET.get('status', '').strip()
 
     student_list = Student.objects.all()
     if query:
         student_list = student_list.filter(
             Q(name__icontains=query)
             | Q(email__icontains=query)
+            | Q(phone_number__icontains=query)
             | Q(rfid_number__icontains=query)
             | Q(student_card_id__icontains=query)
         )
     if specialization:
         student_list = student_list.filter(specialization=specialization)
-    if year:
+    valid_year_codes = {value for value, _ in Student.YEAR_LEVEL_CHOICES}
+    if year and year in valid_year_codes:
         student_list = student_list.filter(year=year)
+    if status == 'active':
+        student_list = student_list.filter(is_active=True)
+    elif status == 'inactive':
+        student_list = student_list.filter(is_active=False)
 
     student_list = student_list.order_by('name')
 
@@ -990,12 +1383,35 @@ def restore_students(request):
 def export_classes(request, export_format):
     settings_obj = get_system_settings()
     query = request.GET.get('q', '').strip()
+    building = request.GET.get('building', '').strip()
+    floor = request.GET.get('floor', '').strip()
+    capacity_min_raw = request.GET.get('capacity_min', '').strip()
+    capacity_max_raw = request.GET.get('capacity_max', '').strip()
     usage = request.GET.get('usage', '').strip()
     door = request.GET.get('door', '').strip()
 
     classroom_list = Classroom.objects.all()
     if query:
         classroom_list = classroom_list.filter(name__icontains=query)
+    if building:
+        classroom_list = classroom_list.filter(building__icontains=building)
+    if floor:
+        classroom_list = classroom_list.filter(floor__icontains=floor)
+
+    try:
+        capacity_min = int(capacity_min_raw) if capacity_min_raw else None
+    except ValueError:
+        capacity_min = None
+    try:
+        capacity_max = int(capacity_max_raw) if capacity_max_raw else None
+    except ValueError:
+        capacity_max = None
+
+    if capacity_min is not None:
+        classroom_list = classroom_list.filter(capacity__gte=capacity_min)
+    if capacity_max is not None:
+        classroom_list = classroom_list.filter(capacity__lte=capacity_max)
+
     if usage == 'used':
         classroom_list = classroom_list.filter(occupied=True)
     elif usage == 'unused':
@@ -1043,6 +1459,7 @@ def export_sessions(request, export_format):
     settings_obj = get_system_settings()
     classroom_id = request.GET.get('classroom', '').strip()
     teacher_query = request.GET.get('teacher', '').strip()
+    access_type = request.GET.get('access_type', '').strip()
     start_date = request.GET.get('start_date', '').strip()
     end_date = request.GET.get('end_date', '').strip()
     order = request.GET.get('order', settings_obj.default_sessions_order).strip()
@@ -1059,6 +1476,8 @@ def export_sessions(request, export_format):
             Q(teacher__name__icontains=teacher_query)
             | Q(teacher__email__icontains=teacher_query)
         )
+    if access_type in {'scheduled', 'out_of_schedule'}:
+        session_list = session_list.filter(access_type=access_type)
     if start_date:
         session_list = session_list.filter(start_time__date__gte=start_date)
     if end_date:
@@ -1068,6 +1487,9 @@ def export_sessions(request, export_format):
         session_list = session_list.order_by('-id')
     else:
         session_list = session_list.order_by('id')
+
+    scheduled_count = session_list.filter(access_type='scheduled').count()
+    out_of_schedule_count = session_list.filter(access_type='out_of_schedule').count()
 
     if export_format == 'json':
         return build_backup_response()
@@ -1105,6 +1527,7 @@ def students(request):
     query = request.GET.get('q', '').strip()
     specialization = request.GET.get('specialization', '').strip()
     year = request.GET.get('year', '').strip()
+    status = request.GET.get('status', '').strip()
     page_number = request.GET.get('page', '1').strip()
 
     student_list = Student.objects.all()
@@ -1112,13 +1535,19 @@ def students(request):
         student_list = student_list.filter(
             Q(name__icontains=query)
             | Q(email__icontains=query)
+            | Q(phone_number__icontains=query)
             | Q(rfid_number__icontains=query)
             | Q(student_card_id__icontains=query)
         )
     if specialization:
         student_list = student_list.filter(specialization=specialization)
-    if year:
+    valid_year_codes = {value for value, _ in Student.YEAR_LEVEL_CHOICES}
+    if year and year in valid_year_codes:
         student_list = student_list.filter(year=year)
+    if status == 'active':
+        student_list = student_list.filter(is_active=True)
+    elif status == 'inactive':
+        student_list = student_list.filter(is_active=False)
 
     student_list = student_list.order_by('name')
     paginator = Paginator(student_list, settings_obj.default_list_page_size)
@@ -1128,6 +1557,7 @@ def students(request):
         'q': query,
         'specialization': specialization,
         'year': year,
+        'status': status,
     }
     pagination_query = urlencode({key: value for key, value in filters.items() if value})
 
@@ -1137,6 +1567,8 @@ def students(request):
         'page_obj': page_obj,
         'pagination_query': pagination_query,
         'filters': filters,
+        'specialization_options': _student_specialization_options(),
+        'year_options': _student_year_options(),
     }
     return render(request, 'dashboard/students.html', context)
 
@@ -1222,6 +1654,7 @@ def sessions(request):
     settings_obj = get_system_settings()
     classroom_id = request.GET.get('classroom', '').strip()
     teacher_query = request.GET.get('teacher', '').strip()
+    access_type = request.GET.get('access_type', '').strip()
     start_date = request.GET.get('start_date', '').strip()
     end_date = request.GET.get('end_date', '').strip()
     order = request.GET.get('order', settings_obj.default_sessions_order).strip()
@@ -1239,6 +1672,8 @@ def sessions(request):
             Q(teacher__name__icontains=teacher_query)
             | Q(teacher__email__icontains=teacher_query)
         )
+    if access_type in {'scheduled', 'out_of_schedule'}:
+        session_list = session_list.filter(access_type=access_type)
     if start_date:
         session_list = session_list.filter(start_time__date__gte=start_date)
     if end_date:
@@ -1248,6 +1683,9 @@ def sessions(request):
         session_list = session_list.order_by('-id')
     else:
         session_list = session_list.order_by('id')
+
+    scheduled_count = session_list.filter(access_type='scheduled').count()
+    out_of_schedule_count = session_list.filter(access_type='out_of_schedule').count()
 
     paginator = Paginator(session_list, settings_obj.default_list_page_size)
     page_obj = paginator.get_page(page_number)
@@ -1259,6 +1697,7 @@ def sessions(request):
     filters = {
         'classroom': classroom_id,
         'teacher': teacher_query,
+        'access_type': access_type,
         'start_date': start_date,
         'end_date': end_date,
         'order': order,
@@ -1272,6 +1711,8 @@ def sessions(request):
         'pagination_query': pagination_query,
         'classrooms': Classroom.objects.order_by('name'),
         'filters': filters,
+        'scheduled_count': scheduled_count,
+        'out_of_schedule_count': out_of_schedule_count,
     }
     return render(request, 'dashboard/sessions.html', context)
 
@@ -1333,6 +1774,12 @@ def add_session(request):
         if not errors:
             settings_obj = get_system_settings()
             expected_report_time = None if session_type == 'inspection' else start_time + timedelta(minutes=settings_obj.auto_finish_minutes)
+            access_type = resolve_session_access_type(
+                classroom=classroom,
+                teacher=selected_staff,
+                event_time=start_time,
+                session_type=session_type,
+            )
 
             session = Session.objects.create(
                 classroom=classroom,
@@ -1341,7 +1788,7 @@ def add_session(request):
                 expected_report_time=expected_report_time,
                 is_closed=session_type == 'inspection',
                 session_type=session_type,
-                access_type='none' if session_type == 'inspection' else 'timetable',
+                access_type=access_type,
                 ended_at=start_time if session_type == 'inspection' else None,
             )
             if session_type == 'class' and selected_students.exists():
@@ -1435,6 +1882,12 @@ def edit_session(request, id):
         if not errors:
             settings_obj = get_system_settings()
             expected_report_time = None if session_type == 'inspection' else start_time + timedelta(minutes=settings_obj.auto_finish_minutes)
+            access_type = resolve_session_access_type(
+                classroom=classroom,
+                teacher=selected_staff,
+                event_time=start_time,
+                session_type=session_type,
+            )
 
             previous_classroom = session.classroom
             session.classroom = classroom
@@ -1442,7 +1895,7 @@ def edit_session(request, id):
             session.start_time = start_time
             session.expected_report_time = expected_report_time
             session.session_type = session_type
-            session.access_type = 'none' if session_type == 'inspection' else 'timetable'
+            session.access_type = access_type
             if session_type == 'inspection':
                 session.is_closed = True
                 session.ended_at = start_time
@@ -1612,10 +2065,6 @@ def _validate_staff_payload(payload, existing_staff=None):
     rfid_number = payload.get('rfid_number', '').strip()
 
     can_open_door = bool(payload.get('can_open_door'))
-    can_control_lights = bool(payload.get('can_control_lights'))
-    can_control_projector = bool(payload.get('can_control_projector'))
-    can_manage_classrooms = bool(payload.get('can_manage_classrooms'))
-    can_manage_staff = bool(payload.get('can_manage_staff'))
 
     if not name:
         errors.append('Name is required.')
@@ -1648,10 +2097,6 @@ def _validate_staff_payload(payload, existing_staff=None):
             'id_number': id_number,
             'rfid_number': rfid_number,
             'can_open_door': can_open_door,
-            'can_control_lights': can_control_lights,
-            'can_control_projector': can_control_projector,
-            'can_manage_classrooms': can_manage_classrooms,
-            'can_manage_staff': can_manage_staff,
         },
     }
 
@@ -1661,7 +2106,6 @@ def staff(request):
     settings_obj = get_system_settings()
     query = request.GET.get('q', '').strip()
     role = request.GET.get('role', '').strip()
-    privilege = request.GET.get('privilege', '').strip()
     page_number = request.GET.get('page', '1').strip()
 
     staff_members = Staff.objects.all().order_by('name')
@@ -1677,23 +2121,12 @@ def staff(request):
     if role:
         staff_members = staff_members.filter(role=role)
 
-    privilege_map = {
-        'door': 'can_open_door',
-        'classrooms': 'can_manage_classrooms',
-        'staff': 'can_manage_staff',
-    }
-
-    privilege_field = privilege_map.get(privilege)
-    if privilege_field:
-        staff_members = staff_members.filter(**{privilege_field: True})
-
     paginator = Paginator(staff_members, settings_obj.default_list_page_size)
     page_obj = paginator.get_page(page_number)
 
     filters = {
         'q': query,
         'role': role,
-        'privilege': privilege,
     }
     pagination_query = urlencode({key: value for key, value in filters.items() if value})
 
@@ -1712,7 +2145,6 @@ def staff(request):
 def export_staff(request, export_format):
     query = request.GET.get('q', '').strip()
     role = request.GET.get('role', '').strip()
-    privilege = request.GET.get('privilege', '').strip()
 
     staff_members = Staff.objects.all().order_by('name')
 
@@ -1725,15 +2157,6 @@ def export_staff(request, export_format):
         )
     if role:
         staff_members = staff_members.filter(role=role)
-
-    privilege_map = {
-        'door': 'can_open_door',
-        'classrooms': 'can_manage_classrooms',
-        'staff': 'can_manage_staff',
-    }
-    privilege_field = privilege_map.get(privilege)
-    if privilege_field:
-        staff_members = staff_members.filter(**{privilege_field: True})
 
     if export_format == 'json':
         return build_backup_response()
@@ -1841,10 +2264,6 @@ def edit_staff(request, id):
             'id_number': staff_member.id_number,
             'rfid_number': staff_member.rfid_number,
             'can_open_door': staff_member.can_open_door,
-            'can_control_lights': staff_member.can_control_lights,
-            'can_control_projector': staff_member.can_control_projector,
-            'can_manage_classrooms': staff_member.can_manage_classrooms,
-            'can_manage_staff': staff_member.can_manage_staff,
         },
         'role_choices': Staff.ROLE_CHOICES,
         'page_title': f'Edit Staff Member - {staff_member.name}',

@@ -12,7 +12,7 @@
         </div>
         <div class="card-body pt-4">
           <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-2">
               <label for="classroom" class="form-label">Classroom</label>
               <select id="classroom" name="classroom" class="form-select">
                 <option value="">All classrooms</option>
@@ -21,9 +21,17 @@
                 {% endfor %}
               </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <label for="teacher" class="form-label">Teacher</label>
               <input id="teacher" name="teacher" type="text" class="form-control" value="{{ filters.teacher }}" placeholder="Name or email" />
+            </div>
+            <div class="col-md-2">
+              <label for="access_type" class="form-label">Access Type</label>
+              <select id="access_type" name="access_type" class="form-select">
+                <option value="">All access types</option>
+                <option value="scheduled" {% if filters.access_type == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                <option value="out_of_schedule" {% if filters.access_type == 'out_of_schedule' %}selected{% endif %}>Out-of-schedule</option>
+              </select>
             </div>
             <div class="col-md-2">
               <label for="start_date" class="form-label">Start date</label>
@@ -56,6 +64,8 @@
           <div class="page-actions d-flex align-items-center gap-2 flex-wrap justify-content-end">
             {% if settings_obj.show_kpi_badges %}
             <span class="badge bg-label-primary">{{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }}</span>
+            <span class="badge bg-label-success">Scheduled: {{ scheduled_count }}</span>
+            <span class="badge bg-label-warning">Out-of-schedule: {{ out_of_schedule_count }}</span>
             {% endif %}
             <div class="dropdown">
               <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -92,6 +102,7 @@
                 {% if settings_obj.allow_bulk_actions %}<th style="width: 52px;"></th>{% endif %}
                 <th>Classroom</th>
                 <th>Type</th>
+                <th>Access Type</th>
                 <th>Teacher</th>
                 <th>Session Start</th>
                 <th>Duration</th>
@@ -112,6 +123,13 @@
                     <span class="badge bg-label-warning">Inspection</span>
                   {% else %}
                     <span class="badge bg-label-primary">Class</span>
+                  {% endif %}
+                </td>
+                <td data-label="Access Type">
+                  {% if session.access_type == 'scheduled' %}
+                    <span class="badge bg-label-success">Scheduled</span>
+                  {% else %}
+                    <span class="badge bg-label-warning">Out-of-schedule</span>
                   {% endif %}
                 </td>
                 <td data-label="Teacher">{{ session.teacher.name|default:'Not assigned' }}</td>
@@ -179,7 +197,7 @@
               </tr>
               {% empty %}
               <tr>
-                <td colspan="{% if settings_obj.allow_bulk_actions %}9{% else %}8{% endif %}" class="text-center">No sessions found.</td>
+                <td colspan="{% if settings_obj.allow_bulk_actions %}10{% else %}9{% endif %}" class="text-center">No sessions found.</td>
               </tr>
               {% endfor %}
             </tbody>

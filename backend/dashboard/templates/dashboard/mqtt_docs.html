@@ -3,7 +3,7 @@
 {% block content %}
 <div class="layout-page">
   <div class="content-wrapper">
-    <div class="container-xxl flex-grow-1 container-p-y">
+    <div class="container-fluid flex-grow-1 container-p-y px-3 px-xl-4">
       <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">System /</span> MQTT Integration Guide</h4>
 
       <div class="alert alert-primary mb-4" role="alert">
@@ -47,10 +47,12 @@ smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
         <div class="card-body pt-4">
           <p class="mb-3">Send JSON to the dashboard. The server ignores any client timestamp and records its own time.</p>
 
-          <div class="mb-4">
-            <h6 class="mb-2">A. Classroom state / live events</h6>
-            <p class="mb-2">Use this for occupancy and room state changes.</p>
-            <pre class="mb-3">{
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <div class="h-100">
+                <h6 class="mb-2">A. Classroom state / live events</h6>
+                <p class="mb-2">Use this for occupancy and room state changes.</p>
+                <pre class="mb-3">{
   "event": "room_state",
   "classroom_name": "d3",
   "data": {
@@ -60,20 +62,22 @@ smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
     "teacher_rfid": "123456789123"
   }
 }</pre>
-            <p class="mb-1"><strong>Fields</strong></p>
-            <ul class="mb-0">
-              <li><strong>classroom_id</strong>, <strong>classroom_name</strong>, or <strong>classroom</strong>: classroom target.</li>
-              <li><strong>occupied</strong> and <strong>door</strong>: room state.</li>
-              <li><strong>teacher_rfid</strong> or <strong>staff_rfid</strong>: attaches a staff member to the active session if applicable.</li>
-              <li><strong>student_rfid</strong>, <strong>student_rfids</strong>, or <strong>students</strong>: attaches students to the active session if applicable.</li>
-              <li><strong>new_session</strong>, <strong>session_start</strong>, <strong>start_new_session</strong>, <strong>force_new_session</strong>: close the current session and start a new one.</li>
-            </ul>
-          </div>
+                <p class="mb-1"><strong>Fields</strong></p>
+                <ul class="mb-0">
+                  <li><strong>classroom_id</strong>, <strong>classroom_name</strong>, or <strong>classroom</strong>: classroom target.</li>
+                  <li><strong>occupied</strong> and <strong>door</strong>: room state.</li>
+                  <li><strong>teacher_rfid</strong> or <strong>staff_rfid</strong>: attaches a staff member to the active session if applicable.</li>
+                  <li><strong>student_rfid</strong>, <strong>student_rfids</strong>, or <strong>students</strong>: attaches students to the active session if applicable.</li>
+                  <li><strong>new_session</strong>, <strong>session_start</strong>, <strong>start_new_session</strong>, <strong>force_new_session</strong>: close the current session and start a new one.</li>
+                </ul>
+              </div>
+            </div>
 
-          <div class="mb-4">
-            <h6 class="mb-2">B. Teacher access request</h6>
-            <p class="mb-2">Use this before opening a class or inspection session.</p>
-            <pre class="mb-3">{
+            <div class="col-lg-6">
+              <div class="h-100">
+                <h6 class="mb-2">B. Teacher access request</h6>
+                <p class="mb-2">Use this before opening a class or inspection session.</p>
+                <pre class="mb-3">{
   "event": "access_request",
   "classroom_name": "d3",
   "data": {
@@ -81,74 +85,86 @@ smartclass/classrooms/&lt;classroom_name&gt;/attendance/request</pre>
     "request_id": "door-req-001"
   }
 }</pre>
-            <p class="mb-1"><strong>Required field</strong></p>
-            <ul class="mb-0">
-              <li><strong>teacher_rfid</strong>, <strong>staff_rfid</strong>, or <strong>rfid_number</strong></li>
-            </ul>
-          </div>
+                <p class="mb-1"><strong>Required field</strong></p>
+                <ul class="mb-0">
+                  <li><strong>teacher_rfid</strong>, <strong>staff_rfid</strong>, or <strong>rfid_number</strong></li>
+                </ul>
+              </div>
+            </div>
 
-          <div class="mb-4">
-            <h6 class="mb-2">C. Student attendance request</h6>
-            <p class="mb-2">Send this after the teacher session is open to mark arrivals.</p>
-            <pre class="mb-3">{
+            <div class="col-lg-6">
+              <div class="h-100">
+                <h6 class="mb-2">C. Student attendance request</h6>
+                <p class="mb-2">Send this after the teacher session is open to mark arrivals.</p>
+                <pre class="mb-3">{
   "event": "attendance_request",
   "classroom_name": "d3",
   "data": {
     "student_rfids": ["1234567891254", "STU-002"]
   }
 }</pre>
-            <p class="mb-1"><strong>Fields</strong></p>
-            <ul class="mb-0">
-              <li><strong>student_rfid</strong> for a single student, or <strong>student_rfids</strong> / <strong>students</strong> for multiple students.</li>
-              <li><strong>event</strong>, <strong>command</strong>, <strong>request</strong>, or <strong>type</strong> can be used as a marker, but the RFID list is what matters.</li>
-            </ul>
-          </div>
+                <p class="mb-1"><strong>Fields</strong></p>
+                <ul class="mb-0">
+                  <li><strong>student_rfid</strong> for a single student, or <strong>student_rfids</strong> / <strong>students</strong> for multiple students.</li>
+                  <li><strong>event</strong>, <strong>command</strong>, <strong>request</strong>, or <strong>type</strong> can be used as a marker, but the RFID list is what matters.</li>
+                </ul>
+              </div>
+            </div>
 
-          <div>
-            <h6 class="mb-2">D. Door delay request</h6>
-            <p class="mb-2">Use this to ask the server for the configured student door-close delay.</p>
-            <pre class="mb-3">{
+            <div class="col-lg-6">
+              <div class="h-100">
+                <h6 class="mb-2">D. Door delay request</h6>
+                <p class="mb-2">Use this to ask the server for the configured student door-close delay.</p>
+                <pre class="mb-3">{
   "command": "door_delay_request",
   "request_id": "delay-001"
 }</pre>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="card mb-4">
-        <div class="card-header"><h5 class="mb-0">2. Dashboard to Device</h5></div>
-        <div class="card-body pt-4">
-          <div class="mb-4">
-            <h6 class="mb-2">A. Teacher access response</h6>
-            <p class="mb-2">The server responds to access requests on the response topic for that classroom.</p>
-            <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/access/response</pre>
-            <pre class="mb-3">{
+      <div class="row g-4 mb-4">
+        <div class="col-xl-7">
+          <div class="card h-100">
+            <div class="card-header"><h5 class="mb-0">2. Dashboard to Device</h5></div>
+            <div class="card-body pt-4">
+              <div class="mb-4">
+                <h6 class="mb-2">A. Teacher access response</h6>
+                <p class="mb-2">The server responds to access requests on the response topic for that classroom.</p>
+                <pre class="mb-3">smartclass/classrooms/&lt;classroom_name&gt;/access/response</pre>
+                <pre class="mb-3">{
   "event": "access_response",
   "request_id": "door-req-001",
   "approved": true,
   "reason": "authorized_in_time_window"
 }</pre>
-            <p class="mb-0 text-muted">If the teacher is an administrator, the response reason is <code>authorized_admin_override</code> and the session becomes an inspection.</p>
-          </div>
+                <p class="mb-0 text-muted">If the teacher is an administrator, the response reason is <code>authorized_admin_override</code> and the session becomes an inspection.</p>
+              </div>
 
-          <div>
-            <h6 class="mb-2">B. Door delay response</h6>
-            <p class="mb-2">The response is a plain number in minutes.</p>
-            <pre class="mb-0">10</pre>
+              <div>
+                <h6 class="mb-2">B. Door delay response</h6>
+                <p class="mb-2">The response is a plain number in minutes.</p>
+                <pre class="mb-0">10</pre>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="card mb-4">
-        <div class="card-header"><h5 class="mb-0">3. Session Rules</h5></div>
-        <div class="card-body pt-4">
-          <ul class="mb-0">
-            <li><strong>Class</strong> sessions are opened for teachers and can collect student attendance.</li>
-            <li><strong>Inspection</strong> sessions are only for administrators, are closed immediately, and do not use duration, reports, or students.</li>
-            <li>Attendance records are timestamped by the server.</li>
-            <li>If no open class session exists, attendance requests are ignored with a warning.</li>
-            <li>Teacher access requests create the session first, then attendance requests fill that open session.</li>
-          </ul>
+        <div class="col-xl-5">
+          <div class="card h-100">
+            <div class="card-header"><h5 class="mb-0">3. Session Rules</h5></div>
+            <div class="card-body pt-4">
+              <ul class="mb-0">
+                <li><strong>Class</strong> sessions are opened for teachers and can collect student attendance.</li>
+                <li><strong>Inspection</strong> sessions are only for administrators, are closed immediately, and do not use duration, reports, or students.</li>
+                <li>Attendance records are timestamped by the server.</li>
+                <li>If no open class session exists, attendance requests are ignored with a warning.</li>
+                <li>Teacher access requests create the session first, then attendance requests fill that open session.</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
 

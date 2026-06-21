@@ -1,4 +1,4 @@
-from .models import Student, Staff, Classroom, Session, SystemSettings
+from .models import Student, Staff, Classroom, Session, Specialization, SystemSettings
 
 
 def dashboard_counts(request):
@@ -6,6 +6,7 @@ def dashboard_counts(request):
     return {
         'dashboard_counts': {
             'students': Student.objects.count(),
+            'specializations': Specialization.objects.count(),
             'staff': Staff.objects.count(),
             'classrooms': Classroom.objects.count(),
             'sessions': Session.objects.count(),

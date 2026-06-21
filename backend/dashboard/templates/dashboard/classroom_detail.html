@@ -47,6 +47,25 @@
           </div>
         </div>
 
+        <div class="card mb-4">
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <small class="text-muted d-block">Building</small>
+                <span class="fw-semibold">{{ classroom.building|default:'-' }}</span>
+              </div>
+              <div class="col-12 col-md-4">
+                <small class="text-muted d-block">Floor</small>
+                <span class="fw-semibold">{{ classroom.floor|default:'-' }}</span>
+              </div>
+              <div class="col-12 col-md-4">
+                <small class="text-muted d-block">Capacity</small>
+                <span class="fw-semibold">{{ classroom.capacity }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
 
 
         {% if messages %}
@@ -106,6 +125,13 @@
                     <span class="ms-2">Door</span>
                   </div>
                   <div>{% if classroom.door %}<span class="badge bg-danger">Open</span>{% else %}<span class="badge bg-success">Closed</span>{% endif %}</div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <span class="badge rounded-circle" style="width: 10px; height: 10px; display: inline-block; background-color: {% if classroom.danger_indicator %}#dc3545{% else %}#198754{% endif %};"></span>
+                    <span class="ms-2">Danger Indicator</span>
+                  </div>
+                  <div>{% if classroom.danger_indicator %}<span class="badge bg-danger">Alert</span>{% else %}<span class="badge bg-success">Safe</span>{% endif %}</div>
                 </div>
               </div>
             </div>

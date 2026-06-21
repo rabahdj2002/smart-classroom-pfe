@@ -2,22 +2,45 @@ from django.db import models
 from django.utils import timezone
  
 
+class Specialization(models.Model):
+    code = models.CharField(max_length=30, unique=True)
+    name = models.CharField(max_length=120, unique=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+
 class Student(models.Model):
-    SPECIALIZATION_CHOICES = [
-        ('INFO', 'Informatique'),
-        ('MATH', 'Mathématiques'),
-        ('ST', 'Sciences et Techniques'),
-        ('SM', 'Sciences de la Matière'),
-        ('MI', 'Mathématiques et Informatique'),
+    YEAR_LEVEL_CHOICES = [
+        ('L1', 'Licence 1'),
+        ('L2', 'Licence 2'),
+        ('L3', 'Licence 3'),
+        ('M1', 'Master 1'),
+        ('M2', 'Master 2'),
     ]
-    
+
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
-    specialization = models.CharField(max_length=20, choices=SPECIALIZATION_CHOICES)
-    year = models.IntegerField()
+    specialization = models.CharField(max_length=30)
+    year = models.CharField(max_length=2, choices=YEAR_LEVEL_CHOICES)
+    phone_number = models.CharField(max_length=20, blank=True, default='')
+    is_active = models.BooleanField(default=True)
     student_card_id = models.CharField(max_length=50, unique=True)
     rfid_number = models.CharField(max_length=50, unique=True)
+
+    @property
+    def specialization_label(self):
+        specialization = Specialization.objects.filter(code=self.specialization).first()
+        return specialization.name if specialization else self.specialization
+
+    @property
+    def year_label(self):
+        return self.get_year_display()
     
     def __str__(self):
         return f"{self.name} ({self.specialization})"
@@ -40,10 +63,6 @@ class Staff(models.Model):
     id_number = models.CharField(max_length=50, unique=True)
     rfid_number = models.CharField(max_length=50, unique=True)
     can_open_door = models.BooleanField(default=False)
-    can_control_lights = models.BooleanField(default=False)
-    can_control_projector = models.BooleanField(default=False)
-    can_manage_classrooms = models.BooleanField(default=False)
-    can_manage_staff = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.name} ({self.role})"
@@ -52,6 +71,9 @@ class Staff(models.Model):
 class Classroom(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
+    building = models.CharField(max_length=100, blank=True, default='')
+    floor = models.CharField(max_length=50, blank=True, default='')
+    capacity = models.PositiveIntegerField(default=30)
     occupied = models.BooleanField(default=False)
     lights_on = models.BooleanField(default=False)
     door = models.BooleanField(default=False)
@@ -112,9 +134,8 @@ class Session(models.Model):
     ]
     
     ACCESS_TYPE_CHOICES = [
-        ('timetable', 'Scheduled Timetable'),
-        ('out_of_schedule', 'Out-of-Schedule Override'),
-        ('none', 'N/A (Inspection)'),
+        ('scheduled', 'Scheduled'),
+        ('out_of_schedule', 'Out-of-Schedule'),
     ]
     
     classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name='sessions')
@@ -125,7 +146,7 @@ class Session(models.Model):
     ended_at = models.DateTimeField(null=True, blank=True)
     is_closed = models.BooleanField(default=False)
     session_type = models.CharField(max_length=15, choices=SESSION_TYPE_CHOICES, default='class')
-    access_type = models.CharField(max_length=20, choices=ACCESS_TYPE_CHOICES, default='none')
+    access_type = models.CharField(max_length=20, choices=ACCESS_TYPE_CHOICES, default='scheduled')
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

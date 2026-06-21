@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .models import AttendanceReport, ClassTimetableSlot, Classroom, ImmediateTeacherAccessGrant, Session, Staff, Student, SystemSettings
+from .reporting import generate_attendance_report_for_session
 from .mqtt_listener import _evaluate_teacher_access, process_mqtt_payload
 from .views import add_session
 
@@ -36,7 +37,7 @@ class BackupRestoreTests(TestCase):
 			name='Student One',
 			email='student@example.com',
 			specialization='INFO',
-			year=2,
+			year='L2',
 			student_card_id='CARD-001',
 			rfid_number='RFID-STUDENT-1',
 		)
@@ -247,9 +248,26 @@ class TimetableAndAuthorizationTests(TestCase):
 		self.assertEqual(session.session_type, 'inspection')
 		self.assertEqual(session.teacher, inspection_staff)
 		self.assertTrue(session.is_closed)
-		self.assertEqual(session.access_type, 'none')
+		self.assertEqual(session.access_type, 'out_of_schedule')
 		self.assertIsNone(session.expected_report_time)
 		self.assertEqual(session.students.count(), 0)
+
+	def test_manual_session_end_uses_actual_duration(self):
+		session = Session.objects.create(
+			classroom=self.classroom,
+			teacher=self.teacher,
+			start_time=timezone.make_aware(datetime(2026, 4, 20, 8, 0, 0), timezone.get_current_timezone()),
+			session_type='class',
+			access_type='scheduled',
+		)
+
+		manual_end = timezone.make_aware(datetime(2026, 4, 20, 8, 45, 0), timezone.get_current_timezone())
+		report = generate_attendance_report_for_session(session, session_end=manual_end)
+
+		self.assertIsNotNone(report)
+		self.assertEqual(report.session_start, session.start_time)
+		self.assertEqual(report.session_end, manual_end)
+		self.assertEqual(report.duration_minutes, 45)
 
 	def test_session_page_rejects_non_admin_inspection_staff(self):
 		non_admin_staff = Staff.objects.create(
@@ -393,7 +411,7 @@ class TimetableAndAuthorizationTests(TestCase):
 		session = Session.objects.filter(classroom=self.classroom).first()
 		self.assertIsNotNone(session)
 		self.assertEqual(session.session_type, 'class')
-		self.assertEqual(session.access_type, 'timetable')
+		self.assertEqual(session.access_type, 'scheduled')
 		self.assertEqual(session.teacher, self.teacher)
 		self.assertTrue(session.start_time)
 
@@ -436,7 +454,7 @@ class TimetableAndAuthorizationTests(TestCase):
 		session = Session.objects.filter(classroom=self.classroom).first()
 		self.assertIsNotNone(session)
 		self.assertEqual(session.session_type, 'inspection')
-		self.assertEqual(session.access_type, 'none')
+		self.assertEqual(session.access_type, 'out_of_schedule')
 		self.assertEqual(session.teacher, admin)
 		self.assertTrue(session.is_closed)
 		self.assertIsNone(session.expected_report_time)
@@ -449,7 +467,7 @@ class TimetableAndAuthorizationTests(TestCase):
 			name='Student A',
 			email='stua@example.com',
 			specialization='INFO',
-			year=2,
+			year='L2',
 			student_card_id='CARD-A',
 			rfid_number='RFID-STUD-A',
 		)
@@ -457,7 +475,7 @@ class TimetableAndAuthorizationTests(TestCase):
 			name='Student B',
 			email='stub@example.com',
 			specialization='INFO',
-			year=2,
+			year='L2',
 			student_card_id='CARD-B',
 			rfid_number='RFID-STUD-B',
 		)
@@ -467,7 +485,7 @@ class TimetableAndAuthorizationTests(TestCase):
 			teacher=self.teacher,
 			start_time=timezone.now(),
 			session_type='class',
-			access_type='timetable',
+			access_type='scheduled',
 		)
 
 		with patch('dashboard.mqtt_listener.publish_custom_topic'):
@@ -490,7 +508,7 @@ class TimetableAndAuthorizationTests(TestCase):
 			name='Student',
 			email='stu@example.com',
 			specialization='INFO',
-			year=2,
+			year='L2',
 			student_card_id='CARD-S',
 			rfid_number='RFID-STUD-S',
 		)
@@ -511,7 +529,7 @@ class TimetableAndAuthorizationTests(TestCase):
 			name='Student A',
 			email='stua@example.com',
 			specialization='INFO',
-			year=2,
+			year='L2',
 			student_card_id='CARD-A',
 			rfid_number='RFID-STUD-A',
 		)
@@ -519,7 +537,7 @@ class TimetableAndAuthorizationTests(TestCase):
 			name='Student B',
 			email='stub@example.com',
 			specialization='INFO',
-			year=2,
+			year='L2',
 			student_card_id='CARD-B',
 			rfid_number='RFID-STUD-B',
 		)
@@ -529,7 +547,7 @@ class TimetableAndAuthorizationTests(TestCase):
 			teacher=self.teacher,
 			start_time=timezone.now(),
 			session_type='class',
-			access_type='timetable',
+			access_type='scheduled',
 		)
 
 		now = timezone.now()

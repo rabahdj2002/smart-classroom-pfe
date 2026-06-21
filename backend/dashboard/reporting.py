@@ -140,12 +140,20 @@ def _build_pdf_attachment(report):
     if report.session_id:
         students = list(report.session.students.order_by('name'))
 
+    roster_cell_style = ParagraphStyle(
+        'RosterCell',
+        parent=styles['Normal'],
+        fontSize=8.8,
+        leading=10,
+        textColor=colors.HexColor('#1f2937'),
+    )
+
     roster_data = [['Student ID', 'Student Name', 'Speciality']]
     for student in students:
         roster_data.append([
             escape(student.student_card_id or str(student.id)),
             escape(student.name),
-            escape(student.get_specialization_display()),
+            Paragraph(escape(student.specialization_label), roster_cell_style),
         ])
 
     if len(roster_data) == 1:
@@ -160,6 +168,7 @@ def _build_pdf_attachment(report):
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
         ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#1f2937')),
         ('FONTSIZE', (0, 1), (-1, -1), 9.2),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
         ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#d1d5db')),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
@@ -182,6 +191,13 @@ def _build_pdf_attachment(report):
     doc.build(story)
     buffer.seek(0)
     return buffer.read()
+
+
+def _calculate_duration_minutes(session_start, session_end):
+    if session_end <= session_start:
+        return 0
+    elapsed_minutes = (session_end - session_start).total_seconds() // 60
+    return int(max(0, elapsed_minutes))
 
 
 def build_report_pdf_attachment(report):
@@ -264,7 +280,7 @@ def generate_attendance_report_for_session(session, session_end=None, settings_o
     teacher = session.teacher
     staff_names = [teacher.name] if teacher else []
 
-    duration_minutes = settings_obj.auto_finish_minutes
+    duration_minutes = _calculate_duration_minutes(start_candidate, session_end)
 
     # Check if report already exists for this session
     existing_report = AttendanceReport.objects.filter(session=session).first()
@@ -273,7 +289,8 @@ def generate_attendance_report_for_session(session, session_end=None, settings_o
         # Update existing report with new end time
         report = existing_report
         report.session_end = session_end
-        report.save(update_fields=['session_end'])
+        report.duration_minutes = duration_minutes
+        report.save(update_fields=['session_end', 'duration_minutes'])
     else:
         # Create new report
         report = AttendanceReport.objects.create(

@@ -20,18 +20,29 @@
                 <label for="specialization" class="form-label">Specialization</label>
                 <select id="specialization" name="specialization" class="form-select">
                   <option value="">All specializations</option>
-                  <option value="INFO" {% if filters.specialization == 'INFO' %}selected{% endif %}>Informatique</option>
-                  <option value="MATH" {% if filters.specialization == 'MATH' %}selected{% endif %}>Mathématiques</option>
-                  <option value="ST" {% if filters.specialization == 'ST' %}selected{% endif %}>Sciences et Techniques</option>
-                  <option value="SM" {% if filters.specialization == 'SM' %}selected{% endif %}>Sciences de la Matière</option>
-                  <option value="MI" {% if filters.specialization == 'MI' %}selected{% endif %}>Mathématiques et Informatique</option>
+                  {% for value, label in specialization_options %}
+                  <option value="{{ value }}" {% if filters.specialization == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
                 </select>
               </div>
-              <div class="col-md-1">
-                <label for="year" class="form-label">Year</label>
-                <input id="year" name="year" type="number" min="1" class="form-control" value="{{ filters.year }}" />
+              <div class="col-md-2">
+                <label for="year" class="form-label">Level</label>
+                <select id="year" name="year" class="form-select">
+                  <option value="">All levels</option>
+                  {% for value, label in year_options %}
+                  <option value="{{ value }}" {% if filters.year == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
               </div>
-              <div class="col-md-2 page-actions">
+              <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select id="status" name="status" class="form-select">
+                  <option value="">All</option>
+                  <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+                  <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+              </div>
+              <div class="col-md-12 page-actions">
                 <div class="filter-actions">
                   <button type="submit" class="btn btn-primary">Apply</button>
                   <a href="{% url 'students' %}" class="btn btn-outline-secondary">Reset</a>
@@ -62,6 +73,7 @@
               <button type="button" class="btn btn-outline-warning btn-sm" data-restore-trigger="students">
                 Restore
               </button>
+              <a href="{% url 'specializations' %}" class="btn btn-outline-info btn-sm"><i class="bx bx-category-alt me-1"></i>Manage Specializations</a>
               <a href="{% url 'add_student' %}" class="btn btn-primary btn-sm"><i class="bx bx-plus"></i> Add Student</a>
             </div>
           </div>
@@ -88,9 +100,12 @@
                   <th>Name</th>
                   <th>Email</th>
                   <th>Specialization</th>
-                  <th>Year</th>
+                  <th>Level</th>
+                  <th>Phone</th>
+                  <th>Status</th>
                   <th>Student Card</th>
                   <th>RFID</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody class="table-border-bottom-0">
@@ -103,14 +118,27 @@
                     {% endif %}
                     <td data-label="Name">{{ student.name }}</td>
                     <td data-label="Email">{{ student.email }}</td>
-                    <td data-label="Specialization">{{ student.get_specialization_display }}</td>
-                    <td data-label="Year">{{ student.year }}</td>
+                    <td data-label="Specialization">{{ student.specialization_label }}</td>
+                    <td data-label="Level">{{ student.year_label }}</td>
+                    <td data-label="Phone">{{ student.phone_number|default:'-' }}</td>
+                    <td data-label="Status">
+                      {% if student.is_active %}
+                        <span class="badge bg-label-success">Active</span>
+                      {% else %}
+                        <span class="badge bg-label-secondary">Inactive</span>
+                      {% endif %}
+                    </td>
                     <td data-label="Student Card">{{ student.student_card_id }}</td>
                     <td data-label="RFID">{{ student.rfid_number }}</td>
+                    <td data-label="Action">
+                      <a href="{% url 'edit_student' student.id %}" class="btn btn-sm btn-outline-warning">
+                        <i class="bx bx-edit me-1"></i>Edit
+                      </a>
+                    </td>
                   </tr>
                 {% empty %}
                   <tr>
-                    <td colspan="{% if settings_obj.allow_bulk_actions %}7{% else %}6{% endif %}" class="text-center">No students found.</td>
+                    <td colspan="{% if settings_obj.allow_bulk_actions %}10{% else %}9{% endif %}" class="text-center">No students found.</td>
                   </tr>
                 {% endfor %}
               </tbody>

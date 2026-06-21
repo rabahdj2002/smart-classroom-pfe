@@ -1,13 +1,50 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block content %}
+<style>
+  .classroom-form-page .form-card {
+    border: 0;
+    box-shadow: 0 0.35rem 1rem rgba(67, 89, 113, 0.12);
+  }
+
+  .classroom-form-page .section-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #8592a3;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+
+  .classroom-form-page .status-panel {
+    background: #f8f9fa;
+    border: 1px solid #eceef1;
+    border-radius: 0.5rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .classroom-form-page .status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .classroom-form-page .status-item + .status-item {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #dfe3e7;
+  }
+</style>
 <div class="layout-page">
   <div class="content-wrapper">
-    <div class="container-xxl flex-grow-1 container-p-y">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-bold mb-0">Add Classroom</h4>
+    <div class="container-xxl flex-grow-1 container-p-y classroom-form-page">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="fw-bold mb-0">{{ page_title|default:'Add Classroom' }}</h4>
         <a href="{% url 'classes' %}" class="btn btn-outline-secondary btn-sm"><i class="bx bx-left-arrow-alt"></i> Back</a>
       </div>
+
+      <p class="text-muted mb-4">Set classroom identity, location, and status defaults. These values can be updated later from the classes table.</p>
 
       {% if errors %}
       <div class="alert alert-danger">
@@ -19,32 +56,56 @@
       </div>
       {% endif %}
 
-      <div class="card mb-4">
+      <div class="card mb-4 form-card">
         <div class="card-body">
           <form method="POST" novalidate>
             {% csrf_token %}
-            <div class="row g-3">
-              <div class="col-md-6">
+            <div class="row g-4">
+              <div class="col-12">
+                <div class="section-label">Identity</div>
+              </div>
+
+              <div class="col-lg-6">
                 <label for="name" class="form-label">Classroom Name</label>
                 <input id="name" name="name" class="form-control" type="text" value="{{ form.name }}" placeholder="e.g., D1" required />
               </div>
 
-              <div class="col-md-4">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="occupied" name="occupied" {% if form.occupied %}checked{% endif %}>
-                  <label class="form-check-label" for="occupied">Occupied</label>
-                </div>
+              <div class="col-lg-6">
+                <label for="building" class="form-label">Building (Optional)</label>
+                <input id="building" name="building" class="form-control" type="text" value="{{ form.building }}" placeholder="e.g., Engineering Block" />
               </div>
-              <div class="col-md-4">
-                <div class="form-check form-switch">
 
-                  <input class="form-check-input" type="checkbox" id="door" name="door" {% if form.door %}checked{% endif %}>
-                  <label class="form-check-label" for="door">Door Open</label>
+              <div class="col-md-6 col-lg-4">
+                <label for="floor" class="form-label">Floor (Optional)</label>
+                <input id="floor" name="floor" class="form-control" type="text" value="{{ form.floor }}" placeholder="e.g., 2nd Floor" />
+              </div>
+
+              <div class="col-md-6 col-lg-4">
+                <label for="capacity" class="form-label">Capacity</label>
+                <input id="capacity" name="capacity" class="form-control" type="number" min="1" value="{{ form.capacity|default:'30' }}" />
+                <small class="text-muted">Maximum number of students expected in this room.</small>
+              </div>
+
+              <div class="col-lg-4">
+                <div class="section-label">Initial Status</div>
+                <div class="status-panel">
+                  <div class="status-item">
+                    <label class="form-check-label mb-0" for="occupied">Occupied</label>
+                    <div class="form-check form-switch m-0">
+                      <input class="form-check-input" type="checkbox" id="occupied" name="occupied" {% if form.occupied %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <div class="status-item">
+                    <label class="form-check-label mb-0" for="door">Door Open</label>
+                    <div class="form-check form-switch m-0">
+                      <input class="form-check-input" type="checkbox" id="door" name="door" {% if form.door %}checked{% endif %}>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div class="col-md-12 text-end">
-                <button type="submit" class="btn btn-primary">Save Classroom</button>
+                <button type="submit" class="btn btn-primary">{{ submit_label|default:'Save Classroom' }}</button>
               </div>
             </div>
           </form>

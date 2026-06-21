@@ -1,22 +1,30 @@
 from django.contrib import admin
-from .models import AttendanceReport, ClassTimetableSlot, Classroom, ImmediateTeacherAccessGrant, Session, Staff, Student, StudentSessionAttendance, SystemSettings, TemperatureSettings
+from .models import AttendanceReport, ClassTimetableSlot, Classroom, ImmediateTeacherAccessGrant, Session, Specialization, Staff, Student, StudentSessionAttendance, SystemSettings, TemperatureSettings
+
+
+@admin.register(Specialization)
+class SpecializationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'code', 'name', 'is_active')
+    search_fields = ('code', 'name')
+    list_filter = ('is_active',)
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'specialization', 'year', 'student_card_id', 'rfid_number')
-    search_fields = ('name', 'email', 'student_card_id', 'rfid_number')
-    list_filter = ('specialization', 'year')
+    list_display = ('id', 'name', 'specialization_label', 'year', 'phone_number', 'is_active', 'student_card_id', 'rfid_number')
+    search_fields = ('name', 'email', 'phone_number', 'student_card_id', 'rfid_number')
+    list_filter = ('specialization', 'year', 'is_active')
 
 @admin.register(Staff)
 class StaffAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'role', 'id_number', 'rfid_number')
+    list_display = ('id', 'name', 'role', 'id_number', 'rfid_number', 'can_open_door')
     search_fields = ('name', 'email', 'id_number', 'rfid_number')
     list_filter = ('role',)
 
 @admin.register(Classroom)
 class ClassroomAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'occupied', 'door')
-    list_filter = ('occupied', 'smoke_detected', 'danger_indicator')
+    list_display = ('id', 'name', 'building', 'floor', 'capacity', 'occupied', 'door')
+    search_fields = ('name', 'building', 'floor')
+    list_filter = ('building', 'floor', 'occupied', 'smoke_detected', 'danger_indicator')
 
 
 @admin.register(Session)

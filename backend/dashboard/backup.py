@@ -17,6 +17,15 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
 from .models import AttendanceReport, Classroom, Session, Staff, Student
 
 
+def _normalize_access_type(value):
+    normalized = (value or '').strip().lower()
+    if normalized in {'scheduled', 'timetable'}:
+        return 'scheduled'
+    if normalized in {'out_of_schedule', 'none'}:
+        return 'out_of_schedule'
+    return 'out_of_schedule'
+
+
 def _json_datetime(value):
     if value is None:
         return None
@@ -52,8 +61,10 @@ def _student_row(student):
         student.id,
         student.name,
         student.email,
-        student.get_specialization_display(),
-        student.year,
+        student.specialization_label,
+        student.year_label,
+        student.phone_number,
+        _bool_text(student.is_active),
         student.student_card_id,
         student.rfid_number,
     ]
@@ -68,10 +79,6 @@ def _staff_row(staff):
         staff.id_number,
         staff.rfid_number,
         _bool_text(staff.can_open_door),
-        _bool_text(staff.can_control_lights),
-        _bool_text(staff.can_control_projector),
-        _bool_text(staff.can_manage_classrooms),
-        _bool_text(staff.can_manage_staff),
     ]
 
 
@@ -79,6 +86,9 @@ def _classroom_row(classroom):
     return [
         classroom.id,
         classroom.name,
+        classroom.building,
+        classroom.floor,
+        classroom.capacity,
         _bool_text(classroom.occupied),
         _bool_text(classroom.lights_on),
         _bool_text(classroom.projector_on),
@@ -131,10 +141,6 @@ def build_backup_payload():
                 'id_number': staff.id_number,
                 'rfid_number': staff.rfid_number,
                 'can_open_door': staff.can_open_door,
-                'can_control_lights': staff.can_control_lights,
-                'can_control_projector': staff.can_control_projector,
-                'can_manage_classrooms': staff.can_manage_classrooms,
-                'can_manage_staff': staff.can_manage_staff,
             }
             for staff in staff_queryset
         ],
@@ -145,6 +151,8 @@ def build_backup_payload():
                 'email': student.email,
                 'specialization': student.specialization,
                 'year': student.year,
+                'phone_number': student.phone_number,
+                'is_active': student.is_active,
                 'student_card_id': student.student_card_id,
                 'rfid_number': student.rfid_number,
             }
@@ -154,6 +162,9 @@ def build_backup_payload():
             {
                 'id': classroom.id,
                 'name': classroom.name,
+                'building': classroom.building,
+                'floor': classroom.floor,
+                'capacity': classroom.capacity,
                 'occupied': classroom.occupied,
                 'lights_on': classroom.lights_on,
                 'door': classroom.door,
@@ -310,7 +321,7 @@ def _build_pdf_response(title, headers, rows, filename):
 
 def build_section_export(section, export_format, queryset):
     if section == 'students':
-        headers = ['ID', 'Name', 'Email', 'Specialization', 'Year', 'Student Card ID', 'RFID Number']
+        headers = ['ID', 'Name', 'Email', 'Specialization', 'Level', 'Phone Number', 'Active', 'Student Card ID', 'RFID Number']
         rows = [_student_row(student) for student in queryset]
         title = 'Students Export'
         filename_prefix = 'students'
@@ -324,10 +335,6 @@ def build_section_export(section, export_format, queryset):
             'ID Number',
             'RFID Card Serial',
             'Can Open Door',
-            'Can Control Lights',
-            'Can Control Projector',
-            'Can Manage Classrooms',
-            'Can Manage Staff',
         ]
         rows = [_staff_row(staff) for staff in queryset]
         title = 'Staff Export'
@@ -337,6 +344,9 @@ def build_section_export(section, export_format, queryset):
         headers = [
             'ID',
             'Name',
+            'Building',
+            'Floor',
+            'Capacity',
             'Occupied',
             'Lights On',
             'Projector On',
@@ -404,10 +414,6 @@ def _restore_staff_item(item):
         id_number=item['id_number'],
         rfid_number=item['rfid_number'],
         can_open_door=bool(item.get('can_open_door')),
-        can_control_lights=bool(item.get('can_control_lights')),
-        can_control_projector=bool(item.get('can_control_projector')),
-        can_manage_classrooms=bool(item.get('can_manage_classrooms')),
-        can_manage_staff=bool(item.get('can_manage_staff')),
     )
     return staff
 
@@ -419,6 +425,8 @@ def _restore_student_item(item):
         email=item['email'],
         specialization=item['specialization'],
         year=item['year'],
+        phone_number=item.get('phone_number', ''),
+        is_active=bool(item.get('is_active', True)),
         student_card_id=item['student_card_id'],
         rfid_number=item['rfid_number'],
     )
@@ -428,6 +436,9 @@ def _restore_classroom_item(item):
     return Classroom.objects.create(
         id=item['id'],
         name=item['name'],
+        building=item.get('building', ''),
+        floor=item.get('floor', ''),
+        capacity=item.get('capacity') or 30,
         occupied=bool(item.get('occupied')),
         lights_on=bool(item.get('lights_on')),
         door=bool(item.get('door')),
@@ -456,7 +467,7 @@ def _restore_session_item(item, staff_map, student_map, classroom_map):
         classroom=classroom,
         teacher=teacher,
         session_type=item.get('session_type', 'class'),
-        access_type=item.get('access_type', 'timetable'),
+        access_type=_normalize_access_type(item.get('access_type')),
         start_time=_parse_datetime(item.get('start_time')) or timezone.now(),
         expected_report_time=_parse_datetime(item.get('expected_report_time')),
         ended_at=_parse_datetime(item.get('ended_at')),

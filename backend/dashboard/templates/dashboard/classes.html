@@ -8,6 +8,30 @@
         white-space: nowrap;
       }
     }
+
+    .classes-filter-compact .form-label {
+      margin-bottom: 0.25rem;
+      font-size: 0.8rem;
+    }
+
+    .classes-filter-compact .form-control,
+    .classes-filter-compact .form-select {
+      min-height: calc(1.5em + 0.5rem + 2px);
+      padding: 0.2rem 0.45rem;
+      font-size: 0.85rem;
+    }
+
+    .classes-filter-compact .filter-actions {
+      display: flex;
+      gap: 0.4rem;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .classes-filter-compact .filter-actions .btn {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.8rem;
+    }
   </style>
   <div class="layout-page">
     <div class="content-wrapper">
@@ -19,12 +43,28 @@
             <h5 class="mb-0">Filters</h5>
           </div>
           <div class="card-body pt-4">
-            <form method="GET" class="row g-3 align-items-end filter-row-single-line">
-              <div class="col-12 col-md-6 col-lg-2">
+            <form method="GET" class="row g-2 align-items-end classes-filter-compact">
+              <div class="col-6 col-md-4 col-lg-2">
                 <label for="q" class="form-label">Search</label>
                 <input id="q" name="q" type="text" class="form-control" placeholder="Room name" value="{{ filters.q }}" />
               </div>
-              <div class="col-12 col-md-6 col-lg-2">
+              <div class="col-6 col-md-4 col-lg-2">
+                <label for="building" class="form-label">Building</label>
+                <input id="building" name="building" type="text" class="form-control" placeholder="Building" value="{{ filters.building }}" />
+              </div>
+              <div class="col-6 col-md-4 col-lg-1">
+                <label for="floor" class="form-label">Floor</label>
+                <input id="floor" name="floor" type="text" class="form-control" placeholder="Floor" value="{{ filters.floor }}" />
+              </div>
+              <div class="col-6 col-md-3 col-lg-1">
+                <label for="capacity_min" class="form-label">Min Capacity</label>
+                <input id="capacity_min" name="capacity_min" type="number" min="1" class="form-control" value="{{ filters.capacity_min }}" />
+              </div>
+              <div class="col-6 col-md-3 col-lg-1">
+                <label for="capacity_max" class="form-label">Max Capacity</label>
+                <input id="capacity_max" name="capacity_max" type="number" min="1" class="form-control" value="{{ filters.capacity_max }}" />
+              </div>
+              <div class="col-6 col-md-3 col-lg-1">
                 <label for="usage" class="form-label">Usage</label>
                 <select id="usage" name="usage" class="form-select">
                   <option value="">All</option>
@@ -32,7 +72,7 @@
                   <option value="unused" {% if filters.usage == 'unused' %}selected{% endif %}>Unused</option>
                 </select>
               </div>
-              <div class="col-12 col-md-6 col-lg-2">
+              <div class="col-6 col-md-3 col-lg-1">
 
                 <label for="door" class="form-label">Door</label>
                 <select id="door" name="door" class="form-select">
@@ -98,9 +138,13 @@
                   <th style="width: 52px;"></th>
                   {% endif %}
                   <th>Room</th>
+                  <th>Building</th>
+                  <th>Floor</th>
+                  <th>Capacity</th>
                   <th>Usage State</th>
                   <th>Status</th>
                   <th>Door</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody class="table-border-bottom-0">
@@ -116,6 +160,9 @@
                     </td>
                     {% endif %}
                     <td data-label="Room">{{ room.name|upper }}</td>
+                    <td data-label="Building">{{ room.building|default:'-' }}</td>
+                    <td data-label="Floor">{{ room.floor|default:'-' }}</td>
+                    <td data-label="Capacity">{{ room.capacity }}</td>
                     <td data-label="Usage State">
                       {% if room.used_today %}
                         <span class="badge bg-success ms-2">Used</span>
@@ -139,10 +186,15 @@
                         <span class="badge bg-success">Closed</span>
                       {% endif %}
                     </td>
+                    <td data-label="Action">
+                      <a href="{% url 'edit_class' room.id %}" class="btn btn-sm btn-outline-warning">
+                        <i class="bx bx-edit me-1"></i>Edit
+                      </a>
+                    </td>
                   </tr>
                 {% empty %}
                   <tr>
-                    <td colspan=\"{% if settings_obj.allow_bulk_actions %}5{% else %}4{% endif %}\" class=\"text-center\">No classrooms found.</td>
+                    <td colspan=\"{% if settings_obj.allow_bulk_actions %}9{% else %}8{% endif %}\" class=\"text-center\">No classrooms found.</td>
                   </tr>
                 {% endfor %}
               </tbody>

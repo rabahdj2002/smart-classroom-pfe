@@ -15,6 +15,7 @@ from .mqtt_runtime import configure_mqtt_client, get_mqtt_runtime_config
 from .models import AttendanceReport, ClassTimetableSlot, Classroom, ImmediateTeacherAccessGrant, Session, Staff, Student, StudentSessionAttendance
 from .mqtt_commands import publish_custom_topic
 from .reporting import auto_finish_active_classrooms, generate_attendance_report_for_session, get_system_settings
+from .session_access import resolve_session_access_type
 
 logger = logging.getLogger(__name__)
 
@@ -190,11 +191,18 @@ def _get_or_create_open_session(classroom, event_time, teacher=None, force_new=F
 
     settings_obj = get_system_settings()
     expected_time = event_time + timedelta(minutes=settings_obj.auto_finish_minutes)
+    access_type = resolve_session_access_type(
+        classroom=classroom,
+        teacher=teacher,
+        event_time=event_time,
+        session_type='class',
+    )
     return Session.objects.create(
         classroom=classroom,
         teacher=teacher if teacher and teacher.role == 'PROF' else None,
         start_time=event_time,
         expected_report_time=expected_time,
+        access_type=access_type,
     )
 
 
@@ -228,7 +236,13 @@ def _sync_session_from_rfids(classroom, data, event_time):
 
     if staff_member and session and session.teacher_id != staff_member.id:
         session.teacher = staff_member
-        session.save(update_fields=['teacher'])
+        session.access_type = resolve_session_access_type(
+            classroom=classroom,
+            teacher=staff_member,
+            event_time=event_time,
+            session_type=session.session_type,
+        )
+        session.save(update_fields=['teacher', 'access_type'])
 
     if student_rfids:
         students = list(Student.objects.filter(rfid_number__in=student_rfids))
@@ -506,16 +520,15 @@ def _create_session_from_teacher_access(classroom, response_payload, event_time)
     # Determine session type and access type based on reason
     if reason == 'authorized_admin_override':
         session_type = 'inspection'
-        access_type = 'none'
-    elif reason == 'authorized_immediate_override':
-        session_type = 'class'
-        access_type = 'out_of_schedule'
-    elif reason == 'authorized_in_time_window':
-        session_type = 'class'
-        access_type = 'timetable'
     else:
         session_type = 'class'
-        access_type = 'none'
+
+    access_type = resolve_session_access_type(
+        classroom=classroom,
+        teacher=teacher,
+        event_time=event_time,
+        session_type=session_type,
+    )
     
     # Close any existing open sessions to start fresh
     _close_open_sessions_for_classroom(classroom, event_time)

@@ -25,15 +25,6 @@
                   {% endfor %}
                 </select>
               </div>
-              <div class="col-md-3">
-                <label for="privilege" class="form-label">Privilege</label>
-                <select id="privilege" name="privilege" class="form-select">
-                  <option value="">All privileges</option>
-                  <option value="door" {% if filters.privilege == 'door' %}selected{% endif %}>Can Open Door</option>
-                  <option value="classrooms" {% if filters.privilege == 'classrooms' %}selected{% endif %}>Can Manage Classrooms</option>
-                  <option value="staff" {% if filters.privilege == 'staff' %}selected{% endif %}>Can Manage Staff</option>
-                </select>
-              </div>
               <div class="col-md-2 page-actions">
                 <div class="filter-actions">
                   <button type="submit" class="btn btn-primary">Apply</button>
@@ -112,9 +103,7 @@
                     <td data-label="RFID Card Serial">{{ member.rfid_number }}</td>
                     <td data-label="Privileges">
                       {% if member.can_open_door %}<span class="badge bg-label-success me-1 mb-1">Door</span>{% endif %}
-                      {% if member.can_manage_classrooms %}<span class=\"badge bg-label-primary me-1 mb-1\">Classrooms</span>{% endif %}
-                      {% if member.can_manage_staff %}<span class=\"badge bg-label-dark me-1 mb-1\">Staff</span>{% endif %}
-                      {% if not member.can_open_door and not member.can_manage_classrooms and not member.can_manage_staff %}
+                      {% if not member.can_open_door %}
                         <span class="badge bg-label-secondary">No special privileges</span>
                       {% endif %}
                     </td>

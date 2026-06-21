@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="layout-page">
+  <div class="content-wrapper">
+    <div class="container-xxl flex-grow-1 container-p-y">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0">Specializations</h4>
+        <div class="d-flex gap-2">
+          <a href="{% url 'students' %}" class="btn btn-outline-secondary btn-sm"><i class="bx bx-left-arrow-alt"></i> Back</a>
+          <a href="{% url 'add_specialization' %}" class="btn btn-primary btn-sm"><i class="bx bx-plus"></i> Add Specialization</a>
+        </div>
+      </div>
+
+      {% if messages %}
+      <div class="mb-3">
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %} mb-2" role="alert">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="card">
+        <div class="table-responsive text-nowrap">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Students</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for specialization in specializations %}
+              <tr>
+                <td>{{ specialization.code }}</td>
+                <td>{{ specialization.name }}</td>
+                <td>
+                  {% if specialization.is_active %}
+                    <span class="badge bg-label-success">Active</span>
+                  {% else %}
+                    <span class="badge bg-label-secondary">Inactive</span>
+                  {% endif %}
+                </td>
+                <td>{{ specialization.student_count }}</td>
+                <td>
+                  <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <a href="{% url 'edit_specialization' specialization.id %}" class="btn btn-sm btn-outline-warning">
+                      <i class="bx bx-edit me-1"></i>Edit
+                    </a>
+                    <form method="post" action="{% url 'delete_specialization' specialization.id %}" class="d-flex gap-2 align-items-center">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this specialization?');">
+                        <i class="bx bx-trash me-1"></i>Delete
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center">No specializations found.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

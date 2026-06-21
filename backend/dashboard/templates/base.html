@@ -120,13 +120,25 @@
               </a>
             </li>
 
-            <li class="menu-item {% if request.path == '/students/' or request.path == '/students' or request.path|slice:':10' == '/students/' %}active{% endif %}">
+            <li class="menu-item {% if request.path == '/students/' or request.path == '/students' or request.path|slice:':10' == '/students/' and request.path|slice:':25' != '/students/specializations' %}active{% endif %}">
               <a href="{% url 'students' %}" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-user"></i>
                 <div class="d-flex align-items-center justify-content-between w-100">
                   <span>Students</span>
                   {% if app_settings.show_kpi_badges %}
                   <span class="badge bg-label-info ms-2">{{ dashboard_counts.students|default:0 }}</span>
+                  {% endif %}
+                </div>
+              </a>
+            </li>
+
+            <li class="menu-item {% if request.path|slice:':25' == '/students/specializations' %}active{% endif %}">
+              <a href="{% url 'specializations' %}" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-category-alt"></i>
+                <div class="d-flex align-items-center justify-content-between w-100">
+                  <span>Specializations</span>
+                  {% if app_settings.show_kpi_badges %}
+                  <span class="badge bg-label-warning ms-2">{{ dashboard_counts.specializations|default:0 }}</span>
                   {% endif %}
                 </div>
               </a>
