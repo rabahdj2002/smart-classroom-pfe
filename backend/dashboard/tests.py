@@ -400,6 +400,39 @@ class TimetableAndAuthorizationTests(TestCase):
 		self.assertEqual(published_topic, f'smartclass/classrooms/{self.classroom.name}/door-delay/response')
 		self.assertEqual(published_payload, 10)
 
+	@patch('dashboard.mqtt_listener.publish_custom_topic')
+	def test_teacher_access_request_with_trailing_slash_publishes_response(self, publish_mock):
+		process_mqtt_payload(
+			f'smartclass/classrooms/{self.classroom.name}/access/request/',
+			json.dumps({'teacher_rfid': self.teacher.rfid_number}).encode(),
+		)
+
+		self.assertTrue(publish_mock.called)
+		published_topic, published_payload = publish_mock.call_args.args
+		self.assertEqual(published_topic, f'smartclass/classrooms/{self.classroom.name}/access/response')
+		self.assertIn('approved', published_payload)
+
+	@patch('dashboard.mqtt_listener.publish_custom_topic')
+	def test_teacher_access_request_uses_nested_response_topic(self, publish_mock):
+		override_topic = f'smartclass/classrooms/{self.classroom.name}/device/access/response'
+		process_mqtt_payload(
+			f'smartclass/classrooms/{self.classroom.name}/access/request',
+			json.dumps(
+				{
+					'event': 'access_request',
+					'classroom_name': self.classroom.name,
+					'data': {
+						'teacher_rfid': self.teacher.rfid_number,
+						'response_topic': override_topic,
+					},
+				}
+			).encode(),
+		)
+
+		self.assertTrue(publish_mock.called)
+		published_topic, _ = publish_mock.call_args.args
+		self.assertEqual(published_topic, override_topic)
+
 	def test_teacher_access_creates_timetable_session(self):
 		"""Teacher access approved within timetable window creates a session."""
 		today = timezone.now().date()

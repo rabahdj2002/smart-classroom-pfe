@@ -275,16 +275,18 @@ def _sync_session_from_rfids(classroom, data, event_time):
 
 
 def _is_teacher_access_request(topic, data):
-    if '/access/response' in topic:
+    normalized_topic = str(topic or '').strip().rstrip('/').lower()
+
+    if '/access/response' in normalized_topic:
         return False
 
-    command = str(data.get('command', '')).strip().lower()
-    event = str(data.get('event', '')).strip().lower()
-    request = str(data.get('request', '')).strip().lower()
-    message_type = str(data.get('type', '')).strip().lower()
+    command = str(_payload_get(data, 'command') or '').strip().lower()
+    event = str(_payload_get(data, 'event') or '').strip().lower()
+    request = str(_payload_get(data, 'request') or '').strip().lower()
+    message_type = str(_payload_get(data, 'type') or '').strip().lower()
 
     return (
-        topic.endswith('/access/request')
+        normalized_topic.endswith('/access/request')
         or event == 'access_request'
         or command in {'teacher_access_check', 'teacher_authorization_check'}
         or event in {'teacher_access_request', 'teacher_authorization_request'}
@@ -294,16 +296,18 @@ def _is_teacher_access_request(topic, data):
 
 
 def _is_student_door_delay_request(topic, data):
-    if '/door-delay/response' in topic:
+    normalized_topic = str(topic or '').strip().rstrip('/').lower()
+
+    if '/door-delay/response' in normalized_topic:
         return False
 
-    if topic.endswith('/door-delay/request'):
+    if normalized_topic.endswith('/door-delay/request'):
         return True
 
-    command = str(data.get('command', '')).strip().lower()
-    event = str(data.get('event', '')).strip().lower()
-    request = str(data.get('request', '')).strip().lower()
-    message_type = str(data.get('type', '')).strip().lower()
+    command = str(_payload_get(data, 'command') or '').strip().lower()
+    event = str(_payload_get(data, 'event') or '').strip().lower()
+    request = str(_payload_get(data, 'request') or '').strip().lower()
+    message_type = str(_payload_get(data, 'type') or '').strip().lower()
 
     return (
         command in {'door_delay_request', 'student_delay_request'}
@@ -314,16 +318,18 @@ def _is_student_door_delay_request(topic, data):
 
 
 def _is_attendance_request(topic, data):
-    if '/attendance/response' in topic:
+    normalized_topic = str(topic or '').strip().rstrip('/').lower()
+
+    if '/attendance/response' in normalized_topic:
         return False
 
-    if topic.endswith('/attendance/request'):
+    if normalized_topic.endswith('/attendance/request'):
         return True
 
-    command = str(data.get('command', '')).strip().lower()
-    event = str(data.get('event', '')).strip().lower()
-    request = str(data.get('request', '')).strip().lower()
-    message_type = str(data.get('type', '')).strip().lower()
+    command = str(_payload_get(data, 'command') or '').strip().lower()
+    event = str(_payload_get(data, 'event') or '').strip().lower()
+    request = str(_payload_get(data, 'request') or '').strip().lower()
+    message_type = str(_payload_get(data, 'type') or '').strip().lower()
 
     return (
         command in {'attendance_request', 'student_attendance'}
@@ -335,15 +341,17 @@ def _is_attendance_request(topic, data):
 
 
 def _resolve_response_topic(topic, payload_data, classroom):
-    explicit_topic = str(payload_data.get('response_topic', '')).strip()
+    explicit_topic = str(_payload_get(payload_data, 'response_topic') or '').strip()
     if explicit_topic:
         return explicit_topic
 
-    if topic.endswith('/door-delay/request'):
-        return f"{topic[:-len('request')]}response"
+    normalized_topic = str(topic or '').strip().rstrip('/')
 
-    if topic.endswith('/access/request'):
-        return f"{topic[:-len('request')]}response"
+    if normalized_topic.endswith('/door-delay/request'):
+        return f"{normalized_topic[:-len('request')]}response"
+
+    if normalized_topic.endswith('/access/request'):
+        return f"{normalized_topic[:-len('request')]}response"
 
     if classroom:
         return f'smartclass/classrooms/{classroom.name}/access/response'
