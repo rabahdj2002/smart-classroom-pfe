@@ -72,7 +72,7 @@ fi
 log "2/8 Installing OS dependencies (APT if available)"
 if command -v apt-get >/dev/null 2>&1; then
   run_sudo apt-get update
-  run_sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  run_sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 \
     python3-venv \
     python3-pip \

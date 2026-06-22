@@ -194,7 +194,7 @@ class TimetableAndAuthorizationTests(TestCase):
 			teacher=self.teacher,
 			subject='Physics',
 		)
-		event_time = timezone.make_aware(datetime(2026, 4, 18, 8, 9, 0), timezone.get_current_timezone())
+		event_time = timezone.make_aware(datetime(2026, 4, 18, 9, 40, 0), timezone.get_current_timezone())
 		payload = _evaluate_teacher_access(
 			classroom=self.classroom,
 			teacher_rfid=self.teacher.rfid_number,
@@ -204,6 +204,29 @@ class TimetableAndAuthorizationTests(TestCase):
 
 		self.assertFalse(payload['approved'])
 		self.assertEqual(payload['reason'], 'outside_allowed_time_window')
+
+	def test_teacher_access_is_approved_within_slot_even_after_start_window(self):
+		settings_obj = SystemSettings.objects.get(pk=1)
+		settings_obj.teacher_access_window_minutes = 5
+		settings_obj.save(update_fields=['teacher_access_window_minutes'])
+
+		ClassTimetableSlot.objects.create(
+			classroom=self.classroom,
+			weekday=5,
+			slot_index=0,
+			teacher=self.teacher,
+			subject='Math',
+		)
+		event_time = timezone.make_aware(datetime(2026, 4, 18, 8, 40, 0), timezone.get_current_timezone())
+		payload = _evaluate_teacher_access(
+			classroom=self.classroom,
+			teacher_rfid=self.teacher.rfid_number,
+			event_time=event_time,
+			request_id='req-3',
+		)
+
+		self.assertTrue(payload['approved'])
+		self.assertEqual(payload['reason'], 'authorized_in_time_window')
 
 	def test_teacher_access_is_approved_for_admin_without_timetable(self):
 		admin = Staff.objects.create(

@@ -467,7 +467,10 @@ def _evaluate_teacher_access(classroom, teacher_rfid, event_time, request_id=Non
             closest_delta_minutes = delta_minutes
             closest_slot = (slot, slot_start, slot_end)
 
-        if delta_minutes <= window_minutes:
+        lower_bound = slot_start - timedelta(minutes=window_minutes)
+        upper_bound = slot_end + timedelta(minutes=window_minutes)
+
+        if lower_bound <= event_time <= upper_bound:
             payload.update(
                 {
                     'approved': True,
