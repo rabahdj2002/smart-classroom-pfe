@@ -1,18 +1,36 @@
 # Smart Classroom Platform
 
-Smart Classroom Platform is a Django-based control center for classroom operations.
-It combines live MQTT events from classroom devices with a web dashboard used by staff
-to monitor rooms, manage sessions, and generate attendance reports.
+![Smart Classroom Platform](docs/thumbnail.png)
+
+**An IoT platform that digitalises campus classrooms.**
+Classroom devices report occupancy, door status and RFID badge scans over MQTT. A Django control centre turns those events into live room status, teaching sessions, attendance records and PDF reports, so staff no longer track rooms and attendance by hand.
+
+> Master's thesis – Automatic Control and Industrial Computing, University of Constantine 1 (2026).
+
+---
 
 ## Core Features
 
-- Real-time classroom status via MQTT (occupancy, door)
-- Session lifecycle management (start, split, close, auto-finish)
-- Attendance capture from RFID payloads (teacher + students)
-- PDF attendance reports with session summary and student roster
-- Optional report email delivery through SMTP
-- Admin controls for pagination, UI density, KPI badges, and bulk actions
-- MQTT integration guide in-app for device developers
+- **Live classroom status** via MQTT (occupancy and door sensors), pushed to the browser over WebSockets (Django Channels)
+- **RFID access and attendance**: teacher access requests are approved or denied by timetable window; teacher and student badges are recorded automatically
+- **Session lifecycle**: start, split, close and auto-finish sessions on schedule
+- **PDF attendance reports** with session summary and student roster, with optional SMTP email delivery
+- **Academic records**: classrooms, timetables, students, specializations and staff
+- **Export / restore** of classes, sessions and students for backup
+- **Admin controls**: pagination, UI density, KPI badges and bulk actions
+- **In-app MQTT integration guide** for device developers
+
+## Architecture
+
+```mermaid
+flowchart LR
+    C["Classroom device<br/>RFID reader + occupancy + door sensors"] -- "smartclass/classrooms/&lt;room&gt;/events" --> B[(MQTT broker)]
+    B -- "access/response, door-delay/response" --> C
+    B <--> D["Django backend<br/>MQTT listener, sessions, reporting"]
+    D --> DB[(Database)]
+    D -- "WebSockets (Channels)" --> UI["Staff dashboard"]
+    D --> R["PDF reports / email"]
+```
 
 ## Tech Stack
 
@@ -21,6 +39,8 @@ to monitor rooms, manage sessions, and generate attendance reports.
 - SQLite (default)
 - MQTT (paho-mqtt)
 - ReportLab (PDF generation)
+- Django Channels + Daphne (WebSockets)
+- Docker, Gunicorn
 
 ## Repository Layout
 
@@ -161,6 +181,11 @@ python backend/testmqtt.py --host <broker_host> --port <broker_port> --classroom
 - Unknown RFID warnings: ensure RFID values exist in Staff/Student records
 - Commands not received: verify device is subscribed to the room command topic
 - Report emails failing: verify SMTP host, port, credentials, and from email
+
+## Author
+
+**Rabah Djebbes** – Automation & Control Engineer
+[LinkedIn](https://www.linkedin.com/in/rabahdjebbes) · [GitHub](https://github.com/rabahdj2002) · Rabahwork@gmail.com
 
 ## License
 
