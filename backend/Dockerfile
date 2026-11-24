@@ -12,4 +12,4 @@ RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
 # Daphne serves both HTTP and the /mqtt/ WebSocket bridge (ASGI).
-CMD ["sh", "-c", "python manage.py migrate --noinput && daphne -b 0.0.0.0 -p 8000 smartclass.asgi:application"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && exec daphne -b 0.0.0.0 -p 8000 smartclass.asgi:application"]
