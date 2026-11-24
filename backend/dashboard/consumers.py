@@ -5,8 +5,19 @@ from channels.generic.websocket import WebsocketConsumer
 
 from .mqtt_runtime import configure_mqtt_client, get_mqtt_runtime_config
 
+ALLOWED_TOPIC_PREFIX = "smartclass/"
+
+
+def _is_portal_admin(user):
+    return bool(user and user.is_authenticated and user.is_active and (user.is_staff or user.is_superuser))
+
+
 class MQTTProxyConsumer(WebsocketConsumer):
     def connect(self):
+        if not _is_portal_admin(self.scope.get("user")):
+            self.close(code=4403)
+            return
+
         self.accept()
 
         runtime_config = get_mqtt_runtime_config()
@@ -46,7 +57,11 @@ class MQTTProxyConsumer(WebsocketConsumer):
             topic = data.get('topic')
             payload = data.get('payload')
             
-            if topic and payload is not None:
+            if not isinstance(topic, str) or not topic.startswith(ALLOWED_TOPIC_PREFIX) or '#' in topic or '+' in topic:
+                self.send(text_data=json.dumps({'error': f'Topic must start with {ALLOWED_TOPIC_PREFIX}'}))
+                return
+
+            if payload is not None:
                 # Ensure payload is a string or bytes for paho-mqtt
                 if not isinstance(payload, (str, bytes)):
                     payload = json.dumps(payload)

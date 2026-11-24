@@ -1,11 +1,25 @@
 # Smart Classroom Platform
 
+[![CI](https://github.com/rabahdj2002/smart-classroom-pfe/actions/workflows/ci.yml/badge.svg)](https://github.com/rabahdj2002/smart-classroom-pfe/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+![Django](https://img.shields.io/badge/django-5.1-green)
+
 ![Smart Classroom Platform](docs/thumbnail.png)
 
 **An IoT platform that digitalises campus classrooms.**
 Classroom devices report occupancy, door status and RFID badge scans over MQTT. A Django control centre turns those events into live room status, teaching sessions, attendance records and PDF reports, so staff no longer track rooms and attendance by hand.
 
 > Master's thesis – Automatic Control and Industrial Computing, University of Constantine 1 (2026).
+
+---
+
+## Try it in one command
+
+```bash
+docker compose up --build
+```
+
+This starts the dashboard and a Mosquitto MQTT broker, applies migrations and loads demo data (4 classrooms, staff, students, a timetable, past sessions with reports and one live session). Open http://localhost:8000 and log in with `demo` / `demo12345`.
 
 ---
 
@@ -40,7 +54,8 @@ flowchart LR
 - MQTT (paho-mqtt)
 - ReportLab (PDF generation)
 - Django Channels + Daphne (WebSockets)
-- Docker, Gunicorn
+- Docker Compose + Eclipse Mosquitto
+- GitHub Actions CI, Ruff, coverage
 
 ## Repository Layout
 
@@ -157,6 +172,18 @@ Current command topic behavior:
 python backend/manage.py check
 python backend/manage.py makemigrations
 python backend/manage.py migrate
+python backend/manage.py seed_demo   # idempotent demo data + demo/demo12345 admin
+```
+
+## Testing
+
+The test suite covers every page and export, authentication and authorization, CRUD flows, MQTT access control and attendance, malformed MQTT payloads, the WebSocket bridge and the demo seeder. CI runs lint, Django checks, a migrations check, the tests with coverage and a Docker build on every push.
+
+```bash
+cd backend
+pip install -r requirements.txt ruff coverage
+ruff check .
+DASHBOARD_MQTT_ENABLED=False coverage run manage.py test dashboard && coverage report
 ```
 
 ## Test Publisher
@@ -169,9 +196,21 @@ python backend/testmqtt.py --host <broker_host> --port <broker_port> --classroom
 
 ## Production Notes
 
-- Set DEBUG=False before deployment
-- Restrict ALLOWED_HOSTS to known hostnames/IPs
-- Use a secure secret key from environment
+Configuration is read from environment variables:
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `DJANGO_SECRET_KEY` | Secret key (required in production) | dev-only value |
+| `DJANGO_DEBUG` | Debug mode | `True` |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated host list | `*` |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | Comma-separated origins | empty |
+| `DJANGO_SQLITE_PATH` | SQLite database file | `backend/db.sqlite3` |
+| `DASHBOARD_MQTT_BROKER_HOST` / `_PORT` | Broker used when none is set in Settings | `127.0.0.1` / `1883` |
+| `DASHBOARD_MQTT_ENABLED` | Start the MQTT listener | `True` |
+| `DASHBOARD_INTERNAL_SCHEDULER_ENABLED` | Start the auto-finish scheduler | `True` |
+
+- Set `DJANGO_DEBUG=False`, a strong `DJANGO_SECRET_KEY` and explicit `DJANGO_ALLOWED_HOSTS` before deployment
+- The Docker image runs Daphne (ASGI), so HTTP and the `/mqtt/` WebSocket bridge share port 8000; static files are served by WhiteNoise
 - Configure SMTP only if report email is enabled
 - Keep MQTT broker credentials private
 

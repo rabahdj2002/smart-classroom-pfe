@@ -16,7 +16,6 @@ django.setup()
 from django.test import Client
 from django.urls import reverse
 from dashboard.models import Classroom, Student, Staff, Attendance
-from django.utils import timezone
 
 def check_dashboard():
     """Test dashboard endpoint and verify context variables"""

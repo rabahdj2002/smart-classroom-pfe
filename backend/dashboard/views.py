@@ -7,10 +7,10 @@ from django.core.paginator import Paginator
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from .models import AttendanceReport, ClassTimetableSlot, Classroom, ImmediateTeacherAccessGrant, Session, Specialization, Staff, Student, SystemSettings
+from .models import AttendanceReport, ClassTimetableSlot, Classroom, ImmediateTeacherAccessGrant, Session, Specialization, Staff, Student
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime
 from django.utils.text import slugify
 from datetime import datetime, time, timedelta
 from functools import wraps
@@ -26,6 +26,22 @@ from .reporting import (
     maybe_email_report,
 )
 from .session_access import resolve_session_access_type
+
+
+SECTION_EXPORT_FORMATS = {'csv', 'xlsx', 'pdf'}
+
+
+def _safe_parse_date(value):
+    try:
+        return parse_date(value) if value else None
+    except ValueError:
+        return None
+
+
+def _section_export_response(section, export_format, queryset):
+    if export_format not in SECTION_EXPORT_FORMATS:
+        return HttpResponse(f'Unsupported export format: {export_format}', status=400, content_type='text/plain')
+    return build_section_export(section, export_format, queryset)
 
 
 def _is_portal_admin(user):
@@ -269,7 +285,6 @@ def dash(request):
     peak_hour_sessions = hourly_attendance[peak_hour]
     
     # Off-peak hours analysis
-    min_hour = hourly_attendance.index(min(hourly_attendance)) if hourly_attendance else 0
     
     # Overall statistics
     used_classrooms = sum(1 for c in classroom_status if c['used_today'])
@@ -426,7 +441,6 @@ def classroom_detail(request, id):
     classroom = Classroom.objects.filter(id=id).first()
     if not classroom:
         return render(request, '404.html', status=404)
-    system_settings = get_system_settings()
 
     today = timezone.now().date()
     today_sessions = Session.objects.filter(classroom=classroom, start_time__date=today).count()
@@ -679,7 +693,6 @@ def temperature_settings(request):
         ui_compact_mode = _parse_bool(request.POST, 'ui_compact_mode')
         email_reports_enabled = _parse_bool(request.POST, 'email_reports_enabled')
         smtp_use_tls = _parse_bool(request.POST, 'smtp_use_tls')
-        mqtt_production_mode = _parse_bool(request.POST, 'mqtt_production_mode')
         ramadan_mode = _parse_bool(request.POST, 'ramadan_mode')
 
         cron_interval_minutes_raw = request.POST.get('cron_interval_minutes', '').strip()
@@ -991,6 +1004,13 @@ def add_student(request):
             errors.append('Student card ID is required.')
         if not rfid_number:
             errors.append('RFID number is required.')
+
+        if email and Student.objects.filter(email=email).exists():
+            errors.append('A student with this email already exists.')
+        if student_card_id and Student.objects.filter(student_card_id=student_card_id).exists():
+            errors.append('A student with this card ID already exists.')
+        if rfid_number and Student.objects.filter(rfid_number=rfid_number).exists():
+            errors.append('A student with this RFID number already exists.')
 
         if not errors:
             Student.objects.create(
@@ -1322,7 +1342,6 @@ def delete_specialization(request, id):
 
 @portal_admin_required
 def export_students(request, export_format):
-    settings_obj = get_system_settings()
     query = request.GET.get('q', '').strip()
     specialization = request.GET.get('specialization', '').strip()
     year = request.GET.get('year', '').strip()
@@ -1352,7 +1371,7 @@ def export_students(request, export_format):
     if export_format == 'json':
         return build_backup_response()
 
-    return build_section_export('students', export_format, student_list)
+    return _section_export_response('students', export_format, student_list)
 
 
 @portal_admin_required
@@ -1381,7 +1400,6 @@ def restore_students(request):
 
 @portal_admin_required
 def export_classes(request, export_format):
-    settings_obj = get_system_settings()
     query = request.GET.get('q', '').strip()
     building = request.GET.get('building', '').strip()
     floor = request.GET.get('floor', '').strip()
@@ -1427,7 +1445,7 @@ def export_classes(request, export_format):
     if export_format == 'json':
         return build_backup_response()
 
-    return build_section_export('classrooms', export_format, classroom_list)
+    return _section_export_response('classrooms', export_format, classroom_list)
 
 
 @portal_admin_required
@@ -1469,8 +1487,8 @@ def export_sessions(request, export_format):
 
     session_list = Session.objects.select_related('classroom', 'teacher').prefetch_related('students').all()
 
-    if classroom_id:
-        session_list = session_list.filter(classroom_id=classroom_id)
+    if classroom_id.isdigit():
+        session_list = session_list.filter(classroom_id=int(classroom_id))
     if teacher_query:
         session_list = session_list.filter(
             Q(teacher__name__icontains=teacher_query)
@@ -1478,23 +1496,23 @@ def export_sessions(request, export_format):
         )
     if access_type in {'scheduled', 'out_of_schedule'}:
         session_list = session_list.filter(access_type=access_type)
-    if start_date:
-        session_list = session_list.filter(start_time__date__gte=start_date)
-    if end_date:
-        session_list = session_list.filter(start_time__date__lte=end_date)
+    parsed_start_date = _safe_parse_date(start_date)
+    parsed_end_date = _safe_parse_date(end_date)
+    if parsed_start_date:
+        session_list = session_list.filter(start_time__date__gte=parsed_start_date)
+    if parsed_end_date:
+        session_list = session_list.filter(start_time__date__lte=parsed_end_date)
 
     if order == 'id_desc':
         session_list = session_list.order_by('-id')
     else:
         session_list = session_list.order_by('id')
 
-    scheduled_count = session_list.filter(access_type='scheduled').count()
-    out_of_schedule_count = session_list.filter(access_type='out_of_schedule').count()
 
     if export_format == 'json':
         return build_backup_response()
 
-    return build_section_export('sessions', export_format, session_list)
+    return _section_export_response('sessions', export_format, session_list)
 
 
 @portal_admin_required
@@ -1665,7 +1683,7 @@ def sessions(request):
 
     session_list = Session.objects.select_related('classroom', 'teacher').prefetch_related('report', 'students').all()
 
-    if classroom_id:
+    if classroom_id.isdigit():
         session_list = session_list.filter(classroom_id=classroom_id)
     if teacher_query:
         session_list = session_list.filter(
@@ -1674,10 +1692,12 @@ def sessions(request):
         )
     if access_type in {'scheduled', 'out_of_schedule'}:
         session_list = session_list.filter(access_type=access_type)
-    if start_date:
-        session_list = session_list.filter(start_time__date__gte=start_date)
-    if end_date:
-        session_list = session_list.filter(start_time__date__lte=end_date)
+    parsed_start_date = _safe_parse_date(start_date)
+    parsed_end_date = _safe_parse_date(end_date)
+    if parsed_start_date:
+        session_list = session_list.filter(start_time__date__gte=parsed_start_date)
+    if parsed_end_date:
+        session_list = session_list.filter(start_time__date__lte=parsed_end_date)
 
     if order == 'id_desc':
         session_list = session_list.order_by('-id')
@@ -2161,7 +2181,7 @@ def export_staff(request, export_format):
     if export_format == 'json':
         return build_backup_response()
 
-    return build_section_export('staff', export_format, staff_members)
+    return _section_export_response('staff', export_format, staff_members)
 
 
 @portal_admin_required
