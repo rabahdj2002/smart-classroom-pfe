@@ -458,7 +458,7 @@ class TimetableAndAuthorizationTests(TestCase):
 			)
 			self.assertTrue(payload['approved'], f"Teacher access not approved: {payload}")
 
-			with patch('dashboard.mqtt_listener.publish_custom_topic') as mock_publish:
+			with patch('dashboard.mqtt_listener.publish_custom_topic'):
 				process_mqtt_payload(
 					f'smartclass/classrooms/{self.classroom.name}/access/request',
 					json.dumps({'teacher_rfid': self.teacher.rfid_number}).encode(),

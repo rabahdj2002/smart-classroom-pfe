@@ -11,7 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.units import inch
 
-from .models import AttendanceReport, Classroom, Session, SystemSettings
+from .models import AttendanceReport, Session, SystemSettings
 
 
 def get_system_settings():

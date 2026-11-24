@@ -16,7 +16,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'smartclass.settings')
 django.setup()
 
 from django.utils import timezone
-from dashboard.models import Staff, Student, Classroom, Session, ClassTimetableSlot, SystemSettings, StudentSessionAttendance
+from dashboard.models import Staff, Student, Classroom, Session, ClassTimetableSlot, StudentSessionAttendance
 from dashboard.mqtt_listener import process_mqtt_payload
 
 
@@ -120,7 +120,7 @@ with patch('dashboard.mqtt_listener.timezone.now', return_value=mock_time):
         if mock_publish.called:
             response = mock_publish.call_args[0][1]
             print(f"   ✓ Response: {response.get('reason')}")
-            print(f"   ✓ Session Type: Inspection")
+            print("   ✓ Session Type: Inspection")
         
         # Verify session was created
         inspection_session = Session.objects.filter(
@@ -144,7 +144,7 @@ if inspection_session:
     inspection_session.is_closed = True
     inspection_session.ended_at = mock_time
     inspection_session.save()
-    print(f"   ✓ Inspection session closed")
+    print("   ✓ Inspection session closed")
 
 # Teacher starts session
 with patch('dashboard.mqtt_listener.timezone.now', return_value=mock_time):
@@ -245,7 +245,7 @@ if teacher_session:
     print(f"  Students Registered: {teacher_session.students.count()}/5")
     
     # Display attendance with arrival times
-    print(f"\n  Attendance Records with Arrival Times:")
+    print("\n  Attendance Records with Arrival Times:")
     attendance_records = StudentSessionAttendance.objects.filter(session=teacher_session).order_by('arrival_time')
     for i, attendance in enumerate(attendance_records, 1):
         arrival_delta = (attendance.arrival_time - teacher_session.start_time).total_seconds() / 60
