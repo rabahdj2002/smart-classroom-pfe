@@ -89,3 +89,10 @@ class SeedDemoCommandTests(TestCase):
         for url in ['/', '/classes/', '/sessions/', '/students/', '/staff/']:
             with self.subTest(url=url):
                 self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_seed_demo_skips_when_real_data_exists_and_keeps_custom_broker(self):
+        Staff.objects.create(name='Existing', email='staff0@demo.campus', role='PROF', id_number='T-100', rfid_number='RFID-T-100')
+        SystemSettings.objects.update_or_create(pk=1, defaults={'mqtt_broker_host': 'broker.example.com', 'mqtt_broker_port': 8883})
+        call_command('seed_demo', stdout=MagicMock())
+        self.assertFalse(Classroom.objects.exists())
+        self.assertEqual(SystemSettings.objects.get(pk=1).mqtt_broker_host, 'broker.example.com')

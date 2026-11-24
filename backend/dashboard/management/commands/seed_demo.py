@@ -49,9 +49,18 @@ class Command(BaseCommand):
             system_settings.mqtt_broker_port = settings.DASHBOARD_MQTT_BROKER_PORT
             system_settings.save(update_fields=['mqtt_broker_host', 'mqtt_broker_port'])
 
-        if Classroom.objects.exists():
-            self.stdout.write('Demo data already present, skipping.')
+        if Classroom.objects.exists() or Staff.objects.exists() or Student.objects.exists():
+            self.stdout.write('Existing data found, skipping demo data.')
             return
+
+        with transaction.atomic():
+            self._load_demo_data()
+
+        self.stdout.write(self.style.SUCCESS(
+            f'Demo data loaded. Log in as {options["username"]} / {options["password"]}.'
+        ))
+
+    def _load_demo_data(self):
 
         spec_codes = list(Specialization.objects.filter(is_active=True).values_list('code', flat=True)) or ['AUTO']
         if not Specialization.objects.exists():
@@ -97,8 +106,3 @@ class Command(BaseCommand):
         live = Session.objects.create(classroom=rooms[0], teacher=teachers[0], start_time=now - timedelta(minutes=25))
         live.students.set(students[:8])
         Classroom.objects.filter(pk=rooms[0].pk).update(occupied=True, lights_on=True, projector_on=True, session_started_at=live.start_time, last_activity_at=now)
-
-        self.stdout.write(self.style.SUCCESS(
-            f'Demo data loaded: {len(rooms)} classrooms, {len(staff)} staff, {len(students)} students. '
-            f'Log in as {options["username"]} / {options["password"]}.'
-        ))
