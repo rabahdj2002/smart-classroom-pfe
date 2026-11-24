@@ -3,9 +3,11 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
+from django.db import transaction
 from django.utils import timezone
 
 from dashboard.models import ClassTimetableSlot, Classroom, Session, Specialization, Staff, Student, SystemSettings
+from dashboard.mqtt_runtime import _is_configured_host
 from dashboard.reporting import generate_attendance_report_for_session
 
 CLASSROOMS = [
@@ -42,9 +44,10 @@ class Command(BaseCommand):
             user.save()
 
         system_settings, _ = SystemSettings.objects.get_or_create(pk=1)
-        system_settings.mqtt_broker_host = settings.DASHBOARD_MQTT_BROKER_HOST
-        system_settings.mqtt_broker_port = settings.DASHBOARD_MQTT_BROKER_PORT
-        system_settings.save(update_fields=['mqtt_broker_host', 'mqtt_broker_port'])
+        if not _is_configured_host(system_settings.mqtt_broker_host):
+            system_settings.mqtt_broker_host = settings.DASHBOARD_MQTT_BROKER_HOST
+            system_settings.mqtt_broker_port = settings.DASHBOARD_MQTT_BROKER_PORT
+            system_settings.save(update_fields=['mqtt_broker_host', 'mqtt_broker_port'])
 
         if Classroom.objects.exists():
             self.stdout.write('Demo data already present, skipping.')
